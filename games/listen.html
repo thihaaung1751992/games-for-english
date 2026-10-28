@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listen and Pick</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script>
+// Hear the word, pick its meaning. Needs sound on (and a device voice).
+runChoice({
+  gameId: "listen", title: "Listen & Pick",
+  build: topic => shuffle(topic.words).map(w => ({
+    label: "ကြားပြီး အဓိပ္ပါယ်ရွေးပါ", text: "🎧", speak: w.en, auto: true,
+    options: shuffle([w, ...others(topic, w, 3)]).map(x => x.my), answer: w.my,
+    explain: w.en + " = " + w.my
+  }))
+});
+</script>
+</body>
+</html>

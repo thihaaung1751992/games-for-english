@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>English Game Hub</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#2f5bea">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main class="wrap">
+  <div class="hero">
+    <h2>English Game Hub</h2>
+    <p>အကြောင်းအရာရွေးပြီး game ကစားပါ</p>
+    <span class="pts" id="pts">⭐ 0 points</span>
+  </div>
+
+  <h3 class="sec">၁။ Topic ရွေးပါ</h3>
+  <div class="topics" id="topics"></div>
+
+  <h3 class="sec">၂။ Game ရွေးပါ</h3>
+  <div class="games" id="games"></div>
+  <p class="muted" style="text-align:center;margin-top:24px;font-size:.9rem">Internet မရှိလည်း ကစားလို့ရပါတယ် (တစ်ကြိမ်ဖွင့်ပြီးရင်)။</p>
+</main>
+
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const GAMES = [
+  { id: "memory",   file: "memory.html",   ic: "🃏", nm: "Memory Match", ds: "စာလုံးနဲ့ အဓိပ္ပါယ် တွဲရှာပါ" },
+  { id: "quiz",     file: "quiz.html",     ic: "⚡", nm: "Quick Quiz",   ds: "မှန်တာကို အမြန်ရွေးပါ" },
+  { id: "scramble", file: "scramble.html", ic: "🔤", nm: "Word Scramble", ds: "အက္ခရာတွေကို စီပြီး စာလုံးဖွဲ့ပါ" },
+  { id: "hangman",  file: "hangman.html",  ic: "🎯", nm: "Hangman",       ds: "အက္ခရာတွေ ခန့်မှန်းပြီး စာလုံးရှာပါ" },
+  { id: "falling",  file: "falling.html",  ic: "☄️", nm: "Falling Words", ds: "မကျခင် မှန်တဲ့စာလုံးကို နှိပ်ပါ" },
+  { id: "fillblank", file: "fillblank.html", ic: "✏️", nm: "Fill the Blank", ds: "ဝါကျထဲက ကွက်လပ်ကို ဖြည့်ပါ" },
+  { id: "listen",   file: "listen.html",   ic: "🎧", nm: "Listen & Pick", ds: "ကြားပြီး အဓိပ္ပါယ်ရွေးပါ" },
+  { id: "truefalse", file: "truefalse.html", ic: "✅", nm: "True or False", ds: "ကိုက်လား မကိုက်ဘူးလား ဆုံးဖြတ်ပါ" },
+  { id: "typing",   file: "typing.html",   ic: "⌨️", nm: "Spell It",      ds: "အဓိပ္ပါယ်ကြည့်ပြီး စာလုံးပေါင်း ရိုက်ပါ" },
+  { id: "sentence", file: "sentence.html", ic: "🧩", nm: "Sentence Builder", ds: "စကားလုံးတွေ စီပြီး ဝါကျဖွဲ့ပါ" }
+];
+let current = Store.get("topic", TOPICS[0].id);
+if (!TOPICS.some(t => t.id === current)) current = TOPICS[0].id;
+
+function renderTopics() {
+  const box = $("#topics");
+  box.innerHTML = "";
+  TOPICS.forEach(t => {
+    const b = document.createElement("button");
+    b.className = "topic";
+    b.setAttribute("aria-pressed", t.id === current);
+    b.innerHTML = '<div class="tr"></div><div class="nm"></div><div class="mm"></div>';
+    $(".tr", b).textContent = t.track;
+    $(".nm", b).textContent = t.icon + " " + t.name;
+    $(".mm", b).textContent = t.mm;
+    b.onclick = () => { current = t.id; Store.set("topic", current); renderTopics(); renderGames(); };
+    box.appendChild(b);
+  });
+}
+function renderGames() {
+  const box = $("#games");
+  box.innerHTML = "";
+  GAMES.forEach(g => {
+    const a = document.createElement("a");
+    a.className = "game";
+    a.href = g.file + "?topic=" + encodeURIComponent(current);
+    a.innerHTML = '<div class="ic"></div><div class="nm"></div><div class="ds"></div><div class="stars"></div>';
+    $(".ic", a).textContent = g.ic;
+    $(".nm", a).textContent = g.nm;
+    $(".ds", a).textContent = g.ds;
+    $(".stars", a).innerHTML = starsHtml(Store.get("stars_" + g.id + "_" + current, 0));
+    box.appendChild(a);
+  });
+  $("#pts").textContent = "⭐ " + Store.get("points", 0) + " points";
+}
+renderTopics(); renderGames();
+</script>
+</body>
+</html>

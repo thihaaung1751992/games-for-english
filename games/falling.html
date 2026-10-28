@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Falling Words</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Round: <b id="rn">1</b>/10</span><span class="hearts" id="lives"></span><span>Score: <b id="score">0</b></span></div>
+  <div class="panel" style="padding:12px">
+    <div class="q-label">ဒီအဓိပ္ပါယ်ရှိတဲ့ စာလုံးကို မကျခင် နှိပ်ပါ</div>
+    <div class="q-text my" id="meaning" style="margin:0"></div>
+  </div>
+  <div class="area" id="area"></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Falling Words · " + topic.name);
+const ROUNDS = 10, H = 360, BTN = 48, OFFS = [0, -90, -45, -135];
+let round, lives, score, solved, target, els, t0, dur, raf, paused;
+
+function hearts() { $("#lives").textContent = "❤️".repeat(lives) + "🖤".repeat(3 - lives); }
+function play() { round = 0; lives = 3; score = 0; solved = 0; hearts(); nextRound(); }
+
+function nextRound() {
+  cancelAnimationFrame(raf);
+  $("#area").innerHTML = "";
+  if (round >= ROUNDS || lives <= 0) return end();
+  round++; paused = false;
+  $("#rn").textContent = round; $("#score").textContent = score;
+  target = topic.words[Math.floor(Math.random() * topic.words.length)];
+  $("#meaning").textContent = target.my;
+  const choices = shuffle([target, ...others(topic, target, 3)]);
+  els = choices.map((w, n) => {
+    const b = document.createElement("button");
+    b.className = "fw"; b.textContent = w.en;
+    b.style.left = n % 2 ? "51%" : "1%";
+    b._off = OFFS[n]; b._w = w;
+    b.style.top = b._off + "px";
+    b.onclick = () => tap(b);
+    $("#area").appendChild(b);
+    return b;
+  });
+  speak(target.en);
+  dur = Math.max(4500, 9500 - round * 450);
+  t0 = performance.now();
+  raf = requestAnimationFrame(loop);
+}
+function loop(now) {
+  if (paused) return;
+  const p = (now - t0) / dur;
+  els.forEach(b => { b.style.top = (b._off + (H - BTN - b._off) * Math.min(p, 1)) + "px"; });
+  if (p >= 1) return miss();
+  raf = requestAnimationFrame(loop);
+}
+function tap(b) {
+  if (paused) return;
+  if (b._w === target) {
+    paused = true; solved++; score += 10; addPoints(10); sfx.ok();
+    b.classList.add("right"); $("#score").textContent = score;
+    setTimeout(nextRound, 500);
+  } else {
+    lives--; sfx.bad(); b.disabled = true; hearts();
+    if (lives <= 0) { paused = true; setTimeout(end, 600); }
+  }
+}
+function miss() {
+  paused = true; lives--; sfx.bad(); hearts();
+  els.forEach(b => { if (b._w === target) b.classList.add("right"); });
+  setTimeout(nextRound, 900);
+}
+function end() {
+  cancelAnimationFrame(raf);
+  showResult({
+    title: solved >= 9 ? "အရမ်းမြန်တယ်! 🎉" : "ပြီးပါပြီ!",
+    stars: solved >= 9 ? 3 : solved >= 6 ? 2 : 1,
+    text: solved + " / " + ROUNDS + " ကြိမ် ဖမ်းမိတယ် · " + score + " points",
+    onAgain: play
+  });
+}
+play.gameId = "falling";
+play();
+</script>
+</body>
+</html>

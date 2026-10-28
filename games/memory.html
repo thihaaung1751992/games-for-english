@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memory Match</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <p class="muted" style="margin-top:0">English စာလုံးနဲ့ မြန်မာအဓိပ္ပါယ်ကို တွဲပါ။ (ကတ်နှစ်ကတ်ကို တစ်ကြိမ်စီ ဖွင့်ပါ)</p>
+  <div class="stats"><span>Moves: <b id="moves">0</b></span><span>Pairs: <b id="pairs">0</b>/6</span><span>Time: <b id="time">0</b>s</span></div>
+  <div class="grid" id="grid"></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Memory Match · " + topic.name);
+let cards, first, lock, moves, pairs, t0, timer;
+
+function play() {
+  const words = shuffle(topic.words).slice(0, 6);
+  cards = shuffle(words.flatMap((w, i) => [{ id: i, t: w.en, lang: "en" }, { id: i, t: w.my, lang: "my" }]));
+  first = null; lock = false; moves = 0; pairs = 0; t0 = Date.now();
+  clearInterval(timer);
+  timer = setInterval(() => { $("#time").textContent = Math.floor((Date.now() - t0) / 1000); }, 500);
+  const grid = $("#grid");
+  grid.innerHTML = "";
+  cards.forEach((c, i) => {
+    const b = document.createElement("button");
+    b.className = "mcard";
+    b.setAttribute("aria-label", "Card " + (i + 1));
+    b.innerHTML = '<span class="f">?</span><span class="b"></span>';
+    $(".b", b).textContent = c.t;
+    b.onclick = () => flip(b, c);
+    c.el = b;
+    grid.appendChild(b);
+  });
+  update();
+}
+function update() {
+  $("#moves").textContent = moves;
+  $("#pairs").textContent = pairs;
+  $("#time").textContent = Math.floor((Date.now() - t0) / 1000);
+}
+function flip(b, c) {
+  if (lock || b.classList.contains("open") || b.classList.contains("done")) return;
+  b.classList.add("open");
+  if (c.lang === "en") speak(c.t);
+  if (!first) { first = c; return; }
+  moves++;
+  const a = first; first = null;
+  if (a.id === c.id) {
+    a.el.classList.replace("open", "done"); b.classList.replace("open", "done");
+    pairs++; sfx.ok(); addPoints(10);
+    update();
+    if (pairs === 6) finish();
+  } else {
+    lock = true; sfx.bad();
+    setTimeout(() => { a.el.classList.remove("open"); b.classList.remove("open"); lock = false; }, 900);
+    update();
+  }
+}
+function finish() {
+  clearInterval(timer);
+  const secs = Math.floor((Date.now() - t0) / 1000);
+  const stars = moves <= 9 ? 3 : moves <= 13 ? 2 : 1;
+  setTimeout(() => showResult({
+    title: "ကောင်းပါတယ်! 🎉", stars,
+    text: moves + " moves · " + secs + " စက္ကန့်",
+    onAgain: play
+  }), 500);
+}
+play.gameId = "memory";
+play();
+</script>
+</body>
+</html>

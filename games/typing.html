@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spell It</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Word: <b id="wn">1</b>/<span id="wt">8</span></span><span>Score: <b id="score">0</b></span></div>
+  <div class="panel">
+    <div class="q-label">English စာလုံးကို ရိုက်ပါ</div>
+    <div class="q-text my" id="meaning"></div>
+    <button class="btn" id="say">🔊 Listen</button>
+    <div><input class="input" id="inp" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Type the English word"></div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <div class="row">
+      <button class="btn" id="hint">💡 Hint (−3)</button>
+      <button class="btn primary" id="check">Check</button>
+      <button class="btn primary" id="next" hidden>Next →</button>
+    </div>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Spell It · " + topic.name);
+let list, i, score, right, hints, done;
+
+function play() { list = shuffle(topic.words); i = 0; score = 0; right = 0; hints = 0; $("#wt").textContent = list.length; show(); }
+function show() {
+  done = false;
+  const w = list[i];
+  $("#wn").textContent = i + 1; $("#score").textContent = score;
+  $("#meaning").textContent = w.my;
+  $("#inp").value = ""; $("#inp").disabled = false; $("#inp").focus();
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#next").hidden = true; $("#check").hidden = false; $("#hint").disabled = false;
+  $("#say").onclick = () => speak(w.en);
+}
+function check() {
+  if (done) return;
+  const w = list[i], v = $("#inp").value.trim().toLowerCase(), fb = $("#fb");
+  if (!v) return;
+  if (v === w.en.toLowerCase()) {
+    done = true; right++; score += 10; addPoints(10); sfx.ok(); speak(w.en);
+    fb.className = "fb ok"; fb.textContent = "✓ " + w.en + " — " + w.ex;
+    finish();
+  } else {
+    sfx.bad();
+    fb.className = "fb no"; fb.textContent = "မမှန်သေးပါဘူး၊ ထပ်ကြိုးစားပါ (Hint ယူလို့ရတယ်)";
+    $("#inp").select();
+  }
+}
+function finish() {
+  $("#inp").disabled = true; $("#check").hidden = true; $("#hint").disabled = true;
+  const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+  $("#score").textContent = score;
+}
+$("#check").onclick = check;
+$("#inp").addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+$("#hint").onclick = () => {
+  const w = list[i]; hints++; score = Math.max(0, score - 3); $("#score").textContent = score;
+  $("#fb").className = "fb"; $("#fb").textContent = "💡 " + w.en[0] + " " + "_ ".repeat(w.en.length - 1).trim() + " (" + w.en.length + " letters)";
+  $("#inp").focus();
+};
+$("#next").onclick = () => {
+  if (i < list.length - 1) { i++; show(); return; }
+  showResult({
+    title: "ပြီးပါပြီ! 🎉",
+    stars: right === list.length && hints <= 2 ? 3 : right >= list.length * 0.7 ? 2 : 1,
+    text: right + " / " + list.length + " လုံး မှန်တယ် · " + score + " points",
+    onAgain: play
+  });
+};
+play.gameId = "typing";
+play();
+</script>
+</body>
+</html>

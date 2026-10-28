@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>True or False</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script>
+runChoice({
+  gameId: "truefalse", title: "True or False",
+  build: topic => shuffle(topic.words).map((w, n) => {
+    const same = n % 2 === 0;
+    const shown = same ? w : others(topic, w, 1)[0];
+    return {
+      label: "ဒီစာလုံးနဲ့ အဓိပ္ပါယ် ကိုက်လား", text: w.en + " = " + shown.my, speak: w.en,
+      options: ["True ✓ မှန်တယ်", "False ✗ မှားတယ်"],
+      answer: same ? "True ✓ မှန်တယ်" : "False ✗ မှားတယ်",
+      explain: w.en + " = " + w.my
+    };
+  })
+});
+</script>
+</body>
+</html>
