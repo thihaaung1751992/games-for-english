@@ -38,7 +38,12 @@ const GAMES = [
   { id: "listen",   file: "listen.html",   ic: "🎧", nm: "Listen & Pick", ds: "ကြားပြီး အဓိပ္ပါယ်ရွေးပါ" },
   { id: "truefalse", file: "truefalse.html", ic: "✅", nm: "True or False", ds: "ကိုက်လား မကိုက်ဘူးလား ဆုံးဖြတ်ပါ" },
   { id: "typing",   file: "typing.html",   ic: "⌨️", nm: "Spell It",      ds: "အဓိပ္ပါယ်ကြည့်ပြီး စာလုံးပေါင်း ရိုက်ပါ" },
-  { id: "sentence", file: "sentence.html", ic: "🧩", nm: "Sentence Builder", ds: "စကားလုံးတွေ စီပြီး ဝါကျဖွဲ့ပါ" }
+  { id: "sentence", file: "sentence.html", ic: "🧩", nm: "Sentence Builder", ds: "စကားလုံးတွေ စီပြီး ဝါကျဖွဲ့ပါ" },
+  { id: "wordsearch", file: "wordsearch.html", ic: "🔍", nm: "Word Search", ds: "ဇယားထဲက ဝှက်ထားတဲ့ စာလုံးတွေ ရှာပါ" },
+  { id: "oddone",   file: "oddone.html",   ic: "🙃", nm: "Odd One Out",   ds: "အုပ်စုနဲ့ မတူတဲ့ စာလုံးကို ရွေးပါ" },
+  { id: "connect",  file: "connect.html",  ic: "🔗", nm: "Match Rush",    ds: "စက္ကန့် ၆၀ အတွင်း အများဆုံး တွဲပါ" },
+  { id: "dictation", file: "dictation.html", ic: "📝", nm: "Dictation",   ds: "ဝါကျကို နားထောင်ပြီး ရိုက်ပါ" },
+  { id: "missing",  file: "missing.html",  ic: "🔡", nm: "Missing Letters", ds: "ပျောက်နေတဲ့ အက္ခရာတွေ ဖြည့်ပါ" }
 ];
 let current = Store.get("topic", TOPICS[0].id);
 if (!TOPICS.some(t => t.id === current)) current = TOPICS[0].id;

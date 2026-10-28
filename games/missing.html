@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Missing Letters</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.mw { gap: 5px; }
+.mw .slot, .mw .ch { width: 36px; height: 48px; font-size: 1.3rem; }
+.mw .ch { display: inline-flex; align-items: center; justify-content: center; font-weight: 800; text-transform: uppercase; color: var(--ink); }
+.mw .sp { width: 14px; }
+.mw .slot.reveal { border-style: solid; border-color: var(--bad); color: var(--bad); }
+.slots.shake { animation: shake .4s; }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+@media (prefers-reduced-motion: reduce) { .slots.shake { animation: none; } }
+@media (max-width: 380px) { .mw .slot, .mw .ch { width: 30px; height: 42px; font-size: 1.15rem; } .mw { gap: 4px; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Word: <b id="wn">1</b>/<span id="wt">8</span></span><span>Score: <b id="score">0</b></span></div>
+  <div class="panel">
+    <div class="q-label">ပျောက်နေတဲ့ စာလုံးတွေကို ဖြည့်ပါ</div>
+    <div class="q-text my" id="meaning"></div>
+    <div class="slots mw" id="slots" aria-label="Word"></div>
+    <div class="tiles" id="tiles" aria-label="Letters"></div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <div class="row">
+      <button class="btn primary" id="next" hidden>Next →</button>
+    </div>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Missing Letters · " + topic.name);
+const ABC = "abcdefghijklmnopqrstuvwxyz";
+let list, i, score, firstTry, word, blanks, filled, tiles, tries, locked, reveal;
+
+function play() {
+  list = shuffle(topic.words).slice(0, 8); i = 0; score = 0; firstTry = 0;
+  $("#wt").textContent = list.length;
+  show();
+}
+function show() {
+  const w = list[i];
+  word = w.en.toLowerCase();
+  const idx = [...word].map((c, n) => /[a-z]/.test(c) ? n : -1).filter(n => n >= 0);
+  const count = idx.length <= 3 ? 1 : idx.length <= 5 ? 2 : 3;
+  blanks = shuffle(idx).slice(0, count).sort((a, b) => a - b);
+  filled = blanks.map(() => null);
+  const need = blanks.map(n => word[n]);
+  const extra = shuffle([...ABC].filter(c => !need.includes(c))).slice(0, count <= 1 ? 3 : 4);
+  tiles = shuffle(need.concat(extra)).map((ch, id) => ({ ch, id }));
+  tries = 0; locked = false; reveal = false;
+  $("#wn").textContent = i + 1; $("#score").textContent = score;
+  $("#meaning").textContent = w.my;
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#slots").className = "slots mw";
+  $("#next").hidden = true;
+  draw();
+}
+function draw() {
+  const slots = $("#slots"), box = $("#tiles");
+  slots.innerHTML = ""; box.innerHTML = "";
+  [...word].forEach((c, n) => {
+    const b = blanks.indexOf(n);
+    if (b < 0) {
+      const s = document.createElement("span");
+      s.className = c === " " ? "ch sp" : "ch";
+      s.textContent = c === " " ? "" : c;
+      slots.appendChild(s);
+      return;
+    }
+    const s = document.createElement("button");
+    const t = filled[b];
+    s.className = "slot" + (reveal ? " reveal" : t ? " fill" : "");
+    s.textContent = reveal ? c : t ? t.ch : "";
+    s.setAttribute("aria-label", t ? "Remove " + t.ch : "Empty slot");
+    s.onclick = () => { if (!locked && filled[b]) { filled[b] = null; draw(); } };
+    slots.appendChild(s);
+  });
+  tiles.forEach(l => {
+    const b = document.createElement("button");
+    b.className = "tile";
+    b.textContent = l.ch;
+    b.disabled = locked || filled.some(f => f && f.id === l.id);
+    b.onclick = () => place(l);
+    box.appendChild(b);
+  });
+}
+function place(l) {
+  if (locked || filled.some(f => f && f.id === l.id)) return;
+  const n = filled.indexOf(null);
+  if (n < 0) return;
+  filled[n] = l; draw();
+  if (filled.indexOf(null) < 0) check();
+}
+function check() {
+  const w = list[i], slots = $("#slots"), fb = $("#fb");
+  const ok = blanks.every((n, b) => filled[b].ch === word[n]);
+  if (ok) {
+    locked = true;
+    const p = tries === 0 ? 10 : 5;
+    if (tries === 0) firstTry++;
+    score += p; addPoints(p); sfx.ok(); speak(w.en);
+    slots.classList.add("good");
+    fb.className = "fb ok"; fb.textContent = "✓ " + w.en + " — " + w.ex;
+    $("#score").textContent = score;
+    draw(); showNext();
+    return;
+  }
+  tries++; sfx.bad();
+  slots.classList.add("bad", "shake");
+  locked = true;
+  if (tries >= 2) {
+    reveal = true;
+    fb.className = "fb no"; fb.textContent = "စာလုံးက " + w.en + " ပါ — " + w.ex;
+    setTimeout(() => { slots.classList.remove("shake"); draw(); showNext(); }, 450);
+    return;
+  }
+  fb.className = "fb no"; fb.textContent = "မမှန်သေးပါဘူး၊ ထပ်ကြိုးစားပါ";
+  setTimeout(() => { slots.classList.remove("bad", "shake"); filled = blanks.map(() => null); locked = false; draw(); }, 700);
+}
+function showNext() {
+  const n = $("#next");
+  n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+}
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || locked || document.querySelector(".overlay")) return;
+  if (/^[a-z]$/i.test(e.key)) {
+    const l = tiles.find(t => t.ch === e.key.toLowerCase() && !filled.some(f => f && f.id === t.id));
+    if (l) place(l);
+  } else if (e.key === "Backspace") {
+    e.preventDefault();
+    for (let n = filled.length - 1; n >= 0; n--) if (filled[n]) { filled[n] = null; draw(); break; }
+  }
+});
+$("#next").onclick = () => {
+  if (i < list.length - 1) { i++; show(); return; }
+  const pct = firstTry / list.length;
+  showResult({
+    title: pct === 1 ? "အရမ်းတော်တယ်! 🎉" : "ပြီးပါပြီ!",
+    stars: pct === 1 ? 3 : pct >= 0.6 ? 2 : 1,
+    text: firstTry + " / " + list.length + " လုံး ပထမအကြိမ်မှာ မှန်တယ် · " + score + " points",
+    onAgain: play
+  });
+};
+play.gameId = "missing";
+play();
+</script>
+</body>
+</html>

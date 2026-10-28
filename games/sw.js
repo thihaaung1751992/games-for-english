@@ -1,7 +1,8 @@
-const CACHE = "english-games-v3";
+const CACHE = "english-games-v4";
 const FILES = [
   "./", "index.html", "memory.html", "quiz.html", "scramble.html",
   "hangman.html", "falling.html", "fillblank.html", "listen.html", "truefalse.html", "typing.html", "sentence.html",
+  "wordsearch.html", "oddone.html", "connect.html", "dictation.html", "missing.html",
   "css/style.css", "js/common.js", "js/choice.js", "js/data.js", "icon.svg", "manifest.webmanifest"
 ];
 

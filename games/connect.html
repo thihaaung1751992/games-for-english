@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Match Rush</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ctile {
+  font: inherit; font-weight: 700; min-height: 56px; padding: 6px 10px; border-radius: 14px;
+  border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer;
+  overflow-wrap: anywhere; line-height: 1.5; transition: opacity .25s, transform .25s;
+}
+.ctile:hover { border-color: var(--accent); }
+.ctile.sel { border-color: var(--accent); background: var(--accent); color: #fff; }
+.ctile.done { border-color: var(--good); background: var(--good); color: #fff; opacity: .2; transform: scale(.95); cursor: default; }
+.ctile.wrong { border-color: var(--bad); animation: cshake .35s; }
+@keyframes cshake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+#time.low { color: var(--bad); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <p class="muted" style="margin-top:0">English စာလုံးကို နှိပ်ပြီး မှန်တဲ့ မြန်မာအဓိပ္ပါယ်ကို နှိပ်ပါ။ ၆၀ စက္ကန့်အတွင်း အများဆုံး တွဲပါ။ (မှားရင် ၃ စက္ကန့် လျော့မယ်)</p>
+  <div class="stats"><span>Time: <b id="time">60</b>s</span><span>Matches: <b id="matches">0</b></span><span>Score: <b id="score">0</b></span></div>
+  <div class="cols">
+    <div class="col" id="left"></div>
+    <div class="col" id="right"></div>
+  </div>
+  <div class="fb" id="fb" aria-live="polite"></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Match Rush · " + topic.name);
+const GAME_SECS = 60, PENALTY = 3;
+let pool, left, endAt, timer, picked, matches, score, combo, over, roundLeft;
+
+function play() {
+  pool = []; matches = 0; score = 0; combo = 0; over = false; picked = null;
+  endAt = Date.now() + GAME_SECS * 1000;
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  clearInterval(timer);
+  timer = setInterval(tick, 250);
+  round();
+  update();
+}
+function nextWords(n) {
+  const out = [];
+  while (out.length < n) {
+    if (!pool.length) pool = shuffle(topic.words);
+    const w = pool.pop();
+    if (!out.includes(w)) out.push(w);
+    if (out.length === topic.words.length) break;
+  }
+  return out;
+}
+function round() {
+  const words = nextWords(5);
+  roundLeft = words.length; picked = null;
+  fill($("#left"), shuffle(words), "en");
+  fill($("#right"), shuffle(words), "my");
+  $("#left button").focus();
+}
+function fill(col, words, side) {
+  col.innerHTML = "";
+  words.forEach(w => {
+    const b = document.createElement("button");
+    b.className = "ctile";
+    b.textContent = side === "en" ? w.en : w.my;
+    b.setAttribute("aria-pressed", "false");
+    if (side === "en") b.lang = "en";
+    b.onclick = () => pick(b, w, side);
+    col.appendChild(b);
+  });
+}
+function timeLeft() { return Math.max(0, Math.ceil((endAt - Date.now()) / 1000)); }
+function update() {
+  const t = timeLeft();
+  $("#time").textContent = t;
+  $("#time").className = t <= 10 ? "low" : "";
+  $("#matches").textContent = matches;
+  $("#score").textContent = score;
+}
+function tick() {
+  update();
+  if (!over && timeLeft() === 0) finish();
+}
+function select(p) {
+  if (picked) { picked.b.classList.remove("sel"); picked.b.setAttribute("aria-pressed", "false"); }
+  picked = p;
+  if (p) { p.b.classList.add("sel"); p.b.setAttribute("aria-pressed", "true"); }
+}
+function pick(b, w, side) {
+  if (over || b.disabled) return;
+  if (side === "en") speak(w.en);
+  if (!picked || picked.side === side) { select(picked && picked.b === b ? null : { b, w, side }); return; }
+  const a = picked; select(null);
+  const fb = $("#fb");
+  if (a.w.my === w.my) {
+    combo++; matches++;
+    const p = 10 + Math.min(combo - 1, 5) * 2;
+    score += p; addPoints(p); sfx.ok(); if (side === "my") speak(a.w.en);
+    [a.b, b].forEach(x => { x.classList.add("done"); x.disabled = true; });
+    fb.className = "fb ok";
+    fb.textContent = "✓ " + w.en + " = " + w.my + (combo > 1 ? " · Combo x" + combo + " 🔥" : "");
+    roundLeft--;
+    if (roundLeft === 0) setTimeout(() => { if (!over) round(); }, 350);
+    else $(".ctile:not(:disabled)").focus();
+  } else {
+    combo = 0; sfx.bad();
+    endAt -= PENALTY * 1000;
+    [a.b, b].forEach(x => { x.classList.remove("wrong"); void x.offsetWidth; x.classList.add("wrong"); });
+    setTimeout(() => [a.b, b].forEach(x => x.classList.remove("wrong")), 400);
+    fb.className = "fb no";
+    fb.textContent = "✗ မှားသွားပြီ! −" + PENALTY + " စက္ကန့်";
+  }
+  update();
+  if (!over && timeLeft() === 0) finish();
+}
+function finish() {
+  over = true; clearInterval(timer); select(null);
+  document.querySelectorAll(".ctile").forEach(x => { x.disabled = true; });
+  update();
+  const stars = matches >= 20 ? 3 : matches >= 12 ? 2 : 1;
+  setTimeout(() => showResult({
+    title: matches >= 20 ? "အရမ်းမြန်တယ်! 🎉" : "အချိန်ပြည့်ပါပြီ! ⏰", stars,
+    text: matches + " တွဲ မှန်တယ် · " + score + " points",
+    onAgain: play
+  }), 400);
+}
+play.gameId = "connect";
+play();
+</script>
+</body>
+</html>

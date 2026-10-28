@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Search</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.ws { display: grid; gap: 3px; width: 100%; max-width: 480px; margin: 0 auto; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.ws button { aspect-ratio: 1; min-width: 0; padding: 0; border-radius: 6px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 800; font-size: clamp(.8rem, 4vw, 1.2rem); line-height: 1; text-transform: uppercase; cursor: pointer; }
+.ws button.found { border-color: var(--good); background: color-mix(in srgb, var(--good) 22%, var(--card)); }
+.ws button.sel { border-color: var(--accent); background: var(--accent); color: #fff; }
+.ws button.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 22%, var(--card)); }
+.clues { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.clues li { background: var(--card); border: 2px solid var(--line); border-radius: 12px; padding: 4px 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.clues li b { display: block; color: var(--good); }
+.clues li.done { border-color: var(--good); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <p class="muted" style="margin-top:0">မြန်မာအဓိပ္ပါယ်နဲ့ ကိုက်တဲ့ English စာလုံးကို ဇယားထဲမှာ ရှာပါ။ (ပထမစာလုံးကို နှိပ်ပြီး နောက်ဆုံးစာလုံးကို နှိပ်ပါ)</p>
+  <div class="stats"><span>Found: <b id="found">0</b>/<b id="total">0</b></span><span>Mistakes: <b id="miss">0</b></span><span>Time: <b id="time">0</b>s</span></div>
+  <div class="ws" id="ws"></div>
+  <div class="fb" id="fb" aria-live="polite" style="text-align:center"></div>
+  <ul class="clues" id="clues"></ul>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Word Search · " + topic.name);
+const DIRS = [[0, 1], [1, 0], [1, 1]];
+let N, grid, cells, words, start, found, mistakes, t0, timer, lock;
+
+function place(w) {
+  for (let k = 0; k < 300; k++) {
+    const [dr, dc] = DIRS[Math.floor(Math.random() * DIRS.length)];
+    const r = Math.floor(Math.random() * (N - dr * (w.length - 1)));
+    const c = Math.floor(Math.random() * (N - dc * (w.length - 1)));
+    if (r < 0 || c < 0) continue;
+    if (![...w].every((ch, j) => { const g = grid[r + dr * j][c + dc * j]; return !g || g === ch; })) continue;
+    [...w].forEach((ch, j) => { grid[r + dr * j][c + dc * j] = ch; });
+    return { r, c, r2: r + dr * (w.length - 1), c2: c + dc * (w.length - 1), dr, dc };
+  }
+  return null;
+}
+function play() {
+  const pool = shuffle(topic.words).filter(w => /^[a-z]+$/i.test(w.en) && w.en.length <= 12);
+  N = Math.max(8, Math.min(12, Math.max(0, ...pool.slice(0, 6).map(w => w.en.length))));
+  grid = Array.from({ length: N }, () => Array(N).fill(""));
+  words = [];
+  for (const w of pool) {
+    if (words.length === 6) break;
+    if (w.en.length > N || words.some(x => x.en === w.en.toLowerCase())) continue;
+    const p = place(w.en.toLowerCase());
+    if (p) words.push(Object.assign({ w, en: w.en.toLowerCase(), done: false }, p));
+  }
+  const abc = "abcdefghijklmnopqrstuvwxyz";
+  start = null; found = 0; mistakes = 0; lock = false; t0 = Date.now();
+  clearInterval(timer);
+  timer = setInterval(() => { $("#time").textContent = Math.floor((Date.now() - t0) / 1000); }, 500);
+  const ws = $("#ws");
+  ws.innerHTML = ""; ws.style.gridTemplateColumns = "repeat(" + N + ", 1fr)";
+  cells = [];
+  for (let r = 0; r < N; r++) {
+    cells.push([]);
+    for (let c = 0; c < N; c++) {
+      if (!grid[r][c]) grid[r][c] = abc[Math.floor(Math.random() * 26)];
+      const b = document.createElement("button");
+      b.textContent = grid[r][c];
+      b.setAttribute("aria-label", "Row " + (r + 1) + ", column " + (c + 1) + ": " + grid[r][c]);
+      b.onclick = () => tap(r, c);
+      cells[r].push(b); ws.appendChild(b);
+    }
+  }
+  const cl = $("#clues");
+  cl.innerHTML = "";
+  words.forEach(x => { x.li = document.createElement("li"); x.li.textContent = x.w.my; cl.appendChild(x.li); });
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  update();
+}
+function update() {
+  $("#found").textContent = found; $("#total").textContent = words.length;
+  $("#miss").textContent = mistakes;
+  $("#time").textContent = Math.floor((Date.now() - t0) / 1000);
+}
+function line(r1, c1, r2, c2) {
+  const dr = Math.sign(r2 - r1), dc = Math.sign(c2 - c1), n = Math.max(Math.abs(r2 - r1), Math.abs(c2 - c1));
+  if (r1 !== r2 && c1 !== c2 && Math.abs(r2 - r1) !== Math.abs(c2 - c1)) return null;
+  return Array.from({ length: n + 1 }, (_, j) => [r1 + dr * j, c1 + dc * j]);
+}
+function tap(r, c) {
+  if (lock) return;
+  if (!start) { start = [r, c]; cells[r][c].classList.add("sel"); return; }
+  const [r1, c1] = start;
+  cells[r1][c1].classList.remove("sel"); start = null;
+  if (r1 === r && c1 === c) return;
+  const x = words.find(x => !x.done && ((x.r === r1 && x.c === c1 && x.r2 === r && x.c2 === c) || (x.r === r && x.c === c && x.r2 === r1 && x.c2 === c1)));
+  const fb = $("#fb");
+  if (x) {
+    x.done = true; found++;
+    line(x.r, x.c, x.r2, x.c2).forEach(([a, b]) => cells[a][b].classList.add("found"));
+    x.li.classList.add("done");
+    const e = document.createElement("b"); e.textContent = x.w.en; x.li.appendChild(e);
+    sfx.ok(); speak(x.w.en); addPoints(10);
+    fb.className = "fb ok"; fb.textContent = "✓ " + x.w.en + " — " + x.w.ex;
+    update();
+    if (found === words.length) finish();
+  } else {
+    mistakes++; sfx.bad();
+    fb.className = "fb no"; fb.textContent = "မှားနေတယ်၊ ထပ်ကြိုးစားပါ။";
+    const ln = line(r1, c1, r, c) || [[r1, c1], [r, c]];
+    ln.forEach(([a, b]) => cells[a][b].classList.add("wrong"));
+    lock = true;
+    setTimeout(() => { ln.forEach(([a, b]) => cells[a][b].classList.remove("wrong")); lock = false; }, 500);
+    update();
+  }
+}
+function finish() {
+  clearInterval(timer);
+  const secs = Math.floor((Date.now() - t0) / 1000);
+  const stars = mistakes <= 1 ? 3 : mistakes <= 4 ? 2 : 1;
+  setTimeout(() => showResult({
+    title: "အရမ်းတော်တယ်! 🎉", stars,
+    text: found + " လုံး ရှာတွေ့တယ် · " + mistakes + " mistakes · " + secs + " စက္ကန့်",
+    onAgain: play
+  }), 700);
+}
+play.gameId = "wordsearch";
+play();
+</script>
+</body>
+</html>

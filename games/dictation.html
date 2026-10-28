@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dictation</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.dict-inp { max-width: 100%; font-size: 1.15rem; text-align: left; }
+.ans { margin-top: 12px; font-size: 1.15rem; font-weight: 700; line-height: 2; }
+.ans span { display: inline-block; padding: 0 6px; margin: 2px; border-radius: 8px; }
+.ans .w-ok { color: var(--good); }
+.ans .w-bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--card)); text-decoration: underline wavy; }
+.ans .w-miss { color: var(--warn); border: 2px dashed var(--warn); }
+.legend { font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Round: <b id="rn">1</b>/<span id="rt">5</span></span><span>Score: <b id="score">0</b></span></div>
+  <div class="panel">
+    <div class="q-label">ကြားရတဲ့ ဝါကျကို ရိုက်ပါ</div>
+    <div class="row">
+      <button class="btn" id="say">🔊 Listen again</button>
+      <button class="btn" id="slow">🐢 Slow</button>
+    </div>
+    <div class="muted" style="margin-top:10px">💡 အဓိပ္ပာယ်</div>
+    <div class="my" id="hintmy" style="font-size:1.1rem"></div>
+    <div><input class="input dict-inp" id="inp" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Type the sentence you hear"></div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <div class="ans" id="ans" aria-live="polite"></div>
+    <div class="legend" id="legend" hidden><span style="color:var(--good)">■ မှန်</span> · <span style="color:var(--bad)">■ မှား</span> · <span style="color:var(--warn)">■ ကျန်ခဲ့</span></div>
+    <div class="row">
+      <button class="btn" id="show">👀 အဖြေကြည့်</button>
+      <button class="btn primary" id="check">Check</button>
+      <button class="btn primary" id="next" hidden>Next →</button>
+    </div>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Dictation · " + topic.name);
+const ROUNDS = 5;
+let list, i, score, accs, done;
+
+function norm(s) { return s.toLowerCase().replace(/[’‘`]/g, "'").replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).filter(Boolean); }
+function speakSlow(text) {
+  if (!("speechSynthesis" in window) || Store.get("mute", false)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US"; u.rate = 0.5;
+  speechSynthesis.speak(u);
+}
+// Align typed words to expected words (LCS) and mark each expected word ok / bad / miss.
+function diff(exp, got) {
+  const a = norm(exp), b = got, m = a.length, n = b.length;
+  const L = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let x = m - 1; x >= 0; x--) for (let y = n - 1; y >= 0; y--) L[x][y] = a[x] === b[y] ? L[x + 1][y + 1] + 1 : Math.max(L[x + 1][y], L[x][y + 1]);
+  const marks = [];
+  let x = 0, y = 0, extra = 0;
+  while (x < m) {
+    if (y < n && a[x] === b[y]) { marks.push("ok"); x++; y++; }
+    else if (y < n && L[x][y + 1] >= L[x + 1][y]) { y++; extra++; }
+    else { marks.push(extra > 0 ? "bad" : "miss"); if (extra > 0) extra--; x++; }
+  }
+  return { marks, correct: L[0][0] };
+}
+
+function play() { list = shuffle(topic.words).slice(0, ROUNDS); i = 0; score = 0; accs = []; $("#rt").textContent = list.length; show(); }
+function show() {
+  done = false;
+  const w = list[i];
+  $("#rn").textContent = i + 1; $("#score").textContent = score;
+  $("#hintmy").textContent = w.exMy;
+  $("#inp").value = ""; $("#inp").disabled = false; $("#inp").focus();
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#ans").innerHTML = ""; $("#legend").hidden = true;
+  $("#next").hidden = true; $("#check").hidden = false; $("#show").disabled = false;
+  $("#say").onclick = () => { speak(w.ex); $("#inp").focus(); };
+  $("#slow").onclick = () => { speakSlow(w.ex); $("#inp").focus(); };
+  speak(w.ex);
+}
+function drawAnswer(w, marks) {
+  const ans = $("#ans");
+  ans.innerHTML = "";
+  let k = 0;
+  w.ex.split(/\s+/).filter(Boolean).forEach(t => {
+    const s = document.createElement("span");
+    const real = norm(t).length > 0;
+    s.className = "w-" + (marks && real ? marks[k] || "miss" : "ok");
+    if (real) k++;
+    s.textContent = t;
+    ans.appendChild(s);
+  });
+}
+function check() {
+  if (done) return;
+  const w = list[i], got = norm($("#inp").value), fb = $("#fb");
+  if (!got.length) { fb.className = "fb"; fb.textContent = "ဝါကျကို အရင်ရိုက်ပါ"; return; }
+  done = true;
+  const exp = norm(w.ex), { marks, correct } = diff(w.ex, got);
+  const acc = correct / Math.max(exp.length, got.length), pts = Math.round(acc * 10);
+  accs.push(acc); score += pts; addPoints(pts);
+  if (acc === 1) {
+    sfx.ok(); fb.className = "fb ok"; fb.textContent = "✓ အကုန်မှန်ပါတယ်! +" + pts;
+  } else {
+    sfx.bad(); fb.className = "fb no"; fb.textContent = "စကားလုံး " + correct + " / " + exp.length + " မှန်တယ် (" + Math.round(acc * 100) + "%) · +" + pts;
+    $("#legend").hidden = false;
+  }
+  drawAnswer(w, marks);
+  finish();
+}
+function finish() {
+  $("#inp").disabled = true; $("#check").hidden = true; $("#show").disabled = true;
+  const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+  $("#score").textContent = score;
+}
+$("#check").onclick = check;
+$("#inp").addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+$("#show").onclick = () => {
+  if (done) return;
+  const w = list[i];
+  done = true; accs.push(0);
+  $("#fb").className = "fb"; $("#fb").textContent = "အဖြေ (ဒီအကြိမ် အမှတ်မရပါ) — ဖတ်ပြီး မှတ်ထားပါ";
+  drawAnswer(w, null); speak(w.ex);
+  finish();
+};
+$("#next").onclick = () => {
+  if (i < list.length - 1) { i++; show(); return; }
+  const avg = accs.reduce((s, a) => s + a, 0) / accs.length;
+  showResult({
+    title: "ပြီးပါပြီ! 🎉",
+    stars: avg >= 0.95 ? 3 : avg >= 0.7 ? 2 : 1,
+    text: "ပျမ်းမျှ " + Math.round(avg * 100) + "% မှန်တယ် · " + score + " points",
+    onAgain: play
+  });
+};
+play.gameId = "dictation";
+play();
+</script>
+</body>
+</html>

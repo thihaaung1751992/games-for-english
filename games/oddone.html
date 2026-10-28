@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odd One Out</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script>
+// 3 words from this topic + 1 from another topic. Pick the one that doesn't belong.
+runChoice({
+  gameId: "oddone", title: "Odd One Out",
+  build: topic => {
+    const mine = new Set(topic.words.map(w => w.en.toLowerCase()));
+    const pool = [];
+    TOPICS.forEach(t => {
+      if (t.id !== topic.id) t.words.forEach(w => { if (!mine.has(w.en.toLowerCase())) pool.push({ w, t }); });
+    });
+    return shuffle(pool).slice(0, 8).map(({ w, t }) => {
+      const three = shuffle(topic.words).slice(0, 3);
+      return {
+        label: "ဘယ်စာလုံးက အုပ်စုနဲ့ မတူလဲ", text: topic.name + " · " + topic.mm, small: true,
+        options: shuffle([w, ...three]).map(x => x.en), answer: w.en,
+        explain: w.en + " (" + w.my + ") က " + t.name + " topic ထဲကပါ"
+      };
+    });
+  }
+});
+</script>
+</body>
+</html>
