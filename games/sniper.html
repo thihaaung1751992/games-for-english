@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Synonym Sniper</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// A group = words that mean (almost) the same, "word|Burmese gloss".
+//   p = part of speech (distractors prefer the same one), d = definition of the first word,
+//   opp = index of the group with the opposite meaning (-1 none), near = groups that are too close in meaning to mix.
+const G = [
+  { p: "v", d: "to make something better", opp: 1, near: [2, 12], w: ["improve|တိုးတက်ကောင်းမွန်စေသည်", "enhance|ပိုမိုကောင်းမွန်အောင် လုပ်သည်", "upgrade|အဆင့်မြှင့်တင်သည်"] },
+  { p: "v", d: "to become worse", opp: 0, near: [3, 24], w: ["worsen|ပိုဆိုးလာသည်", "deteriorate|ဆိုးရွားလာသည်", "decline|ကျဆင်းသည်"] },
+  { p: "v", d: "to become or make larger in amount", opp: 3, near: [0, 12], w: ["increase|တိုးလာသည်", "expand|ကျယ်ပြန့်လာသည်", "grow|ကြီးထွားသည်"] },
+  { p: "v", d: "to make smaller in amount", opp: 2, near: [1], w: ["reduce|လျှော့ချသည်", "decrease|လျော့နည်းသည်", "cut|ဖြတ်တောက်၍ လျှော့ချသည်"] },
+  { p: "a", d: "easy to see or understand", opp: 5, near: [], w: ["obvious|ထင်ရှားပြတ်သားသော", "evident|ထင်ရှားသော", "apparent|သိသာထင်ရှားသော"] },
+  { p: "a", d: "having more than one possible meaning", opp: 4, near: [], w: ["ambiguous|အဓိပ္ပါယ် နှစ်ခြမ်းထွက်နိုင်သော", "vague|မရှင်းလင်းသော", "unclear|ရှင်းလင်းမှုမရှိသော"] },
+  { p: "a", d: "absolutely necessary", opp: 7, near: [], w: ["essential|မရှိမဖြစ်လိုအပ်သော", "vital|အလွန်အရေးကြီးသော", "crucial|အဆုံးအဖြတ်ပေးနိုင်လောက်အောင် အရေးကြီးသော"] },
+  { p: "a", d: "of very little importance", opp: 6, near: [27], w: ["trivial|အရေးမပါသော", "minor|အရေးမကြီးသော", "insignificant|အဓိပ္ပါယ်မရှိလောက်သော"] },
+  { p: "v", d: "to leave someone or something completely", opp: -1, near: [9], w: ["abandon|စွန့်ပစ်သည်", "desert|စွန့်ခွာထားခဲ့သည်", "forsake|စွန့်လွှတ်သည်"] },
+  { p: "v", d: "to keep something in good condition or at the same level", opp: -1, near: [8], w: ["maintain|ထိန်းသိမ်းသည်", "preserve|ထိန်းသိမ်းထားသည်", "sustain|ဆက်လက်ထိန်းထားသည်"] },
+  { p: "a", d: "not wanting to do something", opp: 11, near: [17, 19], w: ["reluctant|လုပ်ချင်စိတ်မရှိသော", "unwilling|မလိုလားသော", "hesitant|ဝန်လေးသော"] },
+  { p: "a", d: "very keen to do or have something", opp: 10, near: [], w: ["eager|စိတ်အားထက်သန်သော", "keen|စိတ်ဝင်စားသော", "enthusiastic|အားတက်သရော ရှိသော"] },
+  { p: "v", d: "to grow and develop successfully", opp: -1, near: [0, 2], w: ["thrive|ကြီးပွားတိုးတက်သည်", "flourish|ဝေဆာသည်", "prosper|ချမ်းသာကြီးပွားသည်"] },
+  { p: "a", d: "using few words", opp: 14, near: [], w: ["brief|အတိုချုပ်သော", "concise|ကျစ်လစ်ပြည့်စုံသော", "succinct|လိုရင်းတိုရှင်းသော"] },
+  { p: "a", d: "too long, using too many words", opp: 13, near: [], w: ["lengthy|ရှည်လျားသော", "wordy|စကားများသော", "verbose|စကားများလွန်းသော"] },
+  { p: "a", d: "not found or happening very often", opp: 16, near: [], w: ["rare|ရှားပါးသော", "scarce|ရှားပါးသော၊ အလွန်နည်းသော", "uncommon|ပုံမှန်မတွေ့ရတဲ့"] },
+  { p: "a", d: "found or happening often", opp: 15, near: [], w: ["common|အဖြစ်များသော", "frequent|မကြာခဏ ဖြစ်သော", "widespread|ကျယ်ကျယ်ပြန့်ပြန့် ရှိသော"] },
+  { p: "a", d: "worried and afraid about something", opp: 18, near: [10], w: ["anxious|စိုးရိမ်ပူပန်သော", "nervous|စိတ်လှုပ်ရှားကြောက်ရွံ့သော", "uneasy|စိတ်မသက်မသာ ဖြစ်သော"] },
+  { p: "a", d: "quiet and not worried", opp: 17, near: [], w: ["calm|တည်ငြိမ်သော", "relaxed|သက်သာချောင်ချိသော", "composed|အေးဆေးတည်ငြိမ်သော"] },
+  { p: "a", d: "refusing to change your mind", opp: 20, near: [10], w: ["stubborn|ခေါင်းမာသော", "obstinate|တင်းမာသော", "headstrong|ကိုယ့်သဘောကိုယ်ကျသော"] },
+  { p: "a", d: "able to change easily to suit new situations", opp: 19, near: [], w: ["flexible|ပြောင်းလွယ်ပြင်လွယ်သော", "adaptable|လိုက်လျောညီထွေ နေနိုင်သော", "accommodating|လိုက်လျောတတ်သော"] },
+  { p: "v", d: "to hide something so that it cannot be seen", opp: 22, near: [], w: ["conceal|ဖုံးကွယ်သည်", "hide|ဖျောက်ထားသည်", "mask|ဖုံးအုပ်ထားသည်"] },
+  { p: "v", d: "to show something that was secret", opp: 21, near: [], w: ["reveal|ဖော်ပြသည်", "disclose|ထုတ်ဖော်ပြောသည်", "expose|ဖော်ထုတ်သည်"] },
+  { p: "a", d: "having a good effect", opp: 24, near: [0], w: ["beneficial|အကျိုးရှိသော", "advantageous|အားသာချက်ရှိသော", "helpful|အထောက်အကူဖြစ်သော"] },
+  { p: "a", d: "causing damage or injury", opp: 23, near: [1], w: ["harmful|အန္တရာယ်ရှိသော", "damaging|ထိခိုက်စေသော", "detrimental|ထိခိုက်ပျက်စီးစေသော"] },
+  { p: "v", d: "to say what will happen in the future", opp: -1, near: [], w: ["predict|ကြိုတင်ခန့်မှန်းသည်", "forecast|ခန့်မှန်းချက်ထုတ်ပြန်သည်", "anticipate|ကြိုမြင်သည်၊ မျှော်လင့်သည်"] },
+  { p: "a", d: "extremely large", opp: 27, near: [], w: ["enormous|ကြီးမားလှသော", "huge|ကြီးမားသော", "massive|ကြီးမားလေးလံသော"] },
+  { p: "a", d: "extremely small", opp: 26, near: [7], w: ["tiny|သေးငယ်သော", "minuscule|အလွန်သေးငယ်သော", "miniature|အသေးစားပုံစံ"] },
+  { p: "a", d: "easily broken or damaged", opp: 29, near: [], w: ["fragile|ကွဲလွယ်ပျက်လွယ်သော", "delicate|နူးညံ့ပျက်လွယ်သော", "brittle|ကျိုးလွယ်သော"] },
+  { p: "a", d: "strong and not easily broken", opp: 28, near: [], w: ["sturdy|ခိုင်ခံ့သော", "robust|ခိုင်မာခံနိုင်ရည်ရှိသော", "durable|ကြာရှည်ခံသော"] }
+];
+G.forEach(g => { g.words = g.w.map(s => s.split("|")[0]); });
+const GLOSS = {};
+G.forEach(g => g.w.forEach(s => { const [a, b] = s.split("|"); GLOSS[a] = b; }));
+// near is symmetric
+const NEAR = G.map((g, i) => new Set([i].concat(g.near)));
+G.forEach((g, i) => g.near.forEach(j => NEAR[j].add(i)));
+
+function pickWords(groups, pos, n, avoid) {
+  const all = shuffle(groups.flatMap(i => G[i].words)).filter(x => !avoid.has(x));
+  const same = all.filter(x => G[wordGroup[x]].p === pos);
+  return same.concat(all.filter(x => !same.includes(x))).slice(0, n);
+}
+const wordGroup = {};
+G.forEach((g, i) => g.words.forEach(w => { wordGroup[w] = i; }));
+
+function makeQ(gi, kind, opts) {
+  const g = G[gi], n = opts - 1;
+  const far = G.map((_, i) => i).filter(i => !NEAR[gi].has(i) && i !== g.opp && !(g.opp >= 0 && NEAR[g.opp].has(i)));
+  const used = new Set(g.words);
+  let w, ans, trap, label, text, small = false, speak, explain;
+  if (kind === "opp") {
+    const og = G[g.opp];
+    w = shuffle(g.words)[0]; ans = shuffle(og.words)[0];
+    trap = shuffle(g.words.filter(x => x !== w))[0];   // a synonym of the prompt word: tempting but wrong
+    label = "🎯 Opposite ↔ ဆန့်ကျင်ဘက်"; text = w; speak = w;
+    explain = w + " ↔ " + ans + " — " + w + " = " + GLOSS[w] + " · " + ans + " = " + GLOSS[ans];
+  } else if (kind === "def") {
+    ans = g.words[0]; w = ans;
+    trap = g.opp >= 0 ? shuffle(G[g.opp].words)[0] : null; // an antonym is wrong for a definition question
+    label = "🎯 Which word means…?"; text = "“" + g.d + "”"; small = true;
+    explain = "“" + g.d + "” = " + ans + " (" + GLOSS[ans] + ")";
+  } else {
+    w = shuffle(g.words)[0]; ans = shuffle(g.words.filter(x => x !== w))[0];
+    trap = g.opp >= 0 ? shuffle(G[g.opp].words)[0] : null;
+    label = "🎯 Synonym ≈ အဓိပ္ပါယ်တူ"; text = w; speak = w;
+    explain = w + " ≈ " + ans + " — " + w + " = " + GLOSS[w] + " · " + ans + " = " + GLOSS[ans];
+  }
+  const avoid = new Set([ans, w].concat(trap ? [trap] : []));
+  const wrong = (trap ? [trap] : []).concat(pickWords(far, g.p, n, avoid));
+  const options = shuffle([ans].concat(wrong.slice(0, n)));
+  return { label, text, small, speak, options, answer: ans, explain };
+}
+
+runTargets({
+  gameId: "sniper", title: "Synonym Sniper", motion: "fall", skin: "rock", rounds: 12, lives: 3,
+  build: () => {
+    const opts = getLevel().opts;
+    return shuffle(G.map((g, gi) => {
+      const kinds = ["syn", "def"].concat(g.opp >= 0 ? ["opp", "opp"] : []);
+      return makeQ(gi, kinds[Math.floor(Math.random() * kinds.length)], opts);
+    }));
+  }
+});
+</script>
+</body>
+</html>

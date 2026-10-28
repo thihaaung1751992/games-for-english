@@ -36,7 +36,7 @@
 <script>
 const topic = getTopic();
 renderBar("Word Snake · " + topic.name);
-const N = 12, ROUNDS = 5, SPEED = 230, SY = 6, DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const N = 12, ROUNDS = 5, SPEED = Math.round(230 * getLevel().pace), SY = 6, DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const pool = topic.words.filter(w => /^[a-z]+$/i.test(w.en));
 const cv = $("#board"), ctx = cv.getContext("2d");
 let words, wi, target, idx, snake, dir, queue, tiles, lives, score, done, moving, over, lock, timer, wait, C;

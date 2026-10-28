@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Define It</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.dt-clues { display: grid; gap: 8px; margin: 12px 0; text-align: left; }
+.dt-clue { border: 2px solid var(--line); border-radius: 14px; padding: 8px 14px; background: var(--bg); }
+.dt-clue small { display: block; font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.dt-clue .t { font-size: 1.05rem; font-weight: 600; line-height: 1.6; }
+.dt-clue.lock { opacity: .55; border-style: dashed; }
+.dt-clue.lock .t { color: var(--muted); font-weight: 500; }
+.dt-clue.new { border-color: var(--accent); animation: dtin .35s; }
+.dt-letters { font-family: ui-monospace, Menlo, monospace; font-size: 1.5rem; font-weight: 800; letter-spacing: .25em; }
+.dt-pts { display: inline-block; padding: 2px 12px; border-radius: 99px; border: 2px solid var(--accent); font-weight: 800; margin-top: 4px; }
+.dt-reveal { margin-top: 10px; padding: 10px 12px; border-radius: 14px; border: 2px solid var(--good); background: color-mix(in srgb, var(--good) 12%, var(--card)); text-align: left; }
+.dt-reveal.lost { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--card)); }
+.dt-reveal b { font-size: 1.3rem; }
+.dt-opts .opt:disabled:not(.right):not(.wrong) { opacity: .5; }
+@keyframes dtin { from { transform: translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .dt-clue.new { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Definitions for the Opinions & Ideas words. Words from other lessons fall back to their Burmese meaning.
+const LESSON_DEF = {
+  opinion: "what you think or believe about something",
+  suggest: "to offer an idea or plan for someone to think about",
+  agree: "to have the same opinion as someone else",
+  disagree: "to have a different opinion from someone else",
+  advantage: "something good that helps you do better than other people",
+  achieve: "to succeed in doing or getting something, usually after hard work",
+  challenge: "something new and difficult that tests your ability",
+  improve: "to become better, or to make something better"
+};
+// {w, def, c2 (sentence with ____), my}
+const BANK = [
+  { w: "reluctant", def: "not willing to do something, or slow to do it because you are not sure", c2: "He was ____ to speak in front of the whole class.", my: "ဆန္ဒမရှိဘဲ တွန့်ဆုတ်နေသော" },
+  { w: "ambiguous", def: "having more than one possible meaning, so it is not clear", c2: "The ending of the film was ____, so people argued about it for days.", my: "အဓိပ္ပါယ် နှစ်ခွဲဖြစ်နိုင်သော" },
+  { w: "essential", def: "absolutely necessary", c2: "Water is ____ for life.", my: "မရှိမဖြစ် လိုအပ်သော" },
+  { w: "abandon", def: "to leave a person, place or thing completely and not come back", c2: "The crew had to ____ the sinking ship.", my: "စွန့်ပစ်သည်၊ စွန့်ခွာသည်" },
+  { w: "thrive", def: "to grow or develop well and be healthy and successful", c2: "Plants ____ in warm, sunny places.", my: "ဖွံ့ဖြိုးဖြစ်ထွန်းသည်" },
+  { w: "trivial", def: "of little importance; not worth worrying about", c2: "Please don't argue over such a ____ matter.", my: "အရေးမကြီးသော၊ အသေးအဖွဲ" },
+  { w: "obvious", def: "easy to see or understand; clear to everyone", c2: "It was ____ that he was lying because his face turned red.", my: "ထင်ရှားသော၊ ရှင်းနေသော" },
+  { w: "maintain", def: "to keep something in good condition or at the same level", c2: "It is expensive to ____ an old car.", my: "ထိန်းသိမ်းထားသည်" },
+  { w: "reduce", def: "to make something smaller in size, amount or price", c2: "We must ____ the amount of plastic we use.", my: "လျှော့ချသည်" },
+  { w: "significant", def: "large or important enough to be noticed or to have an effect", c2: "There has been a ____ rise in prices this year.", my: "သိသာထင်ရှားသော၊ အရေးပါသော" },
+  { w: "consequence", def: "a result of an action, often a bad or serious one", c2: "If you break the law, you must accept the ____.", my: "အကျိုးဆက်" },
+  { w: "evidence", def: "facts or signs that show that something is true", c2: "The police found no ____ that he was there.", my: "သက်သေ၊ အထောက်အထား" },
+  { w: "sufficient", def: "as much as is needed; enough", c2: "Do we have ____ time to finish before lunch?", my: "လုံလောက်သော" },
+  { w: "hesitate", def: "to pause before doing something because you are nervous or not sure", c2: "Don't ____ to ask if you need help.", my: "ဝန်လေးသည်၊ တွေဝေသည်" },
+  { w: "compromise", def: "an agreement in which each side gives up something it wanted", c2: "After a long talk, they reached a ____.", my: "အပေးအယူလုပ်ပြီး ကြားနေလမ်းရှာခြင်း" },
+  { w: "curious", def: "eager to know or learn about something", c2: "Children are ____ about everything around them.", my: "သိချင်စိတ်ပြင်းသော" },
+  { w: "generous", def: "willing to give money, time or help freely", c2: "The ____ man gave half of his salary to charity.", my: "ရက်ရောသော" },
+  { w: "convenient", def: "easy to use, or suitable for your needs and plans", c2: "Is Friday ____ for you, or would Monday be better?", my: "အဆင်ပြေသော" },
+  { w: "fragile", def: "easily broken or damaged", c2: "Be careful with that glass; it is very ____.", my: "ကျိုးလွယ်ပျက်လွယ်သော" },
+  { w: "genuine", def: "real, not fake; honest and sincere", c2: "Is this a ____ diamond or just a copy?", my: "စစ်မှန်သော" },
+  { w: "prejudice", def: "an unfair opinion about someone formed without knowing them", c2: "She faced ____ because of the way she spoke.", my: "ဘက်လိုက်စွဲမှတ်ချက်" },
+  { w: "urgent", def: "needing immediate attention", c2: "This message is ____; please answer it today.", my: "အလျင်စလို လိုအပ်သော" },
+  { w: "scarce", def: "not available in large amounts; hard to find", c2: "Fresh water is ____ in the desert.", my: "ရှားပါးသော" },
+  { w: "strict", def: "demanding that rules are obeyed exactly", c2: "Our teacher is very ____ about being on time.", my: "တင်းကျပ်သော" },
+  { w: "humble", def: "not proud; not thinking you are better than other people", c2: "Despite his fame, he stayed ____ and polite.", my: "နှိမ့်ချသော" },
+  { w: "awkward", def: "uncomfortable or embarrassing; difficult to deal with", c2: "The silence after her joke felt very ____.", my: "ကသိုကယို ဖြစ်စေသော" },
+  { w: "gradual", def: "happening slowly, little by little", c2: "The change in the climate has been very ____.", my: "တဖြည်းဖြည်း ဖြစ်သော" },
+  { w: "ambitious", def: "determined to be successful and to achieve a lot", c2: "He is young and ____, and wants to run his own company.", my: "ရည်မှန်းချက်ကြီးသော" },
+  { w: "anxious", def: "worried and nervous about something that may happen", c2: "I felt ____ before the exam.", my: "စိုးရိမ်ပူပန်သော" },
+  { w: "persuade", def: "to make someone agree to do something by giving reasons", c2: "She tried to ____ me to join the team.", my: "ဝင်ဆွဲဆောင်ပြီး သဘောတူစေသည်" }
+];
+const BANK_WORDS = BANK.map(b => b.w);
+const ROUNDS = 8, LV = getLevel(), topic = getTopic();
+renderBar("Define It · " + topic.name);
+$("#app").innerHTML =
+  '<div class="stats"><span>Round: <b id="rn">1</b>/' + ROUNDS + '</span><span>Score: <b id="score">0</b>/' + (ROUNDS * 3) + '</span></div>' +
+  '<div class="panel"><div class="q-label">🕵️ Hidden word · စကားလုံးကို ရှာပါ</div>' +
+  '<div class="muted" style="font-size:.9rem">clue နည်းနည်းနဲ့ မှန်ရင် အမှတ်များတယ်: 3 / 2 / 1</div>' +
+  '<div class="dt-clues" id="clues"></div><div class="dt-pts" id="pts"></div>' +
+  '<div class="opts dt-opts" id="opts"></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div><div id="reveal"></div>' +
+  '<div class="row"><button class="btn" id="more">💡 နောက် clue ပေးပါ (−1)</button><button class="btn primary" id="next" hidden>Next →</button></div></div>';
+
+let rounds, ri, clue, score, solved, cur, locked;
+
+// Up to 3 lesson words (with a blank in the example sentence) and the rest from the bank.
+function makeRounds() {
+  const lesson = shuffle(topic.words).map(l => {
+    const ex = blankOut(l);
+    if (ex === l.ex) return null;
+    return { w: l.en, def: LESSON_DEF[l.en] || ("မြန်မာလို: " + l.my), c2: ex, my: l.my, lesson: true };
+  }).filter(Boolean);
+  const lw = lesson.filter(x => LESSON_DEF[x.w]).concat(lesson.filter(x => !LESSON_DEF[x.w]));
+  const pickL = shuffle(lw.slice(0, 5)).slice(0, 3);
+  const taken = pickL.map(x => x.w);
+  const pickB = shuffle(BANK.filter(b => !taken.includes(b.w))).slice(0, ROUNDS - pickL.length);
+  return shuffle(pickL.concat(pickB));
+}
+function play() {
+  rounds = makeRounds(); ri = 0; score = 0; solved = 0;
+  start();
+}
+function start() {
+  cur = rounds[ri]; clue = 1; locked = false;
+  const n = LV.opts - 1;
+  const wrong = shuffle(BANK_WORDS.filter(x => x !== cur.w)).slice(0, n);
+  cur.options = shuffle([cur.w, ...wrong]);
+  $("#rn").textContent = ri + 1; $("#score").textContent = score;
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#reveal").innerHTML = "";
+  $("#next").hidden = true; $("#more").hidden = false;
+  const box = $("#opts"); box.innerHTML = "";
+  cur.options.forEach(t => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = t; b.onclick = () => pick(b, t);
+    box.appendChild(b);
+  });
+  paintClues(true);
+}
+function paintClues(fresh) {
+  const w = cur.w;
+  const rows = [
+    ["Clue 1 · အဓိပ္ပါယ်", cur.def, false],
+    ["Clue 2 · ဥပမာ", cur.c2, false],
+    ["Clue 3 · စာလုံး အရိပ်အမြွက်", w[0].toUpperCase() + " " + w.slice(1).replace(/./g, "_").split("").join(" ") + "  (" + w.length + " letters)", true]
+  ];
+  const box = $("#clues"); box.innerHTML = "";
+  rows.forEach(([lab, txt, mono], k) => {
+    const d = document.createElement("div");
+    const open = k < clue;
+    d.className = "dt-clue" + (open ? "" : " lock") + (open && k === clue - 1 && !fresh ? " new" : "");
+    const s = document.createElement("small"); s.textContent = lab;
+    const t = document.createElement("div"); t.className = "t" + (mono && open ? " dt-letters" : "");
+    t.textContent = open ? txt : "🔒 ...";
+    if (open && k === 0 && cur.lesson && !LESSON_DEF[cur.w]) t.className += " my";
+    d.appendChild(s); d.appendChild(t); box.appendChild(d);
+  });
+  $("#pts").textContent = "ဒီ clue မှာ မှန်ရင် +" + (4 - clue);
+  $("#more").hidden = clue >= 3 || locked;
+}
+function openNext() { if (clue < 3) { clue++; paintClues(false); } }
+function pick(btn, t) {
+  if (locked) return;
+  if (t === cur.w) {
+    const pts = 4 - clue; locked = true;
+    score += pts; solved++; addPoints(pts * 4); sfx.ok();
+    finishRound(btn, true, pts);
+    return;
+  }
+  sfx.bad(); btn.disabled = true; btn.classList.add("wrong");
+  if (clue >= 3) { locked = true; finishRound(null, false, 0); return; }
+  $("#fb").className = "fb no";
+  $("#fb").textContent = "✗ မမှန်ပါဘူး၊ နောက် clue တစ်ခု ထပ်ပေးပါမယ်";
+  openNext();
+}
+function finishRound(btn, ok, pts) {
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === cur.w) b.classList.add("right"); });
+  $("#more").hidden = true;
+  const fb = $("#fb");
+  fb.className = "fb " + (ok ? "ok" : "no");
+  fb.textContent = ok ? "✓ မှန်ပါတယ်! +" + pts + " (clue " + clue + ")" : "✗ အဖြေ မပေါ်လာပါဘူး။";
+  const r = $("#reveal");
+  r.className = "";
+  r.innerHTML = '<div class="dt-reveal' + (ok ? "" : " lost") + '"><b></b> <span class="my"></span><div class="muted" style="font-size:.95rem"></div></div>';
+  $("b", r).textContent = cur.w; $(".my", r).textContent = "= " + cur.my;
+  $(".muted", r).textContent = cur.c2.replace("____", cur.w);
+  speak(cur.w);
+  $("#score").textContent = score;
+  const n = $("#next"); n.hidden = false; n.textContent = ri === rounds.length - 1 ? "Finish" : "Next →"; n.focus();
+}
+$("#more").onclick = () => { if (!locked && clue < 3) { openNext(); $("#fb").textContent = ""; } };
+$("#next").onclick = () => {
+  if (ri < rounds.length - 1) { ri++; start(); return; }
+  const r = score / (rounds.length * 3);
+  showResult({
+    title: r >= 0.7 ? "စုံထောက်ကောင်းပါပေ့! 🕵️" : r >= 0.45 ? "ကောင်းပါတယ်! 👍" : "ထပ်ကြိုးစားကြည့်ပါ 💪",
+    stars: r >= 0.7 ? 3 : r >= 0.45 ? 2 : 1,
+    text: solved + " / " + rounds.length + " စကားလုံး ရှာတွေ့ · " + score + " / " + rounds.length * 3 + " အမှတ်",
+    onAgain: play
+  });
+};
+play.gameId = "defineit";
+play();
+</script>
+</body>
+</html>

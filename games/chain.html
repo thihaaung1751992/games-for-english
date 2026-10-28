@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Chain</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.chainbox { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 2px; padding: 12px 8px; border-radius: 16px; border: 2px dashed var(--line); background: var(--card); min-height: 74px; margin-bottom: 14px; }
+.link { font-weight: 800; font-size: 1.05rem; padding: 4px 12px; border-radius: 12px; background: var(--bg); border: 2px solid var(--line); animation: linkin .35s ease-out; }
+.link b { color: var(--accent); font-size: 1.25rem; text-decoration: underline; }
+.link.first { background: var(--accent); border-color: var(--accent); color: #fff; }
+.link.first b { color: #fff; }
+.link.lost { border-color: var(--warn); }
+.lk { font-size: 1rem; }
+.need { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 4px 0 2px; font-size: 1.05rem; }
+.need .big { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 18px; background: var(--accent); color: #fff; font-size: 2.4rem; font-weight: 800; text-transform: lowercase; }
+.opt.wrong { animation: shake .3s; }
+@keyframes linkin { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .link, .opt.wrong { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const BANK = ("apple animal answer ask away arm aunt autumn afraid always airport afternoon again angry arrive also " +
+  "bag bed bird book bread boy bus banana beach basket blue boat bridge brother butter bottle black " +
+  "cat car cake cup chair city class clock coat cold cook corn cow cheese coffee candy " +
+  "dog door day desk dish doctor dinner drink draw drive dance dark dress duck dream " +
+  "egg eat evening easy eye ear east engine every enjoy early end empty " +
+  "fish food farm father fast fire flower friend frog fruit fork fox family finger floor " +
+  "garden girl glass go green grass great game guitar goat ground grow gift " +
+  "hand hat hot house horse happy help hello hospital hill hair holiday honey hungry hour " +
+  "ice idea inside island ink iron into job juice jump jacket join jam " +
+  "key king kitchen kind kite knife lamp lake leg lion light long lunch letter lemon listen little leaf " +
+  "man milk moon money mother market mouse mango map meal morning mountain music " +
+  "name night nose nurse new news noodle north note number never " +
+  "orange old open office ocean over only other onion owl " +
+  "pen pig plate play paper park pencil phone picture pink potato plane pizza pocket " +
+  "queen question quick quiet " +
+  "rice rain river road red room rabbit radio read ring roof rose run rainbow " +
+  "sun sea sister school shop soup sugar snow star story street summer sleep sing small swim shirt salt song " +
+  "table tea tree train teacher tiger town ticket time tomato today toy tall turn three tooth " +
+  "uncle under umbrella up use usually very village visit voice vegetable video " +
+  "water window wind walk week winter watch wash wall woman write wife worker " +
+  "yes yellow year young yard yesterday you zoo zero zebra").split(" ");
+const first = w => w[0], last = w => w[w.length - 1];
+const tail = () => last(chain[chain.length - 1].w);
+
+const topic = getTopic(), LV = getLevel();
+renderBar("Word Chain · " + topic.name);
+const my = {};
+topic.words.forEach(w => { if (/^[a-z]+$/.test(w.en)) my[w.en] = w.my; });
+const POOL = [...new Set(BANK.concat(Object.keys(my)))];
+const byStart = {};
+POOL.forEach(w => (byStart[first(w)] = byStart[first(w)] || []).push(w));
+// a word may be chained only if enough words start with its last letter (so the chain never dead-ends)
+const GOOD = new Set(Object.keys(byStart).filter(l => byStart[l].length >= 5));
+const chainable = w => GOOD.has(last(w));
+const PICKS = LV.opts === 3 ? 7 : topic.level >= 3 ? 10 : 8;
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Link: <b id="ln">1</b>/' + (PICKS + 1) + '</span><span class="hearts" id="lives" aria-label="Lives"></span><span>Score: <b id="score">0</b></span></div>' +
+  (LV.secs ? '<div class="timer"><i id="tbar"></i></div>' : '') +
+  '<div class="chainbox" id="chain" aria-label="Your chain"></div>' +
+  '<div class="panel"><div class="q-label">နောက်စာလုံးကို ရွေးပါ</div>' +
+  '<div class="need"><span>စရမယ့် အက္ခရာ</span><span class="big" id="need"></span></div>' +
+  '<div class="opts" id="opts"></div><div class="fb" id="fb" aria-live="polite"></div>' +
+  '<p class="muted" style="margin:6px 0 0;font-size:.9rem">ရှေ့စာလုံးရဲ့ <b>နောက်ဆုံးအက္ခရာ</b>နဲ့ စတဲ့စာလုံးကို ရွေးပါ။ ဥပမာ: cat → table → egg 🔗</p></div>';
+
+let chain, used, lives, score, answer, locked, tick, t0, goods;
+function play() {
+  clearInterval(tick);
+  const starts = POOL.filter(chainable), lesson = starts.filter(w => my[w]);
+  const from = lesson.length && Math.random() < 0.5 ? lesson : starts;
+  const s = from[Math.floor(Math.random() * from.length)];
+  chain = [{ w: s }]; used = new Set([s]); lives = 3; score = 0; locked = false;
+  paintChain(); step();
+}
+function hearts3() { $("#lives").textContent = hearts(lives, 3); }
+function paintChain() {
+  const box = $("#chain"); box.innerHTML = "";
+  chain.forEach((c, n) => {
+    const w = c.w;
+    if (n) { const l = document.createElement("span"); l.className = "lk"; l.textContent = "🔗"; l.setAttribute("aria-hidden", "true"); box.appendChild(l); }
+    const el = document.createElement("span");
+    el.className = "link" + (n === 0 ? " first" : "") + (c.lost ? " lost" : "");
+    el.appendChild(document.createTextNode(w.slice(0, -1)));
+    const b = document.createElement("b"); b.textContent = last(w); el.appendChild(b);
+    box.appendChild(el);
+  });
+  $("#ln").textContent = chain.length; $("#score").textContent = score; hearts3();
+}
+function step() {
+  clearInterval(tick);
+  if (chain.length >= PICKS + 1) return end(true);
+  const L = tail();
+  const cands = (byStart[L] || []).filter(w => !used.has(w) && chainable(w));
+  if (!cands.length) return end(true);
+  const lessonC = cands.filter(w => my[w]);
+  const from = lessonC.length && Math.random() < 0.4 ? lessonC : cands;
+  answer = from[Math.floor(Math.random() * from.length)];
+  // wrong options: none of them may start with L. Higher levels add a trap word that merely ENDS in L.
+  const bad = POOL.filter(w => first(w) !== L && !used.has(w));
+  const traps = shuffle(bad.filter(w => last(w) === L));
+  const wrong = [];
+  if (topic.level >= 2 && traps.length) wrong.push(traps[0]);
+  shuffle(bad).forEach(w => { if (wrong.length < LV.opts - 1 && !wrong.includes(w)) wrong.push(w); });
+  const options = shuffle([answer, ...wrong]);
+  $("#need").textContent = L;
+  const box = $("#opts"); box.innerHTML = "";
+  options.forEach((w, k) => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = w; b.dataset.k = k + 1;
+    b.onclick = () => pick(b, w);
+    box.appendChild(b);
+  });
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  locked = false;
+  if (LV.secs) {
+    t0 = Date.now(); $("#tbar").style.transform = "scaleX(1)";
+    tick = setInterval(() => {
+      const left = Math.max(0, 1 - (Date.now() - t0) / (LV.secs * 1000));
+      $("#tbar").style.transform = "scaleX(" + left + ")";
+      if (left === 0) { clearInterval(tick); timeout(); }
+    }, 100);
+  }
+}
+function link(w, ok) {
+  used.add(w);
+  chain.push({ w, lost: !ok });
+  speak(w);
+}
+function pick(btn, w) {
+  if (locked) return;
+  const fb = $("#fb"), L = tail();
+  if (first(w) === L) {
+    locked = true; clearInterval(tick);
+    const pts = 10 + chain.length; score += pts; addPoints(pts); sfx.ok();
+    [...$("#opts").children].forEach(b => b.disabled = true); btn.classList.add("right");
+    link(w, true); paintChain();
+    fb.className = "fb ok"; fb.textContent = "✓ " + w + (my[w] ? " = " + my[w] : "") + " +" + pts;
+    setTimeout(step, 750);
+  } else {
+    sfx.bad(); lives--; btn.disabled = true; btn.classList.add("wrong");
+    fb.className = "fb no"; fb.textContent = "✗ " + w + " က " + first(w) + " နဲ့စတာ။ " + L + " နဲ့ စတဲ့စာလုံးကို ရွေးပါ";
+    hearts3();
+    if (lives <= 0) { locked = true; clearInterval(tick); reveal(); setTimeout(() => end(false), 1400); }
+  }
+}
+function reveal() { [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === answer) b.classList.add("right"); }); }
+function timeout() {
+  if (locked) return;
+  locked = true; sfx.bad(); lives--; reveal();
+  $("#fb").className = "fb no"; $("#fb").textContent = "⏱ အချိန်ကုန်ပါပြီ။ " + answer + (my[answer] ? " = " + my[answer] : "");
+  link(answer, false); paintChain();
+  if (lives <= 0) return setTimeout(() => end(false), 1400);
+  setTimeout(step, 1300);
+}
+function end(done) {
+  clearInterval(tick); locked = true;
+  const n = chain.length;
+  const stars = done ? (lives >= 2 ? 3 : 2) : 1;
+  showResult({
+    title: done ? "ကွင်းဆက် ပြည့်စုံပါပြီ! 🔗🎉" : "ကွင်းဆက် ပြတ်သွားပါပြီ 💪",
+    stars, text: "စာလုံး " + n + " လုံး ဆက်နိုင်တယ် · " + score + " points", onAgain: play
+  });
+}
+document.addEventListener("keydown", e => {
+  if (locked || !/^[1-9]$/.test(e.key) || document.querySelector(".overlay")) return;
+  const b = $('#opts button[data-k="' + e.key + '"]');
+  if (b && !b.disabled) b.click();
+});
+play.gameId = "chain";
+play();
+</script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tug of War</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.tw-field { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; padding: 14px 8px; border-radius: 18px; border: 2px solid var(--line);
+  background: linear-gradient(color-mix(in srgb, var(--accent) 10%, var(--card)), var(--card)); }
+.tw-who { font-size: clamp(2rem, 11vw, 3rem); line-height: 1; text-align: center; min-width: 48px; }
+.tw-who.pull { animation: lunge .3s; }
+.tw-track { position: relative; height: 54px; }
+.tw-rope { position: absolute; left: 0; right: 0; top: 24px; height: 8px; border-radius: 99px; background: repeating-linear-gradient(90deg, #a9794b 0 10px, #c89a63 10px 20px); }
+.tw-goal { position: absolute; top: 4px; bottom: 4px; width: 0; border-left: 3px dashed var(--good); }
+.tw-goal.l { left: 8%; } .tw-goal.r { right: 8%; border-color: var(--bad); }
+.tw-centre { position: absolute; left: 50%; top: 8px; bottom: 8px; width: 0; border-left: 2px solid var(--line); }
+.tw-flag { position: absolute; top: 0; font-size: 2rem; line-height: 54px; transform: translateX(-50%); transition: left .35s; }
+.tw-meter { margin: 10px 0 4px; }
+.tw-q { margin-top: 12px; }
+@keyframes lunge { 50% { transform: scale(1.25); } }
+@media (prefers-reduced-motion: reduce) { .tw-flag { transition: none; } .tw-who.pull { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="stats"><span>Streak: <b id="streak">0</b> 🔥</span><span id="msg" aria-live="polite">စပြီ!</span><span>Score: <b id="score">0</b></span></div>
+  <div class="tw-field" aria-label="Tug of war rope">
+    <div class="tw-who" id="me">🧑</div>
+    <div class="tw-track"><div class="tw-rope"></div><i class="tw-goal l"></i><i class="tw-centre"></i><i class="tw-goal r"></i><div class="tw-flag" id="flag">🚩</div></div>
+    <div class="tw-who" id="bot">🤖</div>
+  </div>
+  <div class="timer tw-meter" title="ကွန်ပျူတာ ဆွဲမယ့် အချိန်"><i id="botbar"></i></div>
+  <div class="panel tw-q" id="qbox">
+    <div class="q-label" id="qlabel"></div><div class="q-text" id="qtext"></div>
+    <button class="btn" id="say" style="min-height:40px">🔊 Listen</button>
+    <div class="opts" id="opts"></div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <button class="btn primary" id="next" hidden>Next →</button>
+  </div>
+  <p class="muted" style="text-align:center">မှန်ရင် ကြိုးကို သင့်ဘက် ဆွဲမယ်။ မှားရင် ကွန်ပျူတာဘက် ပြန်ပါသွားမယ်။ 🤖 ကလည်း အချိန်တန်ရင် ဆွဲနေမယ်၊ သင့်ဘက် အဆုံးရောက်အောင် ဆွဲပါ!</p>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const topic = getTopic(), LV = getLevel();
+renderBar("Tug of War · " + topic.name);
+const RANGE = 6;                         // marker runs -RANGE (you win) .. +RANGE (computer wins)
+const BOT_MS = 3600 * LV.pace;           // computer pulls about this often
+const KINDS = [Q.enMy, Q.myEn, Q.blank, Q.sentence];
+let bag = [], pos, streak, score, right, wrong, q, answered, over, botTimer, nextTimer, gen = 0;
+
+function nextQ() {
+  if (!bag.length) bag = shuffle(topic.words);
+  return KINDS[Math.floor(Math.random() * KINDS.length)](topic, bag.pop());
+}
+function paint() {
+  // 8% .. 92% of the track
+  $("#flag").style.left = (50 + (pos / RANGE) * 42) + "%";
+  $("#streak").textContent = streak; $("#score").textContent = score;
+}
+function say(t) { $("#msg").textContent = t; }
+function pulse(el) { el.classList.remove("pull"); void el.offsetWidth; el.classList.add("pull"); }
+function schedulePull() {
+  clearTimeout(botTimer);
+  const ms = BOT_MS * (0.85 + Math.random() * 0.3), bar = $("#botbar");
+  bar.style.transition = "none"; bar.style.transform = "scaleX(1)"; void bar.offsetWidth;
+  bar.style.transition = "transform " + ms + "ms linear"; bar.style.transform = "scaleX(0)";
+  botTimer = setTimeout(() => {
+    if (over) return;
+    if (!document.hidden) { pos++; pulse($("#bot")); say("🤖 ဆွဲလိုက်ပြီ!"); sfx.bad(); paint(); if (check()) return; }
+    schedulePull();
+  }, ms);
+}
+function check() {
+  if (Math.abs(pos) < RANGE) return false;
+  over = true; clearTimeout(botTimer); clearTimeout(nextTimer);
+  const won = pos <= -RANGE, total = right + wrong, acc = total ? right / total : 0;
+  $("#opts").querySelectorAll("button").forEach(b => b.disabled = true);
+  say(won ? "🎉 သင်နိုင်ပြီ!" : "🤖 ကွန်ပျူတာနိုင်သွားပြီ");
+  setTimeout(() => showResult({
+    title: won ? "ကြိုးဆွဲပွဲ နိုင်ပါတယ်! 🎉" : "ကွန်ပျူတာ နိုင်သွားတယ် 💪",
+    stars: won ? (acc >= 0.8 ? 3 : 2) : 1,
+    text: right + " / " + total + " မှန်တယ် · " + score + " points",
+    onAgain: play
+  }), 800);
+  return true;
+}
+function show() {
+  if (over) return;
+  q = nextQ(); answered = false;
+  $("#qlabel").textContent = q.label;
+  const qt = $("#qtext"); qt.textContent = q.text; qt.className = "q-text" + (q.my ? " my" : "");
+  qt.style.fontSize = q.small ? "clamp(1.1rem, 4.6vw, 1.5rem)" : "clamp(1.5rem, 7vw, 2.2rem)";
+  $("#say").hidden = !q.speak; $("#say").onclick = () => speak(q.speak);
+  if (q.speak && q.auto) speak(q.speak);
+  const box = $("#opts"); box.innerHTML = "";
+  q.options.forEach(o => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = o; b.onclick = () => choose(b, o === q.answer);
+    box.appendChild(b);
+  });
+  $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
+}
+function choose(btn, ok) {
+  if (answered || over) return;
+  answered = true;
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === q.answer) b.classList.add("right"); });
+  const fb = $("#fb");
+  if (ok) {
+    right++; streak++;
+    const pull = streak >= 3 ? 2 : 1;                      // a streak of 3+ pulls double
+    pos -= pull; score += 10 + Math.min(streak - 1, 5) * 2; addPoints(10); sfx.ok(); pulse($("#me"));
+    fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! " + (pull > 1 ? "🔥 အားကုန်ဆွဲလိုက်တယ်! " : "") + q.explain;
+    say("💪 သင်ဆွဲလိုက်ပြီ!"); paint();
+    if (check()) return;
+    nextTimer = setTimeout(show, 1000);
+  } else {
+    wrong++; streak = 0; pos++; sfx.bad(); btn.classList.add("wrong");
+    fb.className = "fb no"; fb.textContent = "✗ မှားပါတယ်။ " + q.explain;
+    say("😬 ကြိုးပါသွားတယ်!"); paint();
+    if (check()) return;
+    const n = $("#next"); n.hidden = false; n.focus();
+    nextTimer = setTimeout(show, 3200);
+  }
+}
+function play() {
+  clearTimeout(botTimer); clearTimeout(nextTimer);
+  pos = 0; streak = 0; score = 0; right = 0; wrong = 0; over = false;
+  say("စပြီ!"); paint(); show(); schedulePull();
+}
+$("#next").onclick = () => { clearTimeout(nextTimer); show(); };
+play.gameId = "tugwar";
+play();
+</script>
+</body>
+</html>

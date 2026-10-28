@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Typing Defender</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.df { position: relative; height: 380px; overflow: hidden; border-radius: 16px; border: 2px solid var(--line); margin-top: 10px; cursor: text;
+  background: linear-gradient(color-mix(in srgb, var(--accent) 14%, var(--card)), var(--bg)); }
+.df .wall { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; background: color-mix(in srgb, var(--muted) 30%, var(--card)); border-top: 3px solid var(--muted); pointer-events: none; }
+.df .castle { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); font-size: 2.6rem; line-height: 1; pointer-events: none; }
+.df .castle.hurt { animation: shake .3s; }
+.en { position: absolute; width: 48%; height: 62px; padding: 4px 8px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; line-height: 1.3; }
+.en .my { font-size: .95rem; font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.en .pat { font-family: ui-monospace, Menlo, monospace; font-size: .9rem; letter-spacing: .12em; color: var(--muted); min-height: 1.2em; white-space: pre; }
+.en .pat b { color: var(--accent); }
+.en.lock { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--card)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.en.zap { background: var(--good); border-color: var(--good); color: #fff; animation: pop .35s forwards; }
+.en.zap .pat, .en.zap .pat b { color: #fff; }
+.en.boom { background: color-mix(in srgb, var(--bad) 30%, var(--card)); border-color: var(--bad); animation: pop .4s forwards; }
+.df .banner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 16px; font-size: 1.6rem; font-weight: 800; z-index: 3;
+  background: color-mix(in srgb, var(--card) 80%, transparent); pointer-events: none; }
+.df .banner small { font-size: 1rem; font-weight: 600; color: var(--muted); }
+.df .intro { pointer-events: auto; }
+.typebox { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 10px; }
+.typebox .input { margin: 0; max-width: none; flex: 1; }
+.typebox .input.bad { border-color: var(--bad); }
+.typebox .btn { min-height: 56px; }
+@media (prefers-reduced-motion: reduce) { .df .castle.hurt, .en.zap, .en.boom { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const topic = getTopic(), LV = getLevel();
+renderBar("Typing Defender · " + topic.name);
+const WAVES = [4, 5, 6, 7], CH = 62, H = 380, GROUND = H - 56, MAXHP = [6, 5, 5, 4][topic.level - 1];
+const WF = [1, 0.93, 0.86, 0.8];
+$("#app").innerHTML =
+  '<div class="stats"><span>Wave: <b id="wv">1</b>/' + WAVES.length + '</span><span class="hearts" id="hp"></span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="df" id="df"><div class="wall"></div><div class="castle" id="castle">🏰</div></div>' +
+  '<div class="typebox"><input class="input" id="inp" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" aria-label="Type the English word" placeholder="English စာလုံးကို ရိုက်ပါ">' +
+  '<button class="btn primary" id="go" aria-label="Attack">⚔️ Enter</button></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div>';
+const df = $("#df"), inp = $("#inp");
+const norm = s => String(s).toLowerCase().trim();
+
+let enemies = [], wave, queue, hp, score, killed, total, state, spawnT, bannerT, last, raf, lastLane, streak, timers = [];
+
+function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+function hud() {
+  $("#hp").textContent = hearts(hp, MAXHP); $("#score").textContent = score; $("#wv").textContent = Math.min(wave + 1, WAVES.length);
+}
+function banner(html, cls) {
+  const b = document.createElement("div"); b.className = "banner " + (cls || ""); b.innerHTML = html; df.appendChild(b); return b;
+}
+function intro() {
+  state = "intro";
+  const b = banner('🏰 Typing Defender<small>ရန်သူတွေရဲ့ မြန်မာအဓိပ္ပါယ်ကို ကြည့်ပြီး English စာလုံးကို ရိုက်ပါ။<br>ရိုက်မိတာနဲ့ အလိုအလျောက် ရိုက်ချိုးမယ်။ ရန်သူက ရဲတိုက်ကို မထိစေနဲ့!</small><button class="btn primary" id="start" style="margin-top:12px">▶ Start</button>', "intro");
+  $("#start", b).onclick = () => { b.remove(); play(); };
+}
+function play() {
+  cancelAnimationFrame(raf); timers.forEach(clearTimeout); timers = [];
+  df.querySelectorAll(".en, .banner").forEach(e => e.remove());
+  wave = -1; hp = MAXHP; score = 0; killed = 0; streak = 0; enemies = []; lastLane = -1;
+  total = WAVES.reduce((a, b) => a + b, 0);
+  $("#fb").textContent = ""; $("#fb").className = "fb"; inp.value = ""; inp.className = "input"; inp.disabled = false;
+  nextWave();
+  last = performance.now(); raf = requestAnimationFrame(loop);
+  inp.focus();
+}
+function nextWave() {
+  wave++;
+  if (wave >= WAVES.length) return end(true);
+  queue = take(topic.words, WAVES[wave]);
+  state = "banner"; bannerT = 1500; hud();
+  const b = banner("🌊 Wave " + (wave + 1) + "<small>ရန်သူ " + WAVES[wave] + " ကောင် လာနေပြီ</small>");
+  later(() => b.remove(), 1450);
+  spawnT = 600;
+}
+function gap() { return 4200 * LV.pace * WF[wave]; }
+function spawn() {
+  // pick a word that is not already on screen (queue holds this wave's words)
+  let k = queue.findIndex(w => !enemies.some(e => e.w.en === w.en));
+  if (k < 0) return false;
+  const w = queue.splice(k, 1)[0];
+  let lane; do { lane = Math.floor(Math.random() * 3); } while (lane === lastLane);
+  lastLane = lane;
+  const el = document.createElement("div"); el.className = "en";
+  el.style.left = [1, 26, 51][lane] + "%";
+  el.innerHTML = '<div class="my"></div><div class="pat"></div>';
+  $(".my", el).textContent = w.my;
+  df.insertBefore(el, $(".wall"));
+  const e = { w, el, y: -CH, age: 0, dur: gap() * 4.2 };
+  enemies.push(e); paint(e, "");
+  return true;
+}
+// answer pattern shown on a card: typed letters are revealed; the level decides how much else is shown
+function paint(e, typed) {
+  const a = e.w.en, n = typed.length, first = LV.hint && topic.level <= 2;
+  const s = !n && !LV.hint ? "" : a.split("").map((c, i) => i < n ? "<b>" + c + "</b>" : i === 0 && first ? c : "_").join(" ");
+  $(".pat", e.el).innerHTML = s || "&nbsp;";
+}
+function loop(now) {
+  const dt = Math.min(now - last, 50); last = now;
+  if (state === "banner") { bannerT -= dt; if (bannerT <= 0) state = "play"; }
+  else if (state === "play") {
+    spawnT -= dt;
+    if (spawnT <= 0 && queue.length) { if (spawn()) spawnT = gap(); else spawnT = 300; }
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      e.age += dt; e.y = -CH + (GROUND + CH * 0.35) * (e.age / e.dur);
+      e.el.style.top = e.y + "px";
+      if (e.y + CH >= GROUND + CH * 0.35) { enemies.splice(i, 1); breach(e); if (state === "over") return; }
+    }
+    if (!queue.length && !enemies.length) { nextWave(); if (state === "over") return; }
+  }
+  raf = requestAnimationFrame(loop);
+}
+function breach(e) {
+  hp--; streak = 0; sfx.bad(); hud();
+  e.el.classList.add("boom"); later(() => e.el.remove(), 420);
+  $("#castle").classList.remove("hurt"); void $("#castle").offsetWidth; $("#castle").classList.add("hurt");
+  $("#fb").className = "fb no"; $("#fb").textContent = "💥 " + e.w.en + " = " + e.w.my;
+  refresh();
+  if (hp <= 0) end(false);
+}
+function target(v) {
+  // the closest enemy to the castle whose word starts with what was typed
+  let best = null;
+  enemies.forEach(e => { if (e.w.en.startsWith(v) && (!best || e.y > best.y)) best = e; });
+  return best;
+}
+function refresh() {
+  const v = norm(inp.value), t = v ? target(v) : null;
+  enemies.forEach(e => { e.el.classList.toggle("lock", e === t); paint(e, e === t ? v : ""); });
+  inp.classList.toggle("bad", !!v && !t);
+}
+function defeat(e) {
+  enemies.splice(enemies.indexOf(e), 1);
+  killed++; streak++;
+  const pts = 10 + e.w.en.length + Math.min(streak - 1, 5) * 2; score += pts; addPoints(pts); sfx.ok(); hud();
+  e.el.classList.remove("lock"); e.el.classList.add("zap"); later(() => e.el.remove(), 380);
+  $(".pat", e.el).textContent = "✓ " + e.w.en;
+  $("#fb").className = "fb ok"; $("#fb").textContent = "✓ " + e.w.en + " — " + e.w.ex;
+  speak(e.w.en);
+  inp.value = ""; refresh();
+}
+function submit(force) {
+  if (state !== "play" && state !== "banner") return;
+  const v = norm(inp.value);
+  if (!v) return;
+  const exact = enemies.filter(e => e.w.en === v).sort((a, b) => b.y - a.y)[0];
+  if (exact) {
+    // typing a short word that begins a longer one waits for Enter; otherwise it hits at once
+    const longer = enemies.some(e => e.w.en !== v && e.w.en.startsWith(v));
+    if (force || !longer) return defeat(exact);
+    return;
+  }
+  if (force) { sfx.bad(); inp.classList.add("bad"); inp.select(); }
+}
+inp.addEventListener("input", () => { refresh(); submit(false); });
+inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); submit(true); } });
+$("#go").onclick = () => { submit(true); inp.focus(); };
+df.addEventListener("click", () => { if (!inp.disabled) inp.focus(); });
+
+function end(win) {
+  cancelAnimationFrame(raf); state = "over"; inp.disabled = true; inp.blur();
+  enemies.forEach(e => e.el.remove()); enemies = [];
+  const r = hp / MAXHP;
+  showResult({
+    title: win ? (r >= 0.6 ? "ရဲတိုက်ကို အောင်မြင်စွာ ကာကွယ်ခဲ့တယ်! 🏰🎉" : "ရဲတိုက် လွတ်မြောက်ခဲ့တယ်! 🏰") : "ရဲတိုက် ကျသွားပြီ 💥",
+    stars: win ? (r >= 0.6 ? 3 : 2) : 1,
+    text: killed + " / " + total + " ကောင် ရှင်းလင်းခဲ့တယ် · " + score + " points",
+    onAgain: again
+  });
+}
+function again() { df.querySelectorAll(".banner").forEach(b => b.remove()); play(); }
+again.gameId = "defender";
+intro();
+</script>
+</body>
+</html>

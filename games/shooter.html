@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space Shooter</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.sh { position: relative; height: 400px; overflow: hidden; border-radius: 16px; border: 2px solid var(--line); margin-top: 10px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair;
+  background: radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--accent) 30%, transparent) 0 2px, transparent 3px),
+    radial-gradient(circle at 75% 35%, color-mix(in srgb, var(--accent) 30%, transparent) 0 2px, transparent 3px),
+    radial-gradient(circle at 50% 70%, color-mix(in srgb, var(--accent) 30%, transparent) 0 1.5px, transparent 3px),
+    linear-gradient(color-mix(in srgb, var(--accent) 22%, var(--card)), var(--bg)); }
+.sh .lane { position: absolute; top: 0; bottom: 0; border-left: 1px dashed color-mix(in srgb, var(--line) 70%, transparent); pointer-events: none; }
+.sh .lane.on { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.sh .rock { position: absolute; height: 46px; display: flex; align-items: center; justify-content: center; padding: 0 6px; font-weight: 800; font-size: 1rem; line-height: 1.1;
+  border-radius: 46% 54% 50% 50% / 55% 45% 55% 45%; border: 2px solid var(--muted); background: color-mix(in srgb, var(--muted) 22%, var(--card)); color: var(--ink); text-align: center; overflow: hidden; pointer-events: none; }
+.sh .rock.good { background: var(--good); border-color: var(--good); color: #fff; }
+.sh .rock.boom { animation: boom .4s forwards; }
+.sh .shot { position: absolute; width: 6px; height: 16px; margin-left: -3px; border-radius: 4px; background: var(--warn); pointer-events: none; }
+.sh .ship { position: absolute; bottom: 4px; height: 52px; display: flex; align-items: center; justify-content: center; font-size: 2rem; transition: left .12s; pointer-events: none; }
+.sh .ship span { display: inline-block; transform: rotate(-45deg); }
+.sh .ground { position: absolute; left: 0; right: 0; bottom: 60px; border-top: 2px dashed color-mix(in srgb, var(--bad) 55%, transparent); pointer-events: none; }
+.ctl { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 10px; margin-top: 10px; }
+.ctl .btn { min-height: 56px; font-size: 1.4rem; touch-action: manipulation; }
+@keyframes boom { to { transform: scale(1.5); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sh .rock.boom { animation: none; opacity: 0; } .sh .ship { transition: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const topic = getTopic(), LV = getLevel();
+renderBar("Space Shooter · " + topic.name);
+const ROUNDS = 10, H = 400, ROCK = 46, GROUND = H - 60, MAXL = [4, 4, 3, 3][topic.level - 1], N = LV.opts;
+$("#app").innerHTML =
+  '<div class="stats"><span>Round: <b id="rn">1</b>/' + ROUNDS + '</span><span class="hearts" id="lives"></span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="panel" style="padding:12px"><div class="q-label" id="qlabel"></div><div class="q-text" id="qtext" style="margin:0"></div>' +
+  '<button class="btn" id="say" style="min-height:40px;margin-top:6px">🔊 Listen</button></div>' +
+  '<div class="sh" id="sh" aria-label="Space area"></div>' +
+  '<div class="ctl"><button class="btn" id="bl" aria-label="Move left">◀</button><button class="btn primary" id="fire" aria-label="Fire">🔥 FIRE</button><button class="btn" id="br" aria-label="Move right">▶</button></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div>' +
+  '<p class="muted" style="text-align:center;margin:0;font-size:.9rem">← → (သို့) ◀ ▶ နဲ့ရွှေ့၊ Space/FIRE နဲ့ပစ်ပါ။ ကော်လံကို နှိပ်ရင် ရွှေ့ပြီး ပစ်မယ်။ မှန်တဲ့ကျောက်ကိုပဲ ပစ်ပါ!</p>';
+const area = $("#sh");
+
+let qs, round, lives, score, solved, streak, q, rocks, shots, col, state, elapsed, dur, cool, last, raf, timers = [], ship, lanes;
+
+function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+function build() {
+  const pool = take(topic.words, ROUNDS);
+  return pool.map((w, k) => {
+    const x = k % 2 ? Q.blank(topic, w) : Q.myEn(topic, w);
+    x.label = k % 2 ? "ကွက်လပ်ထဲ ဖြည့်မယ့် စာလုံးကို ပစ်ပါ" : "ဒီအဓိပ္ပါယ်ရှိတဲ့ ကျောက်တုံးကို ပစ်ပါ"; x.speak = w.en;
+    return x;
+  });
+}
+function hud() { $("#lives").textContent = hearts(lives, MAXL); $("#score").textContent = score; $("#rn").textContent = Math.min(round, ROUNDS); }
+function play() {
+  cancelAnimationFrame(raf); timers.forEach(clearTimeout); timers = [];
+  qs = build(); round = 0; lives = MAXL; score = 0; solved = 0; streak = 0; col = Math.floor(N / 2); state = "wait";
+  area.innerHTML = "";
+  lanes = [];
+  for (let c = 0; c < N; c++) {
+    const l = document.createElement("div"); l.className = "lane"; l.style.left = (c * 100 / N) + "%"; l.style.width = (100 / N) + "%";
+    area.appendChild(l); lanes.push(l);
+  }
+  const g = document.createElement("div"); g.className = "ground"; area.appendChild(g);
+  ship = document.createElement("div"); ship.className = "ship"; ship.innerHTML = "<span>🚀</span>"; ship.style.width = (100 / N) + "%";
+  area.appendChild(ship);
+  hud(); moveTo(col); $("#fb").textContent = ""; $("#fb").className = "fb";
+  next();
+}
+function moveTo(c) {
+  col = Math.max(0, Math.min(N - 1, c));
+  ship.style.left = (col * 100 / N) + "%";
+  lanes.forEach((l, k) => l.classList.toggle("on", k === col));
+}
+function next() {
+  if (round >= ROUNDS || lives <= 0) return end();
+  q = qs[round]; round++; state = "play"; elapsed = 0; cool = 0; shots = [];
+  hud();
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#qlabel").textContent = q.label;
+  const qt = $("#qtext"); qt.textContent = q.text; qt.className = "q-text" + (q.my ? " my" : "");
+  qt.style.fontSize = q.small ? "clamp(1.1rem, 4.6vw, 1.5rem)" : "clamp(1.5rem, 7vw, 2.2rem)";
+  $("#say").hidden = !q.speak; $("#say").onclick = () => speak(q.speak);
+  if (q.speak && q.auto) speak(q.speak);
+  area.querySelectorAll(".rock, .shot").forEach(e => e.remove());
+  const opts = q.options.slice(0, N);
+  const order = shuffle(opts.map((_, i) => i));
+  rocks = opts.map((t, k) => {
+    const c = order[k], el = document.createElement("div");
+    el.className = "rock"; el.textContent = t;
+    el.style.left = "calc(" + (c * 100 / N) + "% + 4px)"; el.style.width = "calc(" + (100 / N) + "% - 8px)";
+    area.insertBefore(el, ship);
+    return { el, t, c, y: -ROCK, alive: true, ok: t === q.answer };
+  });
+  // fall time for this round (lower pace = faster)
+  dur = Math.max(5200, 11500 - round * 350) * LV.pace;
+  last = performance.now();
+  cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
+}
+function fire() {
+  if (state !== "play" || cool > 0) return;
+  cool = 230;
+  const el = document.createElement("div"); el.className = "shot";
+  el.style.left = ((col + 0.5) * 100 / N) + "%";
+  area.insertBefore(el, ship);
+  shots.push({ el, c: col, y: H - 60 });
+}
+function loop(now) {
+  const dt = Math.min(now - last, 50); last = now;
+  if (state === "play") {
+    elapsed += dt; cool -= dt;
+    const y = -ROCK + (GROUND + ROCK) * (elapsed / dur);
+    rocks.forEach(r => { if (r.alive) { r.y = y; r.el.style.top = y + "px"; } });
+    for (let i = shots.length - 1; i >= 0 && state === "play"; i--) {
+      const s = shots[i];
+      s.y -= 0.85 * dt; s.el.style.top = s.y + "px";
+      if (s.y < -20) { s.el.remove(); shots.splice(i, 1); continue; }
+      const r = rocks.find(r => r.alive && r.c === s.c && s.y <= r.y + ROCK && s.y >= r.y - 10);
+      if (r) { s.el.remove(); shots.splice(i, 1); hit(r); }
+    }
+    if (state === "play") {
+      const goal = rocks.find(r => r.ok);
+      if (goal.alive && goal.y + ROCK >= GROUND) return miss();
+    }
+  }
+  raf = requestAnimationFrame(loop);
+}
+function boom(r) { r.alive = false; r.el.classList.add("boom"); r.el.style.top = r.y + "px"; later(() => r.el.remove(), 420); }
+function hit(r) {
+  if (r.ok) {
+    state = "done"; solved++; streak++;
+    const pts = 10 + Math.min(streak - 1, 5) * 2 + (elapsed < dur * 0.5 ? 3 : 0); score += pts; addPoints(pts); sfx.ok();
+    boom(r); speak(q.speak || ""); hud();
+    $("#fb").className = "fb ok"; $("#fb").textContent = "✓ မှန်ပါတယ်! +" + pts + " — " + q.explain;
+    rocks.forEach(o => { if (o.alive) boom(o); });
+    shots.forEach(s => s.el.remove()); shots = [];
+    later(next, 1400);
+  } else {
+    streak = 0; lives--; sfx.bad(); boom(r); hud();
+    $("#fb").className = "fb no"; $("#fb").textContent = "✗ \"" + r.t + "\" မမှန်ဘူး";
+    if (lives <= 0) { state = "done"; revealGoal(); shots.forEach(s => s.el.remove()); shots = []; later(end, 1500); }
+  }
+}
+function revealGoal() { const g = rocks.find(r => r.ok); if (g && g.alive) g.el.classList.add("good"); }
+function miss() {
+  state = "done"; streak = 0; lives--; sfx.bad(); hud(); revealGoal();
+  shots.forEach(s => s.el.remove()); shots = [];
+  $("#fb").className = "fb no"; $("#fb").textContent = "✗ မှန်တဲ့ကျောက်က မြေပေါ်ရောက်သွားပြီ။ " + q.explain;
+  later(next, 1700);
+}
+function end() {
+  cancelAnimationFrame(raf); state = "over";
+  const r = solved / ROUNDS;
+  showResult({ title: lives <= 0 ? "အာကာသယာဉ် ပျက်သွားပြီ 💥" : cheer(r), stars: lives <= 0 ? 1 : starsFor(r),
+    text: solved + " / " + ROUNDS + " ကြိမ် မှန်တယ် · " + score + " points", onAgain: play });
+}
+
+// controls: keyboard, buttons, tap a column (move + fire), drag to steer
+document.addEventListener("keydown", e => {
+  if (state === "over") return;
+  if (e.key === "ArrowLeft" || e.key === "a") moveTo(col - 1);
+  else if (e.key === "ArrowRight" || e.key === "d") moveTo(col + 1);
+  else if (e.key === " " || e.key === "ArrowUp") { fire(); }
+  else return;
+  if (e.target === document.body || e.key === " ") e.preventDefault();
+});
+$("#bl").onclick = () => moveTo(col - 1);
+$("#br").onclick = () => moveTo(col + 1);
+$("#fire").onclick = fire;
+function colAt(ev) {
+  const r = area.getBoundingClientRect(), w = r.width || 1;
+  return Math.floor(Math.max(0, Math.min(0.999, (ev.clientX - r.left) / w)) * N);
+}
+let dragging = false;
+area.addEventListener("pointerdown", ev => { dragging = true; moveTo(colAt(ev)); fire(); });
+area.addEventListener("pointermove", ev => { if (dragging) moveTo(colAt(ev)); });
+["pointerup", "pointercancel", "pointerleave"].forEach(t => area.addEventListener(t, () => { dragging = false; }));
+// hold FIRE for rapid fire
+let hold;
+$("#fire").addEventListener("pointerdown", () => { clearInterval(hold); hold = setInterval(fire, 120); });
+["pointerup", "pointercancel", "pointerleave"].forEach(t => $("#fire").addEventListener(t, () => clearInterval(hold)));
+play.gameId = "shooter";
+play();
+</script>
+</body>
+</html>

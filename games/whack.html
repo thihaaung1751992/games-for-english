@@ -43,6 +43,7 @@
 <script src="js/common.js"></script>
 <script>
 const topic = getTopic();
+const LV = getLevel();
 renderBar("Whack-a-Word · " + topic.name);
 const GAME_SECS = 45, KEYS = "789456123";
 let holes, target, lives, score, hits, endAt, startAt, timers, clock, over, lastTarget;
@@ -91,7 +92,7 @@ function tick() { update(); if (!over && timeLeft() === 0) finish(); }
 function spawn() {
   if (over) return;
   const e = elapsed();
-  const stay = Math.max(800, 1900 - e * 25), gap = Math.max(380, 900 - e * 12);
+  const stay = Math.max(800, 1900 - e * 25) * LV.pace, gap = Math.max(380, 900 - e * 12) * LV.pace;
   const free = holes.filter(h => !h.w && !h.b.classList.contains("up"));
   if (free.length) {
     const h = free[Math.floor(Math.random() * free.length)];

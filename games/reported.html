@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reported Speech</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Rule texts (Burmese)
+const T = {
+  back: "ပြောတဲ့ verb က အတိတ် (said) ဆိုရင် tense ကို တစ်ဆင့်နောက်ဆုတ်ပါတယ် (am → was, will → would, have done → had done)၊ pronoun ကိုလည်း ပြောင်းပါ။",
+  time: "အချိန်စကားလုံးတွေလည်း ပြောင်းပါတယ်: today/tonight → that day/that night, yesterday → the day before, tomorrow → the next day, next month → the following month, now → then, here → there။",
+  ques: "reported question မှာ စကားလုံးအစီအစဉ်က ပုံမှန်ဝါကျလိုပဲ (subject + verb) ဖြစ်ပြီး did/does/do မသုံးပါ၊ ? မထည့်ပါ။ yes/no မေးခွန်းဆိုရင် if/whether သုံးပါ။",
+  cmd: "အမိန့်/တောင်းဆိုချက်ကို tell/ask + လူ + to + V နဲ့ ပြောင်းပါတယ်။ ငြင်းတာဆိုရင် not to + V။",
+  verb: "reporting verb တစ်ခုချင်းမှာ ကိုယ်ပိုင် ပုံစံ ရှိပါတယ်၊ အဲဒီ verb ရဲ့ ပုံစံကို မှတ်ထားပါ။"
+};
+// [text shown, correct, [wrong x3], rule]
+const BANK = [
+  ["Tom said, “I am tired.”", "Tom said that he was tired.", ["Tom said that I was tired.", "Tom said that he had been tired.", "Tom said that he were tired."], T.back],
+  ["Anna said to me, “I’ll call you tomorrow.”", "Anna told me she would call me the next day.", ["Anna told me she will call you tomorrow.", "Anna told me she called me the next day.", "Anna told me she would call you tomorrow."], T.back + " " + T.time],
+  ["They said, “We have finished the project.”", "They said they had finished the project.", ["They said we had finished the project.", "They said they would finish the project.", "They said they are finishing the project."], T.back],
+  ["She said, “I was working late yesterday.”", "She said she had been working late the day before.", ["She said she was working late yesterday.", "She said she has been working late the day before.", "She said she had worked late tomorrow."], T.back + " " + T.time],
+  ["“I can swim,” said Ben.", "Ben said that he could swim.", ["Ben said that I could swim.", "Ben said that he would can swim.", "Ben said that he couldn’t swim."], "can → could (backshift)၊ pronoun I → he။"],
+  ["“I must leave now,” she said.", "She said that she had to leave then.", ["She said that she must leave now.", "She said that I had to leave then.", "She said that she has to leave then."], "must → had to၊ now → then။ " + T.time],
+  ["He said, “I’m going to buy a car next month.”", "He said he was going to buy a car the following month.", ["He said I was going to buy a car the following month.", "He said he would be buying a car the previous month.", "He said he has been going to buy a car the following month."], T.back + " " + T.time],
+  ["“I don’t like spicy food,” she said.", "She said that she didn’t like spicy food.", ["She said that she doesn’t liked spicy food.", "She said that she hadn’t liked spicy food.", "She said that I didn’t like spicy food."], "don't like → didn't like (present simple → past simple)။"],
+  ["“I’ve never been to Paris,” he said.", "He said that he had never been to Paris.", ["He said that he never was to Paris.", "He said that I had never been to Paris.", "He said that he would never be to Paris."], "present perfect → past perfect (have been → had been)။"],
+  ["“I will help you,” said my brother.", "My brother said he would help me.", ["My brother said he helped me.", "My brother said I would help him.", "My brother said he would help you."], "will → would၊ you → me (ကျွန်တော့်ကို ပြောတာ)။"],
+  ["She asked me, “Where do you live?”", "She asked me where I lived.", ["She asked me where did I live.", "She asked me where she lived.", "She asked me where I will live."], T.ques],
+  ["The teacher asked us, “Are you ready?”", "The teacher asked if we were ready.", ["The teacher asked were we ready.", "The teacher asked if were we ready.", "The teacher asked that we were ready."], T.ques],
+  ["He asked me, “What time does the film start?”", "He asked me what time the film started.", ["He asked me what time did the film start.", "He asked me what time the film will start.", "He asked me what time does the film start."], T.ques],
+  ["My boss asked me, “Did you finish the report?”", "My boss asked whether I had finished the report.", ["My boss asked whether did I finish the report.", "My boss asked that I finished the report.", "My boss asked whether I will finish the report."], T.ques + " did + V → had + V3။"],
+  ["She asked us, “Have you seen my keys?”", "She asked if we had seen her keys.", ["She asked if we have seen my keys.", "She asked had we seen her keys.", "She asked if we saw our keys."], T.ques + " my → her။"],
+  ["He asked her, “How long have you lived here?”", "He asked her how long she had lived there.", ["He asked her how long had she lived there.", "He asked her how long she has lived here.", "He asked her how long did she lived there."], T.ques + " here → there။"],
+  ["She asked me, “Can you speak French?”", "She asked me if I could speak French.", ["She asked me if could I speak French.", "She asked me if you could speak French.", "She asked me that I can speak French."], T.ques],
+  ["The manager asked Tom, “Why are you late?”", "The manager asked Tom why he was late.", ["The manager asked Tom why was he late.", "The manager asked Tom why you were late.", "The manager asked Tom why he is being late."], T.ques],
+  ["She asked me, “Where did you go last weekend?”", "She asked me where I had gone the weekend before.", ["She asked me where did I go the weekend before.", "She asked me where she had gone the weekend before.", "She asked me where I will go the weekend after."], T.ques + " last weekend → the weekend before။"],
+  ["She said to me, “Close the window.”", "She told me to close the window.", ["She told me close the window.", "She told me to closing the window.", "She told me not to close the window."], T.cmd],
+  ["He said to the boy, “Don’t touch that!”", "He told the boy not to touch that.", ["He told the boy don’t touch that.", "He told the boy to touch that.", "He told the boy not touching that."], T.cmd],
+  ["She asked him, “Could you open the door, please?”", "She asked him to open the door.", ["She asked him open the door.", "She asked him opening the door.", "She asked him if he opened the door."], T.cmd],
+  ["The librarian said to us, “Please be quiet.”", "The librarian asked us to be quiet.", ["The librarian asked to us be quiet.", "The librarian asked us being quiet.", "The librarian asked us we are quiet."], T.cmd],
+  ["Sam said, “I’ll carry your bag.” (an offer)", "Sam offered to carry my bag.", ["Sam offered carrying my bag.", "Sam suggested to carry my bag.", "Sam denied carrying my bag."], "offer + to + V = ... ပေးမယ်လို့ ကမ်းလှမ်းတယ်။"],
+  ["Lily said, “Why don’t we go to the beach?”", "Lily suggested going to the beach.", ["Lily suggested us to go to the beach.", "Lily suggested to going to the beach.", "Lily refused going to the beach."], "suggest + V-ing (ဒါမှမဟုတ် suggest that we go)။ suggest + to V မသုံးရပါ။"],
+  ["Mark said, “I didn’t take your pen.”", "Mark denied taking my pen.", ["Mark denied to take my pen.", "Mark admitted taking my pen.", "Mark denied that I took his pen."], "deny + V-ing = ... မလုပ်ခဲ့ဘူးလို့ ငြင်းတယ်။"],
+  ["Eva said, “Yes, I broke the vase.”", "Eva admitted breaking the vase.", ["Eva admitted to break the vase.", "Eva denied breaking the vase.", "Eva promised breaking the vase."], "admit + V-ing = ... လုပ်ခဲ့တာ ဝန်ခံတယ်။"],
+  ["The cleaner said, “Be careful! The floor is wet.”", "The cleaner warned us that the floor was wet.", ["The cleaner warned to us that the floor was wet.", "The cleaner warned that us the floor was wet.", "The cleaner warned us that the floor is being wet."], "warn + လူ + that ... / warn + လူ + (not) to + V။ warn to us လို့ မသုံးရပါ။"],
+  ["He said to me, “I promise I’ll pay you back.”", "He promised to pay me back.", ["He promised paying me back.", "He promised that I would pay him back.", "He promised me to paid back."], "promise + to + V = ... မယ်လို့ ကတိပေးတယ်။"],
+  ["She said to him, “You should see a doctor.”", "She advised him to see a doctor.", ["She advised him see a doctor.", "She advised him seeing a doctor.", "She advised to him to see a doctor."], "advise + လူ + to + V = ... ဖို့ အကြံပေးတယ်။"],
+  ["Jo said, “I’m sorry I’m late.”", "Jo apologised for being late.", ["Jo apologised to being late.", "Jo apologised being late.", "Jo accused me of being late."], "apologise for + V-ing = ... တာကို တောင်းပန်တယ်။"],
+  ["She said to him, “You stole my idea!”", "She accused him of stealing her idea.", ["She accused him to steal her idea.", "She accused him for stealing her idea.", "She accused him that he stole her idea."], "accuse + လူ + of + V-ing = ... လို့ စွပ်စွဲတယ်။"],
+  ["Ann said, “Let’s meet at six.”", "Ann suggested meeting at six.", ["Ann suggested to meet at six.", "Ann suggested me meeting at six.", "Ann suggested that we to meet at six."], "Let's ... = suggest + V-ing (ဒါမှမဟုတ် suggest that we meet)။"],
+  ["She said, “The meeting starts at nine.”", "She said that the meeting started at nine.", ["She said that the meeting had started at nine.", "She said that the meeting would have started at nine.", "She said that the meeting start at nine."], "present simple → past simple (starts → started)၊ had started ဆိုရင် အဓိပ္ပါယ်ပြောင်းသွားမယ်။"],
+  ["Mia said, “I saw him yesterday.”", "Mia said she had seen him the day before.", ["Mia said she has seen him the day before.", "Mia said I had seen him the day before.", "Mia said she had seen him the next day."], T.back + " " + T.time],
+  ["They said, “We are leaving tonight.”", "They said they were leaving that night.", ["They said we were leaving that night.", "They said they had left that night.", "They said they are leaving that night."], T.back + " tonight → that night။"],
+  ["The teacher said, “If you study, you’ll pass.”", "The teacher said that if we studied, we would pass.", ["The teacher said that if we had studied, we would pass.", "The teacher said that if you studied, you would pass.", "The teacher said that if we studied, we will pass."], "if ... will → if ... would (backshift)၊ you → we (ကျောင်းသားတွေကို ပြောတာ)။"]
+];
+// Long options need more time than the Level 4 clock allows.
+const LV0 = getLevel();
+if (LV0.secs) LV0.secs += 12;
+runChoice({
+  gameId: "reported", title: "Reported Speech",
+  build: () => take(BANK, 10).map(([s, a, w, e]) => mcq({
+    label: "Reported speech ပြောင်းပါ — မှန်တာကို ရွေးပါ",
+    text: s, small: true, answer: a, pool: w,
+    explain: a + " — " + e
+  }))
+});
+</script>
+</body>
+</html>

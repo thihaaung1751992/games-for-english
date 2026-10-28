@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emoji Quiz</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.opts.big { grid-template-columns: 1fr 1fr; }
+.opts.big .opt { font-size: 2.4rem; min-height: 84px; line-height: 1.2; }
+.opts.big .opt:last-child:nth-child(odd) { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [emoji, English, Burmese, category]
+const BANK = [
+  ["🐶","dog","ခွေး","animal"], ["🐱","cat","ကြောင်","animal"], ["🐮","cow","နွား","animal"], ["🐷","pig","ဝက်","animal"],
+  ["🐰","rabbit","ယုန်","animal"], ["🐵","monkey","မျောက်","animal"], ["🐘","elephant","ဆင်","animal"], ["🦁","lion","ခြင်္သေ့","animal"],
+  ["🐯","tiger","ကျား","animal"], ["🐴","horse","မြင်း","animal"], ["🐟","fish","ငါး","animal"], ["🐦","bird","ငှက်","animal"],
+  ["🐔","chicken","ကြက်","animal"], ["🦆","duck","ဘဲ","animal"], ["🐸","frog","ဖား","animal"], ["🐍","snake","မြွေ","animal"],
+  ["🐻","bear","ဝက်ဝံ","animal"], ["🐢","turtle","လိပ်","animal"], ["🦋","butterfly","လိပ်ပြာ","animal"], ["🐝","bee","ပျား","animal"],
+  ["🍎","apple","ပန်းသီး","food"], ["🍌","banana","ငှက်ပျောသီး","food"], ["🍊","orange","လိမ္မော်သီး","food"], ["🍇","grapes","စပျစ်သီး","food"],
+  ["🍉","watermelon","ဖရဲသီး","food"], ["🍓","strawberry","စတော်ဘယ်ရီသီး","food"], ["🍍","pineapple","နာနတ်သီး","food"], ["🥭","mango","သရက်သီး","food"],
+  ["🥕","carrot","မုန်လာဥနီ","food"], ["🍅","tomato","ခရမ်းချဉ်သီး","food"], ["🥚","egg","ဥ","food"], ["🍞","bread","ပေါင်မုန့်","food"],
+  ["🍚","rice","ထမင်း","food"], ["🎂","cake","ကိတ်မုန့်","food"], ["🥛","milk","နို့","food"], ["🍦","ice cream","ရေခဲမုန့်","food"],
+  ["🧀","cheese","ဒိန်ခဲ","food"], ["🌽","corn","ပြောင်းဖူး","food"], ["🍕","pizza","ပီဇာ","food"],
+  ["📖","book","စာအုပ်","object"], ["✏️","pencil","ခဲတံ","object"], ["📱","phone","ဖုန်း","object"], ["⏰","clock","နာရီ","object"],
+  ["🔑","key","သော့","object"], ["☂️","umbrella","ထီး","object"], ["🎒","bag","ကျောင်းလွယ်အိတ်","object"], ["👓","glasses","မျက်မှန်","object"],
+  ["📷","camera","ကင်မရာ","object"], ["🎸","guitar","ဂစ်တာ","object"], ["🎁","gift","လက်ဆောင်","object"], ["🔔","bell","ခေါင်းလောင်း","object"],
+  ["🪑","chair","ကုလားထိုင်","object"], ["🛏️","bed","အိပ်ရာ","object"],
+  ["🚗","car","ကား","transport"], ["🚌","bus","ဘတ်စ်ကား","transport"], ["🚆","train","ရထား","transport"], ["✈️","plane","လေယာဉ်ပျံ","transport"],
+  ["🚲","bicycle","စက်ဘီး","transport"], ["⛵","boat","လှေ","transport"],
+  ["🏠","house","အိမ်","place"], ["🏫","school","ကျောင်း","place"], ["🏥","hospital","ဆေးရုံ","place"], ["🏦","bank","ဘဏ်","place"],
+  ["🏰","castle","ရဲတိုက်","place"], ["⛺","tent","တဲ","place"],
+  ["☀️","sun","နေ","nature"], ["🌙","moon","လ","nature"], ["⭐","star","ကြယ်","nature"], ["☁️","cloud","တိမ်","nature"],
+  ["❄️","snow","နှင်း","nature"], ["🔥","fire","မီး","nature"], ["🌳","tree","သစ်ပင်","nature"], ["🌷","flower","ပန်း","nature"],
+  ["🌈","rainbow","သက်တန့်","nature"], ["⛰️","mountain","တောင်","nature"], ["🍃","leaf","သစ်ရွက်","nature"]
+].map(([e, en, my, cat]) => ({ e, en, my, cat }));
+
+// a chicken IS a bird and the sun IS a star: never offer these as wrong answers for each other
+const CLASH = { bird: ["chicken", "duck"], chicken: ["bird"], duck: ["bird"], sun: ["star"], star: ["sun"] };
+function distract(w, key, n) {
+  const ok = x => x !== w && !(CLASH[w.en] || []).includes(x.en);
+  const same = shuffle(BANK.filter(x => ok(x) && x.cat === w.cat));
+  const rest = shuffle(BANK.filter(x => ok(x) && x.cat !== w.cat));
+  return same.concat(rest).slice(0, n).map(x => x[key]);
+}
+const KINDS = [
+  w => mcq({ label: "ဒီပုံက English ဘာလဲ", text: w.e, speak: w.en, answer: w.en, pool: distract(w, "en", 6), explain: w.e + " " + w.en + " = " + w.my }),
+  w => mcq({ label: "ဒီစာလုံးနဲ့ ကိုက်တဲ့ ပုံကို ရွေးပါ", text: w.en, speak: w.en, auto: true, answer: w.e, pool: distract(w, "e", 6), explain: w.e + " " + w.en + " = " + w.my }),
+  w => mcq({ label: "ဒီမြန်မာစကားနဲ့ ကိုက်တဲ့ ပုံကို ရွေးပါ", text: w.my, my: true, speak: w.en, answer: w.e, pool: distract(w, "e", 6), explain: w.e + " " + w.my + " = " + w.en })
+];
+runChoice({
+  gameId: "emojiquiz", title: "Emoji Quiz",
+  build: () => {
+    const ws = shuffle(BANK).slice(0, 10), ks = shuffle([0, 1, 2, 0, 1, 2, 0, 1, 2, 0]);
+    return ws.map((w, k) => KINDS[ks[k]](w));
+  }
+});
+// Emoji questions/answers are drawn big (the shared engine renders plain text).
+const EMO = /^\p{Extended_Pictographic}/u;
+function bigEmoji() {
+  const box = $("#opts"), qt = $("#qtext");
+  if (!box || !qt) return;
+  box.classList.toggle("big", !!box.firstChild && EMO.test(box.firstChild.textContent));
+  qt.style.fontSize = EMO.test(qt.textContent) ? "5.5rem" : "";
+}
+new MutationObserver(bigEmoji).observe($("#app"), { childList: true, subtree: true });
+bigEmoji();
+</script>
+</body>
+</html>

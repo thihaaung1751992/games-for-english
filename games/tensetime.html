@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tense Time Machine</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.dial { display: flex; gap: 8px; justify-content: center; align-items: center; margin: 0 0 12px; padding: 8px; background: var(--card); border: 2px solid var(--line); border-radius: 18px; }
+.dial .zn { flex: 1; text-align: center; padding: 4px 6px; border-radius: 12px; border: 2px solid transparent; font-weight: 800; font-size: .9rem; color: var(--muted); line-height: 1.4; transition: background .2s, border-color .2s; }
+.dial .zn small { display: block; font-weight: 600; font-size: .75rem; }
+.dial .zn.on { color: var(--ink); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, var(--card)); }
+@media (prefers-reduced-motion: reduce) { .dial .zn { transition: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [time zone, sentence, right form, three wrong forms, Burmese rule]
+// past / present / future. Only one form in each list fits the time marker in the sentence.
+const BANK = [
+  ["present", "She ____ (go) to school every day.", "goes", ["go", "went", "will go"], "every day = အမြဲလုပ်နေကျ အလေ့အထ → present simple။ she နဲ့ goes (s ထည့်)။"],
+  ["present", "Look! The baby ____ (smile).", "is smiling", ["smile", "smiled", "will smile"], "Look! = အခုမြင်နေရတယ် → present continuous (is + ing)။"],
+  ["present", "I ____ (study) English at the moment.", "am studying", ["study", "studied", "will study"], "at the moment = အခု ဒီအချိန် → present continuous (am + ing)။"],
+  ["present", "Water ____ (boil) at 100 degrees.", "boils", ["boil", "boiled", "boiling"], "သိပ္ပံအမှန်တရားက present simple။ water က singular ဖြစ်လို့ boils။"],
+  ["present", "My father usually ____ (drink) tea in the morning.", "drinks", ["is drinking", "drank", "drink"], "usually = အလေ့အထ → present simple။ my father = he ဖြစ်လို့ drinks။"],
+  ["present", "Be quiet! The doctor ____ (talk) to a patient.", "is talking", ["talk", "talked", "will talk"], "Be quiet! = အခုဖြစ်နေတဲ့အရာ → present continuous။"],
+  ["present", "Tom ____ (not / like) fish.", "doesn't like", ["don't like", "isn't liking", "not likes"], "like က state verb ဖြစ်လို့ continuous မသုံးပါ။ Tom = he → doesn't + like။"],
+  ["present", "____ she working at the moment?", "Is", ["Does", "Do", "Was"], "at the moment → present continuous။ မေးခွန်းမှာ Is she + ing။"],
+  ["present", "The sun ____ (rise) in the east.", "rises", ["is rising", "rose", "rise"], "အမြဲမှန်တဲ့ အချက်အလက် → present simple။ the sun = it → rises။"],
+  ["present", "We ____ (not / watch) TV right now.", "aren't watching", ["don't watch", "didn't watch", "won't watch"], "right now = အခုလုပ်နေတာ → present continuous (aren't + ing)။"],
+  ["present", "He ____ (take) the bus to work every morning.", "takes", ["is taking", "took", "taking"], "every morning = ပုံမှန်လုပ်တာ → present simple။ he → takes။"],
+  ["present", "It's eight o'clock. The students ____ (wait) outside.", "are waiting", ["wait", "waited", "will wait"], "အခု ၈ နာရီ၊ အခုဖြစ်နေတာ → present continuous။"],
+  ["present", "Listen! Someone ____ (knock) at the door.", "is knocking", ["knocks", "knocked", "will knock"], "Listen! = အခုကြားနေရတာ → present continuous။"],
+  ["past", "Yesterday I ____ (visit) my grandmother.", "visited", ["visit", "am visiting", "will visit"], "yesterday = အတိတ်ကာလ → past simple (regular verb + ed)။"],
+  ["past", "I ____ (watch) TV when the phone rang.", "was watching", ["am watching", "watch", "have watched"], "ဖုန်းမြည်တဲ့အချိန်မှာ အလုပ်တစ်ခု ဖြစ်နေတယ် → past continuous (was + ing)။"],
+  ["past", "While she ____ (cook), the lights went out.", "was cooking", ["cooks", "is cooking", "has cooked"], "while = အတိတ်မှာ ဆက်ဖြစ်နေတဲ့ လုပ်ရပ် → past continuous။"],
+  ["past", "He broke his leg while he ____ (play) football.", "was playing", ["plays", "is playing", "has played"], "while + အတိတ်မှာ ဖြစ်နေတာ → was/were + ing။"],
+  ["past", "I ____ (go) to Mandalay last week.", "went", ["go", "have gone", "am going"], "last week = အတိတ်ကာလ → past simple။ go ရဲ့ အတိတ်က went (irregular)။"],
+  ["past", "They ____ (not / come) to school yesterday.", "didn't come", ["don't come", "haven't come", "aren't coming"], "yesterday → past simple ငြင်းဆိုခြင်း didn't + base verb။"],
+  ["past", "____ you see the match last night?", "Did", ["Do", "Have", "Are"], "last night = အတိတ် → မေးခွန်းမှာ Did + base verb။"],
+  ["past", "At nine o'clock last night, I ____ (sleep).", "was sleeping", ["sleep", "am sleeping", "have slept"], "ညက ၉ နာရီမှာ အိပ်နေတယ် → past continuous။"],
+  ["past", "She ____ (read) a book when I came in.", "was reading", ["reads", "is reading", "has read"], "တစ်ယောက်ဝင်လာတုန်း ဖတ်နေတယ် → past continuous။"],
+  ["past", "We ____ (have) dinner when the power went off.", "were having", ["have", "are having", "have had"], "မီးပျက်တဲ့အချိန် ညစာစားနေတယ် → were + ing။"],
+  ["past", "I ____ (do) my homework last night.", "did", ["do", "am doing", "have done"], "last night → past simple။ do ရဲ့ အတိတ်က did။"],
+  ["past", "He was ill, so he ____ (stay) at home yesterday.", "stayed", ["stays", "is staying", "has stayed"], "yesterday → past simple (stay + ed)။"],
+  ["past", "We ____ (see) a great film two days ago.", "saw", ["see", "have seen", "are seeing"], "ago = အတိတ်ကာလ → past simple။ see ရဲ့ အတိတ်က saw။"],
+  ["past", "When I was a child, I ____ (live) in a small village.", "lived", ["live", "am living", "have lived"], "when I was a child = အတိတ် → past simple။"],
+  ["past", "The doctor ____ (arrive) at the clinic at eight yesterday.", "arrived", ["arrives", "has arrived", "will arrive"], "yesterday + အချိန်အတိအကျ → past simple။"],
+  ["past", "I ____ (not / feel) well yesterday, so I stayed in bed.", "didn't feel", ["don't feel", "haven't felt", "won't feel"], "yesterday → past simple ငြင်းဆို didn't + feel။"],
+  ["past", "It ____ (rain) when we left the house.", "was raining", ["rains", "is raining", "has rained"], "ထွက်တဲ့အချိန်မှာ မိုးရွာနေတယ် → past continuous။"],
+  ["past", "They ____ (talk) loudly while the teacher was explaining.", "were talking", ["talk", "are talking", "have talked"], "while ... was explaining နဲ့ တပြိုင်နက် ဖြစ်နေတာ → were + ing။"],
+  ["present", "I ____ (live) here since 2020.", "have lived", ["live", "lived", "am living"], "since 2020 = အတိတ်ကစပြီး အခုထိ → present perfect (have + V3)။"],
+  ["present", "We ____ (know) each other for ten years, and we are still best friends.", "have known", ["know", "knew", "are knowing"], "for ten years + အခုထိ → present perfect။ know က state verb ဖြစ်လို့ continuous မသုံးပါ။"],
+  ["future", "Next year I ____ (be) twenty.", "will be", ["am", "was", "have been"], "next year = အနာဂတ် → will + base verb။"],
+  ["future", "Tomorrow we ____ (visit) the hospital.", "are going to visit", ["visited", "have visited", "visits"], "tomorrow = အနာဂတ်၊ စီစဉ်ထားပြီးသား → be going to + verb။"],
+  ["future", "I think it ____ (be) sunny next week.", "will be", ["is", "was", "has been"], "I think = ခန့်မှန်းချက် → will + base verb။"],
+  ["future", "I promise I ____ (not / tell) anyone.", "won't tell", ["don't tell", "didn't tell", "haven't told"], "promise = ကတိ → will / won't (will not)။"],
+  ["future", "Look at the sky! It ____ (rain).", "is going to rain", ["rained", "rains", "has rained"], "မျက်စိရှေ့ အထောက်အထား (မိုးတိမ်) ရှိလို့ ဖြစ်တော့မယ် → be going to။"],
+  ["future", "The train ____ (leave) at 6.30 tomorrow morning.", "leaves", ["left", "has left", "was leaving"], "အချိန်ဇယားအတိုင်း ဖြစ်မယ့်ကိစ္စကို present simple နဲ့ ပြောလို့ရတယ်။"],
+  ["future", "Next week she ____ (start) a new job.", "will start", ["started", "has started", "was starting"], "next week = အနာဂတ် → will + start။"],
+  ["future", "Don't worry. I ____ (help) you with your medicine.", "will help", ["helped", "help", "have helped"], "ချက်ချင်းဆုံးဖြတ်တဲ့ ကူညီမှု → will + base verb။"],
+  ["future", "If it rains tomorrow, we ____ (stay) at home.", "will stay", ["stayed", "stay", "would stay"], "if + present simple ... will + verb (အနာဂတ်မှာ ဖြစ်နိုင်တဲ့ အခြေအနေ)။"],
+  ["future", "I'll call you when I ____ (arrive) at the hospital.", "arrive", ["will arrive", "arrived", "arriving"], "when ဆိုတဲ့ အချိန်ဝါကျမှာ will မသုံးဘဲ present simple သုံးတယ်။"],
+  ["future", "She is pregnant. She ____ (have) a baby in June.", "is going to have", ["had", "has", "has had"], "ကိုယ်ဝန်ရှိနေတာ ထင်ရှားလို့ ဖြစ်မယ့်ကိစ္စ → be going to။"],
+  ["future", "In 2040, people ____ (drive) electric cars everywhere.", "will drive", ["drove", "are driving", "have driven"], "In 2040 = အနာဂတ်ခန့်မှန်းချက် → will + verb။"],
+  ["future", "Wait! I ____ (carry) that bag for you.", "will carry", ["carried", "carry", "have carried"], "ချက်ချင်း အကူအညီပေးမယ်ဆိုတာ → will + verb။"],
+  ["future", "I ____ (travel) to Singapore next month. I've bought the ticket.", "am going to travel", ["travelled", "have travelled", "was travelling"], "next month + လက်မှတ်ဝယ်ပြီးပြီ (အစီအစဉ်) → be going to။"]
+];
+const ZONES = { past: ["⏪", "Past", "အတိတ်"], present: ["⏺️", "Present", "ပစ္စုပ္ပန်"], future: ["⏩", "Future", "အနာဂတ်"] };
+const zoneOf = {};
+runChoice({
+  gameId: "tensetime", title: "Tense Time Machine",
+  build: () => take(BANK, 10).map(([zone, sent, ans, wrongs, note]) => {
+    const full = sent.replace(/____( \([^)]*\))?/, ans);
+    zoneOf[sent] = zone;
+    return mcq({ label: "အချိန်ကို ကြည့်ပြီး မှန်တဲ့ပုံစံကို ရွေးပါ", text: sent, small: true, answer: ans, pool: wrongs,
+      speak: full, explain: "✓ " + full + " — " + note });
+  })
+});
+// time machine dial: lights up the right time zone once the question is answered
+const dial = document.createElement("div");
+dial.className = "dial"; dial.setAttribute("aria-hidden", "true");
+dial.innerHTML = Object.keys(ZONES).map(k => '<div class="zn" data-z="' + k + '">' + ZONES[k][0] + " " + ZONES[k][1] + "<small>" + ZONES[k][2] + "</small></div>").join("");
+$("#app").insertBefore(dial, $(".panel"));
+const light = () => {
+  const done = $("#fb").textContent.length > 0, z = zoneOf[$("#qtext").textContent];
+  [...dial.querySelectorAll(".zn")].forEach(e => e.classList.toggle("on", done && e.dataset.z === z));
+};
+new MutationObserver(light).observe($("#fb"), { childList: true, characterData: true, subtree: true });
+</script>
+</body>
+</html>

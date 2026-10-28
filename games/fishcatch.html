@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fish Catch</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+/* fish may carry longer Burmese meanings: let them wrap on two lines instead of cutting off */
+.tg.fish { white-space: normal; font-size: .95rem; line-height: 1.15; display: flex; align-items: center; justify-content: center; text-align: center; }
+.area.swim { background:
+  repeating-linear-gradient(180deg, transparent 0 58px, color-mix(in srgb, var(--accent) 10%, transparent) 58px 60px),
+  linear-gradient(color-mix(in srgb, var(--accent) 22%, var(--card)), color-mix(in srgb, var(--accent) 38%, var(--card))); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Fish swim back and forth. Hear/see a word, then tap the fish that carries the matching word.
+// Two kinds of round, mixed: Burmese meaning -> English fish, and English word (spoken) -> fish with the Burmese meaning.
+function wordSeq(words, n) {
+  let out = [];
+  while (out.length < n) {
+    let batch = shuffle(words);
+    if (out.length && batch.length > 1 && batch[0] === out[out.length - 1]) batch.push(batch.shift());
+    out = out.concat(batch);
+  }
+  return out.slice(0, n);
+}
+runTargets({
+  gameId: "fishcatch", title: "Fish Catch", motion: "swim", skin: "fish", rounds: 10,
+  build: topic => {
+    const kinds = shuffle([0, 1, 0, 1, 0, 1, 0, 1, 0, 1]);
+    return wordSeq(topic.words, 10).map((w, k) => kinds[k] === 0
+      ? Object.assign(Q.myEn(topic, w), { label: "🐟 ဒီအဓိပ္ပါယ်နဲ့ ကိုက်တဲ့ English ငါးကို ဖမ်းပါ", speak: w.en, auto: true })
+      : Object.assign(Q.enMy(topic, w), { label: "🐟 ဒီစာလုံးရဲ့ မြန်မာအဓိပ္ပါယ် ပါတဲ့ ငါးကို ဖမ်းပါ", speak: w.en, auto: true }));
+  }
+});
+</script>
+</body>
+</html>

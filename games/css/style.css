@@ -14,6 +14,11 @@ body {
 .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px 40px; }
 .bar { display: flex; align-items: center; gap: 10px; padding: 14px 16px; max-width: 720px; margin: 0 auto; }
 .bar h1 { flex: 1; margin: 0; font-size: 1.1rem; line-height: 1.4; }
+.lvchip { padding: 2px 10px; border-radius: 99px; border: 2px solid var(--line); background: var(--card); font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.lvchip[data-lv="1"] { border-color: var(--good); }
+.lvchip[data-lv="2"] { border-color: var(--star); }
+.lvchip[data-lv="3"] { border-color: var(--warn); }
+.lvchip[data-lv="4"] { border-color: var(--bad); }
 .bar a, .bar button {
   min-width: 44px; min-height: 44px; border-radius: 12px; border: 2px solid var(--line);
   background: var(--card); color: var(--ink); font: inherit; font-size: 1rem; cursor: pointer;
@@ -46,6 +51,11 @@ h3.sec { margin: 22px 0 8px; font-size: 1rem; color: var(--muted); text-transfor
 .topic .nm { font-weight: 800; }
 .topic .mm { font-size: .9rem; color: var(--muted); }
 .topic[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+h4.unit { margin: 16px 0 8px; font-size: .95rem; }
+.lvpick { display: flex; gap: 8px; flex-wrap: wrap; }
+.lvpick button { font: inherit; font-weight: 700; min-height: 44px; padding: 0 16px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.lvpick button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+.lvinfo { margin: 0 0 10px; font-size: .9rem; }
 .games { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 560px) { .games { grid-template-columns: repeat(3, 1fr); } }
 .game {
@@ -128,3 +138,26 @@ h3.sec { margin: 22px 0 8px; font-size: 1rem; color: var(--muted); text-transfor
 .chip { font: inherit; font-weight: 700; min-height: 46px; padding: 4px 12px; border-radius: 12px; border: 2px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
 .chip.placed { background: var(--card); color: var(--ink); }
 .chip:disabled { opacity: .25; cursor: default; }
+
+/* kit: ask pop-up, moving targets */
+.dialog.ask { max-width: 520px; max-height: 92vh; overflow: auto; }
+.dialog.ask .opts { margin-top: 12px; }
+.dialog.ask .fb { min-height: 2.4em; }
+.area.sky { background: linear-gradient(color-mix(in srgb, var(--accent) 14%, var(--card)), var(--card)); }
+.tg { position: absolute; width: 48%; height: 48px; border: 2px solid var(--accent); background: var(--accent); color: #fff; font: inherit; font-weight: 800; font-size: 1.05rem; cursor: pointer; padding: 0 8px; line-height: 1.1; border-radius: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tg:disabled { opacity: .35; cursor: default; }
+.tg.right { background: var(--good); border-color: var(--good); opacity: 1; color: #fff; }
+.tg.wrong { animation: shake .3s; }
+.tg.pop { animation: pop .35s forwards; }
+.tg.balloon { border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%; height: 54px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+.tg.balloon.c0 { background: #e5484d; border-color: #e5484d; } .tg.balloon.c1 { background: #f59f00; border-color: #f59f00; }
+.tg.balloon.c2 { background: #3b82f6; border-color: #3b82f6; } .tg.balloon.c3 { background: #8b5cf6; border-color: #8b5cf6; }
+.tg.fish { border-radius: 40px 14px 14px 40px; background: #1e88c9; border-color: #1e88c9; }
+.tg.fish.c1 { background: #f08c2e; border-color: #f08c2e; } .tg.fish.c2 { background: #2f9e44; border-color: #2f9e44; } .tg.fish.c3 { background: #d6336c; border-color: #d6336c; }
+.tg.bubble { border-radius: 99px; background: color-mix(in srgb, var(--accent) 22%, var(--card)); color: var(--ink); }
+.tg.rock { border-radius: 14px; }
+.tg.fish.right, .tg.balloon.right, .tg.bubble.right { background: var(--good); border-color: var(--good); color: #fff; }
+.area.swim .tg { width: 44%; }
+@keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+@keyframes pop { to { transform: scale(1.3); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tg.pop, .tg.wrong { animation: none; } }

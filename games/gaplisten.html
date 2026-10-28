@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gap Listen</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .glbar { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; padding: 8px 12px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; font-size: .95rem; }
+  .glbar label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+  .glbar input { width: 22px; height: 22px; }
+  .glbar .note { flex-basis: 100%; text-align: center; color: var(--muted); font-size: .85rem; line-height: 1.5; }
+  #app.hidetext #qtext { filter: blur(9px); user-select: none; }
+  #app.hidetext #qtext::after { content: ""; }
+  #say { min-height: 52px; font-size: 1.05rem; }
+  #fb { white-space: pre-line; }
+  .bonus { color: var(--star); font-weight: 800; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [sentence with ___, right word, [look-alike / sound-alike wrong words that cannot fit], Burmese note]
+const GAPS = [
+  ["The big ___ sailed across the sea.", "ship", ["sheep", "chip", "shop"], "ship = သင်္ဘော · sheep = သိုး"],
+  ["The farmer has twenty ___ in the field.", "sheep", ["ship", "sheet", "shop"], "sheep = သိုး (တစ်ကောင်ရော အများရော 'sheep' ပဲ) · ship = သင်္ဘော"],
+  ["I have a high ___ and I feel weak.", "fever", ["feather", "fewer", "ferry"], "fever = အဖျား · feather = ငှက်မွေး"],
+  ["A bird's ___ is very light.", "feather", ["fever", "leather", "weather"], "feather = ငှက်မွေး · leather = သားရေ"],
+  ["Please ___ the door; it is cold.", "close", ["clothes", "clouds", "cross"], "close = ပိတ်သည် · clothes = အဝတ်အစား"],
+  ["She wears warm ___ in winter.", "clothes", ["close", "clouds", "clues"], "clothes = အဝတ်အစား · close = ပိတ်သည်"],
+  ["I can't ___ my keys anywhere.", "find", ["fine", "fund", "fined"], "find = ရှာတွေ့သည် · fine = ကောင်းသည်"],
+  ["We need to ___ a taxi to the airport.", "book", ["look", "cook", "hook"], "book = ကြိုတင်မှာသည် · look = ကြည့်သည် · cook = ချက်သည်"],
+  ["I ___ you will feel better soon.", "hope", ["hop", "hoop", "hose"], "hope = မျှော်လင့်သည် · hop = ခုန်သည်"],
+  ["The ___ is sunny and warm today.", "weather", ["feather", "leather", "wetter"], "weather = ရာသီဥတု · feather = ငှက်မွေး"],
+  ["Can you ___ me with this heavy bag?", "help", ["held", "hat", "hell"], "help = ကူညီသည် · held = ကိုင်ထားသည် (အတိတ်)"],
+  ["I have a sore ___; it hurts when I swallow.", "throat", ["threat", "throw", "three"], "throat = လည်ချောင်း · threat = ခြိမ်းခြောက်မှု"],
+  ["She was ___ when she heard the bad news.", "sad", ["said", "sand", "shed"], "sad = ဝမ်းနည်း · said = ပြောခဲ့သည် · sand = သဲ"],
+  ["Let's ___ at the cinema at seven o'clock.", "meet", ["melt", "mean", "meal"], "meet = တွေ့ဆုံသည် · meal = အစားအစာ"],
+  ["I like coffee with ___ but no sugar.", "milk", ["mink", "mill", "silk"], "milk = နို့ · silk = ပိုး"],
+  ["He broke his ___ when he fell off the bike.", "leg", ["log", "lag", "leek"], "leg = ခြေထောက် · log = သစ်လုံး"],
+  ["Please take a ___; the doctor will see you soon.", "seat", ["sit", "seed", "soot"], "take a seat = ထိုင်ပါ · seed = အစေ့"],
+  ["He works as a ___ in a big hospital.", "nurse", ["nose", "purse", "nest"], "nurse = သူနာပြု · nose = နှာခေါင်း"],
+  ["I need to ___ my teeth twice a day.", "brush", ["rush", "crush", "blush"], "brush = ဖြီးသည်/တိုက်သည် · rush = အလျင်စလိုလုပ်သည်"],
+  ["Put some ___ on the bread.", "butter", ["better", "bitter", "bother"], "butter = ထောပတ် · better = ပိုကောင်း · bitter = ခါး"],
+  ["They ___ a new house last year.", "built", ["belt", "bolt", "bald"], "built = ဆောက်ခဲ့သည် · belt = ခါးပတ်"],
+  ["Drink a lot of ___ when you have a fever.", "water", ["winter", "waiter", "wafer"], "water = ရေ · winter = ဆောင်းရာသီ · waiter = စားပွဲထိုး"],
+  ["Wash your ___ before you eat.", "hands", ["hens", "hints", "hearts"], "hands = လက်များ · hens = ကြက်မ"],
+  ["I want to ___ this letter to my friend.", "send", ["sent", "sand", "spend"], "send = ပို့သည် · sand = သဲ · spend = သုံးသည်"],
+  ["She has a beautiful ___ on her finger.", "ring", ["rain", "wing", "rang"], "ring = လက်စွပ် · wing = တောင်ပံ"],
+  ["He is ___ his bike to school.", "riding", ["writing", "reading", "ridding"], "riding = စီးနေသည် · writing = ရေးနေသည်"],
+  ["Please ___ your phone off in the cinema.", "turn", ["burn", "torn", "tune"], "turn off = ပိတ်သည် · burn = လောင်သည် · torn = စုတ်ပြတ်သည်"],
+  ["A ___ is a place where you borrow books.", "library", ["liberty", "laboratory", "lobby"], "library = စာကြည့်တိုက် · liberty = လွတ်လပ်ခွင့်"],
+  ["The ___ was so loud that I couldn't sleep.", "noise", ["nose", "news", "nice"], "noise = ဆူညံသံ · nose = နှာခေါင်း · news = သတင်း"],
+  ["Please speak ___; I can't hear you.", "louder", ["lover", "leader", "ladder"], "louder = ပိုကျယ်ကျယ် · ladder = လှေကား"],
+  ["He drank a cup of hot ___ with sugar.", "tea", ["tray", "tree", "key"], "tea = လက်ဖက်ရည် · tree = သစ်ပင်"],
+  ["Please close the ___; it's cold.", "window", ["widow", "wind", "willow"], "window = ပြတင်းပေါက် · widow = မုဆိုးမ"]
+];
+// Health-lesson sentences (the lesson's own `ex`): wrong options are look-alikes of another word form, so only one fits.
+const LESSON = {
+  headache: ["headed", "headless", "hedged"], fever: ["feather", "fewer", "ferry"], medicine: ["medical", "medicinal", "medicines"],
+  hospital: ["hostile", "hospitality", "hosted"], symptom: ["sympathy", "symbol", "system"], recover: ["recovery", "recovered", "covered"],
+  injury: ["injure", "injured", "ivory"], pharmacy: ["pharmacist", "pharmacies", "pharaoh"]
+};
+
+function lessonQ(topic, w) {
+  const q = mcq({ answer: w.en, pool: LESSON[w.en] });
+  return Object.assign(q, { text: blankOut(w), speak: w.ex, explain: w.ex + " — " + w.exMy });
+}
+function build(topic) {
+  const own = topic.words.filter(w => LESSON[w.en] && new RegExp("\\b" + w.en + "\\b", "i").test(w.ex));
+  const L = shuffle(own).slice(0, 4).map(w => lessonQ(topic, w));
+  const G = shuffle(GAPS).slice(0, 12 - L.length).map(([s, a, d, note]) => {
+    const q = mcq({ answer: a, pool: d });
+    return Object.assign(q, { text: s, speak: s.replace("___", a), explain: s.replace("___", a) + "\n" + note });
+  });
+  return shuffle([...L, ...G]).map(q => Object.assign(q, { label: "🎧 နားထောင်ပြီး ကွက်လပ်ကို ဖြည့်ပါ", small: true, auto: true }));
+}
+runChoice({ gameId: "gaplisten", title: "Gap Listen", build });
+
+// "Show text" switch: hiding the sentence (so you must listen) earns +5 on a right answer.
+const hasVoice = "speechSynthesis" in window;
+const appEl = $("#app");
+const gbar = document.createElement("div");
+gbar.className = "glbar";
+gbar.innerHTML = '<label><input type="checkbox" id="showtext" checked> Show text · စာကြောင်း ပြမယ်</label><span class="note" id="gnote" aria-live="polite">စာကို ဖျောက်ပြီး နားထောင်ရင် မှန်တိုင်း <b class="bonus">+5 bonus</b> ရမယ်။ 🔊 ခလုတ်နဲ့ ထပ်နားထောင်နိုင်တယ်။</span>';
+appEl.insertBefore(gbar, appEl.firstChild);
+const chk = $("#showtext");
+if (!hasVoice) { chk.disabled = true; $("#gnote").textContent = "🔇 ဒီစက်မှာ အသံမထွက်ပါ — စာကြောင်းကို ကြည့်ပြီး ဖြေပါ။"; }
+if (hasVoice && Store.get("gl_hide", false) && !Store.get("mute", false)) { chk.checked = false; appEl.classList.add("hidetext"); }
+chk.onchange = () => {
+  if (!chk.checked && Store.get("mute", false)) {
+    chk.checked = true; $("#gnote").textContent = "🔇 အသံပိတ်ထားတယ် — အပေါ်ညာက 🔊 ကိုနှိပ်ပြီး အသံဖွင့်မှ စာဖျောက်လို့ရမယ်။"; return;
+  }
+  appEl.classList.toggle("hidetext", !chk.checked);
+  Store.set("gl_hide", !chk.checked);
+};
+// Delegated click on the options runs after runChoice's own handler, which has already marked the right button.
+$("#opts").addEventListener("click", e => {
+  const b = e.target.closest(".opt");
+  if (!b || !b.classList.contains("right") || b.classList.contains("wrong") || chk.checked) return;
+  addPoints(5);
+  const fb = $("#fb"), s = document.createElement("span");
+  s.className = "bonus"; s.textContent = " 🎧 +5 bonus";
+  fb.insertBefore(s, fb.querySelector("br"));
+  const sc = $("#score"); sc.textContent = (+sc.textContent) + 5;
+});
+</script>
+</body>
+</html>

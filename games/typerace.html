@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Type Race</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.lanes { margin: 2px 0 12px; }
+.who { font-size: .85rem; font-weight: 700; color: var(--muted); margin: 6px 4px 0; display: flex; justify-content: space-between; }
+.lane { position: relative; height: 60px; border-radius: 14px; background: var(--card); border: 2px solid var(--line); overflow: hidden; }
+.lane::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 3px dashed var(--line); }
+.lane .flag { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 1.6rem; }
+.lane .car { position: absolute; top: 50%; left: calc((100% - 92px) * var(--p, 0) + 4px); font-size: 2.1rem; line-height: 1; transform: translateY(-50%) scaleX(-1); transition: left .18s linear; }
+.lane.me { border-color: var(--accent); }
+.target { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; font-family: ui-monospace, Menlo, monospace; font-size: clamp(1.9rem, 10vw, 2.8rem); font-weight: 800; margin: 6px 0 2px; min-height: 1.4em; white-space: pre; }
+.target span { color: var(--muted); border-bottom: 4px solid var(--line); }
+.target span.ok { color: var(--good); border-color: var(--good); }
+.target span.err { color: var(--bad); border-color: var(--bad); }
+.input.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--bg)); animation: shake .25s; }
+.input:disabled { opacity: .5; }
+.count { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 4.5rem; font-weight: 900; color: var(--accent); background: color-mix(in srgb, var(--card) 80%, transparent); border-radius: 20px; z-index: 2; }
+.panel { position: relative; }
+.mm { font-size: clamp(1.5rem, 7vw, 2rem); font-weight: 800; }
+@media (prefers-reduced-motion: reduce) { .lane .car { transition: none; } .input.bad { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="stats"><span>Word: <b id="wn">1</b>/<span id="wt">8</span></span><span id="status" aria-live="polite">🏁</span><span>Score: <b id="score">0</b></span></div>
+  <div class="lanes">
+    <div class="who"><span>🏎️ သင်</span><span id="myw">0/8</span></div>
+    <div class="lane me"><span class="car" id="me" style="--p:0">🏎️</span><span class="flag" aria-hidden="true">🏁</span></div>
+    <div class="who"><span>🚙 Bot</span><span id="botw">0/8</span></div>
+    <div class="lane"><span class="car" id="bot" style="--p:0">🚙</span><span class="flag" aria-hidden="true">🏁</span></div>
+  </div>
+  <div class="panel">
+    <div class="count" id="count" hidden></div>
+    <div class="q-label">ရိုက်ပါ — မှန်ရင် ကားရှေ့တိုးမယ်!</div>
+    <div class="mm my" id="meaning"></div>
+    <div class="target" id="target" aria-label="Word to type"></div>
+    <button class="btn" id="say">🔊 Listen</button>
+    <div><input class="input" id="inp" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Type the English word" disabled></div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <div class="row"><button class="btn" id="hint">💡 Hint</button></div>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+(() => {
+  const topic = getTopic(), LV = getLevel();
+  renderBar("Type Race · " + topic.name);
+  if (!LV.hint) $("#hint").hidden = true;
+  const STEP = 7000 * LV.pace; // ms the bot needs per word: Lv1 8.75 s, Lv4 4.5 s
+  let words, N, idx, botT, score, mistakes, phase, timers, wasOk, t0;
+
+  const norm = s => s.toLowerCase().replace(/\s+/g, " ");
+  const prefixLen = (v, t) => { let k = 0; while (k < v.length && k < t.length && v[k] === t[k]) k++; return k; };
+  const place = (id, p) => $("#" + id).style.setProperty("--p", Math.max(0, Math.min(1, p)));
+  function clearTimers() { timers.forEach(t => { clearTimeout(t); clearInterval(t); }); timers = []; }
+
+  function play() {
+    if (timers) clearTimers();
+    timers = [];
+    words = shuffle(topic.words).filter((w, k, a) => a.findIndex(x => x.en === w.en) === k).slice(0, 8);
+    N = words.length; idx = 0; botT = 0; score = 0; mistakes = 0; wasOk = true; phase = "count";
+    $("#wt").textContent = N; $("#score").textContent = 0; $("#status").textContent = "🏁";
+    $("#fb").textContent = ""; $("#fb").className = "fb";
+    $("#inp").value = ""; $("#inp").disabled = true; $("#hint").disabled = true;
+    paintCars(); showWord();
+    // 3-2-1-GO
+    const c = $("#count"); c.hidden = false;
+    [["3", 0], ["2", 700], ["1", 1400], ["GO!", 2100]].forEach(([t, ms]) => timers.push(setTimeout(() => { c.textContent = t; }, ms)));
+    timers.push(setTimeout(go, 2700));
+  }
+  function go() {
+    $("#count").hidden = true;
+    phase = "race"; t0 = Date.now();
+    $("#status").textContent = "🏎️💨";
+    $("#inp").disabled = false; $("#hint").disabled = false; $("#inp").focus();
+    timers.push(setInterval(tickBot, 100));
+  }
+  function tickBot() {
+    if (phase !== "race") return;
+    if (!document.hidden) botT += 100;
+    paintCars();
+    if (botT >= STEP * N) end(false);
+  }
+  function botWords() { return Math.min(N, Math.floor(botT / STEP)); }
+  function paintCars() {
+    const w = words[idx], len = w ? w.en.length : 1;
+    const part = w ? prefixLen(norm($("#inp").value), norm(w.en)) / len : 0;
+    place("me", (idx + part * 0.5) / N);
+    place("bot", botT / (STEP * N));
+    $("#myw").textContent = idx + "/" + N; $("#botw").textContent = botWords() + "/" + N;
+  }
+  function showWord() {
+    const w = words[idx]; if (!w) return;
+    $("#wn").textContent = Math.min(idx + 1, N);
+    $("#meaning").textContent = w.my;
+    $("#say").onclick = () => speak(w.en);
+    $("#inp").value = ""; wasOk = true;
+    paintTarget("");
+  }
+  function paintTarget(v) {
+    const t = norm(words[idx].en), m = prefixLen(v, t), box = $("#target");
+    box.innerHTML = "";
+    [...t].forEach((ch, k) => {
+      const s = document.createElement("span");
+      s.textContent = ch === " " ? " " : ch;
+      if (k < m) s.className = "ok"; else if (k === m && v.length > m) s.className = "err";
+      box.appendChild(s);
+    });
+  }
+  function onInput() {
+    if (phase !== "race") return;
+    const t = norm(words[idx].en), v = norm($("#inp").value), m = prefixLen(v, t), inp = $("#inp");
+    paintTarget(v);
+    const bad = v.length > m;
+    inp.classList.remove("bad");
+    if (bad) {
+      void inp.offsetWidth; inp.classList.add("bad");
+      if (wasOk) { mistakes++; sfx.bad(); }
+    }
+    wasOk = !bad;
+    if (v.trim() === t) { advance(); return; }
+    paintCars();
+  }
+  function advance() {
+    const w = words[idx];
+    idx++; score += 10; addPoints(10); sfx.ok(); speak(w.en);
+    $("#score").textContent = score;
+    $("#inp").classList.remove("bad");
+    if (idx >= N) { paintCars(); end(true); return; }
+    showWord(); paintCars();
+    const fb = $("#fb"); fb.className = "fb ok"; fb.textContent = "✓ " + w.en + " = " + w.my;
+  }
+  function end(won) {
+    if (phase === "over") return;
+    phase = "over"; clearTimers();
+    const inp = $("#inp"); inp.disabled = true; inp.blur(); $("#hint").disabled = true;
+    const bw = botWords(), secs = Math.round((Date.now() - t0) / 1000);
+    if (won) { score += 20; addPoints(20); $("#score").textContent = score; }
+    $("#status").textContent = won ? "🏆" : "🤖";
+    const stars = won ? (bw <= Math.floor(N * 0.6) ? 3 : 2) : 1;
+    timers.push(setTimeout(() => showResult({
+      title: won ? "🏆 နိုင်ပါပြီ!" : "🤖 Bot က အရင်ရောက်သွားတယ်",
+      stars,
+      text: (won ? "သင်က " + secs + " စက္ကန့်နဲ့ ရောက်ပါတယ်" : "သင်က " + idx + "/" + N + " လုံးပဲ ရိုက်ရတယ်") + " · Bot " + bw + "/" + N + " · အမှား " + mistakes + " ကြိမ် · " + score + " points",
+      onAgain: play
+    }), 700));
+  }
+
+  $("#inp").addEventListener("input", onInput);
+  $("#inp").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); onInput(); } });
+  $("#hint").onclick = () => {
+    if (phase !== "race") return;
+    const t = norm(words[idx].en), m = prefixLen(norm($("#inp").value), t);
+    $("#inp").value = t.slice(0, m + 1); $("#inp").focus();
+    onInput();
+  };
+  play.gameId = "typerace";
+  play();
+})();
+</script>
+</body>
+</html>

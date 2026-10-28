@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Runner</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.rn-area { position: relative; height: 380px; overflow: hidden; border-radius: 16px; border: 2px solid var(--line); margin-top: 10px; touch-action: manipulation; user-select: none; -webkit-user-select: none;
+  background: linear-gradient(color-mix(in srgb, var(--accent) 12%, var(--card)), var(--card)); cursor: pointer; }
+.rn-area .lane-line { position: absolute; top: 0; bottom: 0; width: 0; border-left: 3px dashed var(--line); }
+.rn-area .lane-line:nth-child(1) { left: 33.333%; } .rn-area .lane-line:nth-child(2) { left: 66.666%; }
+.rn-gate { position: absolute; left: 0; right: 0; height: 68px; display: flex; will-change: transform; top: 0; }
+.rn-cell { flex: 1; margin: 0 4px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 2px 6px; border-radius: 12px; border: 2px solid var(--accent);
+  background: var(--accent); color: #fff; font-weight: 800; font-size: clamp(.85rem, 3.6vw, 1.05rem); line-height: 1.25; overflow: hidden; word-break: break-word; }
+.rn-cell:nth-child(2) { background: #7c5cc9; border-color: #7c5cc9; } .rn-cell:nth-child(3) { background: #d6730e; border-color: #d6730e; }
+.rn-cell.right { background: var(--good); border-color: var(--good); }
+.rn-cell.wrong { background: var(--bad); border-color: var(--bad); }
+.rn-cell.dim { opacity: .45; }
+.rn-runner { position: absolute; width: 33.333%; text-align: center; font-size: 2.3rem; line-height: 56px; height: 56px; transition: left .12s ease-out; pointer-events: none; }
+.rn-runner.hit { animation: shake .3s; }
+.rn-ctl { display: flex; gap: 10px; margin-top: 10px; }
+.rn-ctl .btn { flex: 1; font-size: 1.4rem; touch-action: manipulation; }
+@media (prefers-reduced-motion: reduce) { .rn-runner { transition: none; } .rn-runner.hit { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Word Runner: three lanes, one gate per question. Steer into the lane with the right answer.
+const topic = getTopic(), LV = getLevel();
+renderBar("Word Runner · " + topic.name);
+const ROUNDS = 12, MAXL = 3, AH = 380, GH = 68, RUN_Y = AH - 76;
+$("#app").innerHTML =
+  '<div class="stats"><span>Gate: <b id="rn">1</b>/' + ROUNDS + '</span><span class="hearts" id="lives"></span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="panel" style="padding:12px"><div class="q-label" id="qlabel"></div><div class="q-text" id="qtext" style="margin:0"></div></div>' +
+  '<div class="rn-area" id="area" aria-label="Road with three lanes"><i class="lane-line"></i><i class="lane-line"></i><div class="rn-runner" id="runner">🏃</div></div>' +
+  '<div class="rn-ctl"><button class="btn" id="goL" aria-label="Move left">◀</button><button class="btn" id="goR" aria-label="Move right">▶</button></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div>' +
+  '<p class="muted" style="text-align:center;margin:0">◀ ▶ (သို့) ← → ခလုတ်၊ ဒါမှမဟုတ် လမ်းကြောင်းကို နှိပ်ပြီး မှန်တဲ့ အဖြေရှိတဲ့ ကြောင်းထဲ ပြေးဝင်ပါ</p>';
+
+const KINDS = [Q.myEn, Q.blank, Q.enMy];
+let bag = [], kindNo = 0;
+function nextQ() {
+  if (!bag.length) bag = shuffle(topic.words);
+  const q = KINDS[kindNo++ % KINDS.length](topic, bag.pop());
+  q.options = shuffle([q.answer, ...shuffle(q.options.filter(o => o !== q.answer)).slice(0, 2)]);
+  return q;
+}
+
+let qs, round, lives, score, solved, streak, lane, q, gate, gy, dur, raf, last, state, timers = [], gen = 0;
+const runner = $("#runner");
+
+function later(fn, ms) { const id = setTimeout(() => { timers = timers.filter(t => t !== id); fn(); }, ms); timers.push(id); }
+function paint() { $("#lives").textContent = hearts(lives, MAXL); $("#score").textContent = score; }
+function setLane(n) {
+  if (state !== "run") return;
+  lane = Math.max(0, Math.min(2, n));
+  runner.style.left = (lane * 33.333) + "%";
+}
+function play() {
+  timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf); gen++;
+  round = 0; lives = MAXL; score = 0; solved = 0; streak = 0; lane = 1; state = "idle";
+  runner.style.left = "33.333%"; runner.style.top = RUN_Y + "px";
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  paint(); spawn();
+}
+function spawn() {
+  if (gate) gate.remove();
+  if (round >= ROUNDS || lives <= 0) return end();
+  q = nextQ(); round++; state = "run";
+  $("#rn").textContent = round;
+  $("#qlabel").textContent = q.label;
+  const qt = $("#qtext"); qt.textContent = q.text; qt.className = "q-text" + (q.my ? " my" : "");
+  qt.style.fontSize = q.small ? "clamp(1.1rem, 4.6vw, 1.5rem)" : "clamp(1.5rem, 7vw, 2.2rem)";
+  gate = document.createElement("div");
+  gate.className = "rn-gate";
+  q.options.forEach(t => { const c = document.createElement("div"); c.className = "rn-cell"; c.textContent = t; gate.appendChild(c); });
+  $("#area").appendChild(gate);
+  gy = -GH;
+  gate.style.transform = "translateY(" + gy + "px)";
+  dur = Math.max(4500, 8500 - round * 220) * LV.pace;   // ms from the top of the road to the runner
+  last = performance.now();
+  raf = requestAnimationFrame(loop);
+}
+function loop(now) {
+  if (state !== "run") return;
+  const dt = Math.min(now - last, 50); last = now;     // a hidden tab just pauses the gate
+  gy += (RUN_Y + 14) / dur * dt;
+  gate.style.transform = "translateY(" + gy + "px)";
+  if (gy + GH >= RUN_Y + 14) return resolve();
+  raf = requestAnimationFrame(loop);
+}
+function resolve() {
+  state = "hit";
+  const cells = [...gate.children], ok = q.options[lane] === q.answer, fb = $("#fb");
+  cells.forEach((c, n) => { if (q.options[n] === q.answer) c.classList.add("right"); else if (n === lane) c.classList.add("wrong"); else c.classList.add("dim"); });
+  if (ok) {
+    solved++; streak++;
+    const pts = 10 + Math.min(streak - 1, 5) * 2; score += pts; addPoints(pts); sfx.ok();
+    fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! +" + pts + (streak >= 3 ? "  🔥 " + streak : "");
+    if (q.speak) speak(q.speak);
+  } else {
+    streak = 0; lives--; sfx.bad(); runner.classList.remove("hit"); void runner.offsetWidth; runner.classList.add("hit");
+    fb.className = "fb no"; fb.textContent = "✗ မှားပါတယ်။ " + q.explain;
+  }
+  paint();
+  later(spawn, ok ? 900 : 2000);
+}
+function end() {
+  state = "over"; cancelAnimationFrame(raf);
+  const r = solved / ROUNDS;
+  showResult({ title: lives <= 0 ? "အသက်ကုန်သွားပြီ 💔" : cheer(r), stars: starsFor(r), text: solved + " / " + ROUNDS + " ဂိတ် မှန်တယ် · " + score + " points", onAgain: play });
+}
+// controls: keys, buttons, and tapping a lane
+document.addEventListener("keydown", e => {
+  const k = e.key;
+  if (k === "ArrowLeft" || k === "a" || k === "A") { e.preventDefault(); setLane(lane - 1); }
+  else if (k === "ArrowRight" || k === "d" || k === "D") { e.preventDefault(); setLane(lane + 1); }
+});
+$("#goL").onclick = () => setLane(lane - 1);
+$("#goR").onclick = () => setLane(lane + 1);
+$("#area").addEventListener("pointerdown", e => {
+  const r = $("#area").getBoundingClientRect();
+  if (!r.width) return;
+  setLane(Math.floor(((e.clientX - r.left) / r.width) * 3));
+});
+play.gameId = "runner";
+play();
+</script>
+</body>
+</html>

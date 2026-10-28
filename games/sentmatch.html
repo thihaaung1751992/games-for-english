@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentence Match</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.opts.sent { grid-template-columns: 1fr; }
+.panel .opt { text-align: left; font-size: 1.05rem; line-height: 1.5; }
+.mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; text-align: left; align-items: start; }
+.mcol { display: grid; gap: 10px; }
+.mi { font: inherit; font-weight: 700; font-size: 1rem; line-height: 1.5; min-height: 64px; padding: 8px 10px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; text-align: left; }
+.mi small { display: block; font-weight: 500; color: var(--muted); font-size: .85rem; line-height: 1.6; }
+.mi:hover:not(:disabled) { border-color: var(--accent); }
+.mi.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--card)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.mi.done { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--card)); opacity: 1; }
+.mi.no { border-color: var(--bad); animation: shake .3s; }
+.mi:disabled { cursor: default; }
+.fb { white-space: pre-line; }
+@media (prefers-reduced-motion: reduce) { .mi.no { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const topic = getTopic(), LV = getLevel();
+renderBar("Sentence Match · " + topic.name);
+const PLAN = ["my2en", "en2my", "my2en", "en2my", "match", "en2my", "my2en", "en2my", "my2en", "match"];
+const PAIRS = LV.opts === 3 ? 3 : 4;
+const TIME = LV.secs ? Math.round(LV.secs * 1.5) : 0;
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Round: <b id="rn">1</b>/' + PLAN.length + '</span><span>Streak: <b id="streak">0</b> 🔥</span><span>Score: <b id="score">0</b></span></div>' +
+  (TIME ? '<div class="timer"><i id="tbar"></i></div>' : '') +
+  '<div class="panel"><div class="q-label" id="qlabel"></div><div class="q-text" id="qtext"></div>' +
+  '<button class="btn" id="say" style="min-height:44px">🔊 Listen</button>' +
+  '<div class="opts sent" id="opts"></div><div class="mgrid" id="mgrid" hidden></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+let i, words, right, streak, score, answered, tick, t0, cur, sel, left, mist;
+
+// split a sentence into two halves near the middle (on a word boundary)
+function halves(ex) {
+  const t = ex.split(" "), cut = Math.max(1, Math.min(t.length - 1, Math.round(t.length / 2)));
+  return [t.slice(0, cut).join(" "), t.slice(cut).join(" ")];
+}
+// a set of words whose two halves are all different, so each match has one reading
+function matchSet(n) {
+  for (let tries = 0; tries < 30; tries++) {
+    const s = shuffle(topic.words).slice(0, n), a = s.map(w => halves(w.ex)[0]), b = s.map(w => halves(w.ex)[1]);
+    if (new Set(a).size === n && new Set(b).size === n) return s;
+  }
+  return shuffle(topic.words).slice(0, n);
+}
+function play() { i = 0; right = 0; streak = 0; score = 0; words = take(topic.words, PLAN.length); show(); }
+function setFb(ok, extra) {
+  const fb = $("#fb");
+  fb.className = "fb " + (ok ? "ok" : "no");
+  fb.textContent = extra;
+}
+function show() {
+  clearInterval(tick); answered = false;
+  const kind = PLAN[i], w = words[i];
+  $("#rn").textContent = i + 1; $("#streak").textContent = streak; $("#score").textContent = score;
+  $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
+  $("#opts").innerHTML = ""; $("#mgrid").innerHTML = "";
+  const qt = $("#qtext");
+  qt.style.fontSize = "clamp(1.2rem, 5vw, 1.6rem)";
+  if (kind === "match") { if (TIME) $("#tbar").style.transform = "scaleX(0)"; return showMatch(); }
+  $("#mgrid").hidden = true; $("#opts").hidden = false;
+  const my = kind === "my2en";
+  $("#qlabel").textContent = my ? "ဒီဝါကျနဲ့ ကိုက်တဲ့ English ဝါကျကို ရွေးပါ" : "ဒီ English ဝါကျရဲ့ မြန်မာအဓိပ္ပါယ်ကို ရွေးပါ";
+  qt.textContent = my ? w.exMy : w.ex; qt.className = "q-text" + (my ? " my" : "");
+  $("#say").hidden = my; $("#say").onclick = () => speak(w.ex);
+  if (!my) speak(w.ex);
+  const key = my ? "ex" : "exMy";
+  const wrong = others(topic, w, LV.opts - 1).map(x => x[key]).filter(t => t !== w[key]);
+  shuffle([w[key], ...wrong]).forEach(t => {
+    const b = document.createElement("button"); b.className = "opt"; b.textContent = t;
+    b.onclick = () => choose(b, t === w[key]);
+    $("#opts").appendChild(b);
+  });
+  if (TIME) {
+    t0 = Date.now(); $("#tbar").style.transform = "scaleX(1)";
+    tick = setInterval(() => {
+      const l = Math.max(0, 1 - (Date.now() - t0) / (TIME * 1000));
+      $("#tbar").style.transform = "scaleX(" + l + ")";
+      if (l === 0) choose(null, false);
+    }, 100);
+  }
+}
+function choose(btn, ok) {
+  if (answered) return;
+  answered = true; clearInterval(tick);
+  const w = words[i], key = PLAN[i] === "my2en" ? "ex" : "exMy";
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === w[key]) b.classList.add("right"); });
+  if (ok) { right++; streak++; const p = 10 + Math.min(streak - 1, 5) * 2; score += p; addPoints(p); sfx.ok(); setFb(true, "✓ မှန်ပါတယ်! +" + p + "\n" + w.ex + " — " + w.exMy); speak(w.ex); }
+  else { streak = 0; sfx.bad(); if (btn) btn.classList.add("wrong"); setFb(false, (btn ? "✗ မှားပါတယ်။\n" : "⏱ အချိန်ကုန်ပါပြီ။\n") + w.ex + " — " + w.exMy); }
+  done();
+}
+function showMatch() {
+  $("#opts").hidden = true; $("#mgrid").hidden = false; $("#say").hidden = true;
+  $("#qlabel").textContent = "ဝါကျ နှစ်ပိုင်း ကိုက်ညီအောင် တွဲပါ";
+  const qt = $("#qtext"); qt.className = "q-text"; qt.textContent = "✂️ ဘယ်ဘက်ကို အရင်နှိပ်၊ ပြီးရင် ညာဘက်က အဆုံးပိုင်းကို နှိပ်ပါ";
+  qt.style.fontSize = "1rem";
+  cur = matchSet(PAIRS); sel = null; left = PAIRS; mist = 0;
+  const L = $("#mgrid"), a = document.createElement("div"), b = document.createElement("div");
+  a.className = b.className = "mcol";
+  cur.forEach((w, n) => {
+    const h = halves(w.ex), x = document.createElement("button");
+    x.className = "mi"; x.dataset.n = n;
+    x.appendChild(document.createTextNode(h[0] + " …"));
+    const s = document.createElement("small"); s.textContent = w.exMy; x.appendChild(s);
+    x.onclick = () => pickLeft(x, n);
+    a.appendChild(x);
+  });
+  shuffle(cur.map((w, n) => n)).forEach(n => {
+    const y = document.createElement("button");
+    y.className = "mi"; y.dataset.n = n; y.textContent = "… " + halves(cur[n].ex)[1];
+    y.onclick = () => pickRight(y, n);
+    b.appendChild(y);
+  });
+  L.appendChild(a); L.appendChild(b);
+}
+function pickLeft(x, n) {
+  if (answered) return;
+  $("#mgrid").querySelectorAll(".mcol:first-child .mi").forEach(e => e.classList.remove("sel"));
+  sel = n; x.classList.add("sel");
+}
+function pickRight(y, n) {
+  if (answered || sel === null) { if (sel === null && !answered) setFb(false, "ဘယ်ဘက်က ပထမပိုင်းကို အရင်နှိပ်ပါ"); return; }
+  const x = $('#mgrid .mcol:first-child .mi[data-n="' + sel + '"]');
+  if (sel === n) {
+    [x, y].forEach(e => { e.classList.remove("sel"); e.classList.add("done"); e.disabled = true; });
+    sfx.ok(); speak(cur[n].ex); score += 5; addPoints(5); sel = null; left--;
+    $("#score").textContent = score; setFb(true, "✓ " + cur[n].ex);
+    if (!left) {
+      answered = true;
+      if (!mist) { right++; streak++; } else streak = 0;
+      $("#streak").textContent = streak;
+      setFb(true, (mist ? "✓ ပြီးပါပြီ (မှား " + mist + " ကြိမ်)" : "✓ အကုန်မှန်ပါတယ်! 🎉") + "\n" + cur.map(w => w.ex).join("\n"));
+      done();
+    }
+  } else {
+    mist++; sfx.bad(); streak = 0; $("#streak").textContent = 0;
+    y.classList.add("no"); setTimeout(() => y.classList.remove("no"), 400);
+    setFb(false, "✗ မကိုက်သေးပါဘူး၊ ဘယ်ဘက်ရဲ့ မြန်မာဝါကျကို ကြည့်ပြီး ထပ်ရွေးပါ");
+  }
+}
+function done() {
+  $("#streak").textContent = streak; $("#score").textContent = score;
+  const n = $("#next"); n.hidden = false; n.textContent = i === PLAN.length - 1 ? "Finish" : "Next →"; n.focus();
+}
+$("#next").onclick = () => {
+  if (i < PLAN.length - 1) { i++; show(); return; }
+  const q = right / PLAN.length;
+  showResult({ title: cheer(q), stars: starsFor(q), text: right + " / " + PLAN.length + " မှန်တယ် · " + score + " points", onAgain: play });
+};
+play.gameId = "sentmatch";
+play();
+</script>
+</body>
+</html>

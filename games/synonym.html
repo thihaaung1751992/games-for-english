@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Synonym Safari</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .area.swim.safari { background: linear-gradient(color-mix(in srgb, var(--accent) 20%, var(--card)), color-mix(in srgb, var(--accent) 6%, var(--bg))); }
+  #qtext b { color: var(--accent); }
+  .tg.bubble { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [word, synonym, burmese, field]. Words in the same field are never used as wrong options for each other.
+const SYN = [
+  ["big", "large", "ကြီးတယ်", "size"], ["small", "tiny", "သေးတယ်", "size"], ["huge", "enormous", "အလွန်ကြီးမားတယ်", "size"],
+  ["begin", "start", "စတင်သည်", "start"], ["buy", "purchase", "ဝယ်သည်", "buy"], ["smart", "clever", "ထက်မြက်တယ်", "smart"],
+  ["fast", "quick", "မြန်တယ်", "speed"], ["hurry", "rush", "အလျင်စလို လုပ်သည်", "speed"], ["end", "finish", "ပြီးဆုံးသည်", "end"],
+  ["close", "shut", "ပိတ်သည်", "end"], ["ask", "enquire", "မေးသည်", "ask"], ["tired", "exhausted", "ပင်ပန်းတယ်", "tired"],
+  ["angry", "furious", "ဒေါသထွက်တယ်", "angry"], ["happy", "glad", "ပျော်တယ်", "mood"], ["sad", "unhappy", "ဝမ်းနည်းတယ်", "mood"],
+  ["hard", "difficult", "ခက်တယ်", "diff"], ["easy", "simple", "လွယ်တယ်", "diff"], ["help", "assist", "ကူညီသည်", "help"],
+  ["shout", "yell", "အော်သည်", "shout"], ["pretty", "beautiful", "လှတယ်", "pretty"], ["scared", "afraid", "ကြောက်တယ်", "fear"],
+  ["worried", "anxious", "စိတ်ပူတယ်", "fear"], ["rich", "wealthy", "ချမ်းသာတယ်", "rich"], ["mistake", "error", "အမှား", "mistake"],
+  ["trip", "journey", "ခရီးစဉ်", "trip"], ["talk", "speak", "ပြောသည်", "talk"], ["choose", "select", "ရွေးသည်", "choose"],
+  ["fix", "repair", "ပြင်သည်", "fix"], ["sick", "ill", "နေမကောင်းဘူး", "sick"], ["cold", "chilly", "ချမ်းတယ်", "temp"],
+  ["wet", "damp", "စိုတယ်", "wet"], ["dangerous", "risky", "အန္တရာယ်ရှိတယ်", "risk"], ["silent", "quiet", "တိတ်ဆိတ်တယ်", "quiet"],
+  ["certain", "sure", "သေချာတယ်", "true"], ["correct", "right", "မှန်တယ်", "true"], ["rubbish", "trash", "အမှိုက်", "rubbish"],
+  ["kids", "children", "ကလေးများ", "kids"], ["find", "discover", "ရှာတွေ့သည်", "find"], ["jump", "leap", "ခုန်သည်", "jump"],
+  ["funny", "amusing", "ရယ်စရာကောင်းတယ်", "funny"], ["allow", "permit", "ခွင့်ပြုသည်", "allow"], ["seldom", "rarely", "ခဏခဏ မဟုတ်ဘူး", "seldom"],
+  ["almost", "nearly", "နီးပါး", "almost"], ["terrible", "awful", "ဆိုးဝါးတယ်", "awful"], ["boss", "manager", "အကြီးအကဲ", "boss"]
+];
+// [word, opposite, burmese, field, other fields to keep out of the wrong options]
+const OPP = [
+  ["big", "small", "ကြီး ↔ သေး", "size"], ["hot", "cold", "ပူ ↔ ချမ်း", "temp"], ["fast", "slow", "မြန် ↔ နှေး", "speed"],
+  ["start", "finish", "စတင် ↔ ပြီးဆုံး", "start", ["end"]], ["easy", "hard", "လွယ် ↔ ခက်", "diff"], ["happy", "sad", "ပျော် ↔ ဝမ်းနည်း", "mood", ["angry", "awful", "fear", "tired"]],
+  ["increase", "decrease", "တိုး ↔ လျော့", "inc"], ["win", "lose", "နိုင် ↔ ရှုံး", "win", ["find"]], ["accept", "refuse", "လက်ခံ ↔ ငြင်းပယ်", "allow"],
+  ["cheap", "expensive", "ဈေးသက်သာ ↔ ဈေးကြီး", "cheap"], ["full", "empty", "ပြည့် ↔ ဗလာ", "full"], ["strong", "weak", "ခိုင်ခံ့ ↔ အားနည်း", "strong"],
+  ["arrive", "depart", "ရောက် ↔ ထွက်ခွာ", "arrive"], ["remember", "forget", "မှတ်မိ ↔ မေ့", "remember"], ["polite", "rude", "ယဉ်ကျေး ↔ ရိုင်းစိုင်း", "polite"],
+  ["safe", "dangerous", "ဘေးကင်း ↔ အန္တရာယ်ရှိ", "risk"], ["noisy", "quiet", "ဆူညံ ↔ တိတ်ဆိတ်", "quiet", ["shout"]], ["wide", "narrow", "ကျယ် ↔ ကျဉ်း", "wide"]
+];
+const FIELD = {};
+SYN.forEach(([a, b, , f]) => { (FIELD[f] = FIELD[f] || new Set()).add(a).add(b); });
+OPP.forEach(([a, b, , f]) => { (FIELD[f] = FIELD[f] || new Set()).add(a).add(b); });
+const ALLW = [...new Set([...SYN, ...OPP].flatMap(r => [r[0], r[1]]))];
+
+function question(r, kind) {
+  const flip = Math.random() < 0.5, [w, ans] = flip ? [r[1], r[0]] : [r[0], r[1]];
+  const ban = new Set([w, ans]);
+  [r[3]].concat(r[4] || []).forEach(f => (FIELD[f] || []).forEach(x => ban.add(x)));
+  const pool = ALLW.filter(x => !ban.has(x));
+  const syn = kind === "syn";
+  return mcq({
+    label: syn ? "Synonym · အဓိပ္ပါယ်တူ စာလုံး" : "Opposite · ဆန့်ကျင်ဘက် စာလုံး",
+    text: (syn ? "Synonym of " : "Opposite of ") + w + "?", speak: w, answer: ans, pool,
+    explain: w + (syn ? " ≈ " : " ↔ ") + ans + " (" + r[2] + ")" + (syn ? " — အဓိပ္ပါယ်တူ" : " — ဆန့်ကျင်ဘက်")
+  });
+}
+// Bubbles swim back and forth. Pop the synonym (or the opposite) of the word at the top.
+runTargets({
+  gameId: "synonym", title: "Synonym Safari", motion: "swim", skin: "bubble", rounds: 10, lives: 3,
+  build: () => {
+    const syn = take(SYN, 7), used = new Set(syn.map(r => r[3]));
+    const opp = shuffle(OPP.filter(r => !used.has(r[3]))).slice(0, 3);
+    return shuffle([...syn.map(r => question(r, "syn")), ...opp.map(r => question(r, "opp"))]);
+  }
+});
+$("#area").classList.add("safari");
+</script>
+</body>
+</html>

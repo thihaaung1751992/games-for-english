@@ -37,7 +37,7 @@
 <script>
 const topic = getTopic();
 renderBar("Match Rush · " + topic.name);
-const GAME_SECS = 60, PENALTY = 3;
+const GAME_SECS = getLevel().rush, PENALTY = 1 + getTopic().level;
 let pool, left, endAt, timer, picked, matches, score, combo, over, roundLeft;
 
 function play() {

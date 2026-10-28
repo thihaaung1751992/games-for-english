@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frog Hop</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.fr-pond { position: relative; height: 230px; border-radius: 20px; border: 2px solid var(--line); overflow: hidden; margin: 6px 0 12px;
+  background: radial-gradient(ellipse at 20% 80%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 60%), linear-gradient(color-mix(in srgb, var(--accent) 18%, var(--card)), color-mix(in srgb, var(--accent) 34%, var(--card))); }
+.fr-node { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .8rem; color: var(--ink); }
+.fr-pad { width: 44px; height: 30px; border-radius: 50%; background: color-mix(in srgb, var(--good) 70%, var(--card)); border: 2px solid var(--good); box-shadow: 0 3px 0 color-mix(in srgb, var(--good) 45%, transparent); }
+.fr-pad.done { background: color-mix(in srgb, var(--good) 40%, var(--card)); opacity: .75; }
+.fr-bank { width: 46px; height: 74px; border-radius: 16px; background: color-mix(in srgb, var(--good) 45%, var(--card)); border: 2px solid var(--good); font-size: 1.5rem; }
+.fr-frog { position: absolute; transform: translate(-50%, -66%); font-size: 2.2rem; line-height: 1; transition: left .6s ease-in-out, top .6s ease-in-out; z-index: 3; pointer-events: none; }
+.fr-frog span { display: inline-block; }
+.fr-frog.hop span { animation: frhop .6s ease-in-out; }
+.fr-frog.sad span { animation: shake .4s 2; }
+.fr-splash { position: absolute; transform: translate(-50%, -60%); font-size: 2rem; z-index: 4; animation: frsplash 1s forwards; pointer-events: none; }
+@keyframes frhop { 0% { transform: translateY(0) scale(1); } 50% { transform: translateY(-34px) scale(1.25); } 100% { transform: translateY(0) scale(1); } }
+@keyframes frsplash { 0% { transform: translate(-50%, -30%) scale(.5); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(-50%, -90%) scale(1.3); opacity: 0; } }
+.fr-msg { text-align: center; font-weight: 800; min-height: 3.4em; line-height: 1.6; }
+.fr-msg.ok { color: var(--good); } .fr-msg.no { color: var(--bad); }
+@media (prefers-reduced-motion: reduce) { .fr-frog { transition: none; } .fr-frog.hop span, .fr-frog.sad span, .fr-splash { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Hop across 8 lily pads to the far bank. Each hop is a question: right = hop forward, wrong = splash and lose a heart.
+const topic = getTopic(), LV = getLevel(), lvl = topic.level;
+renderBar("Frog Hop · " + topic.name);
+const PADS = 8, END = PADS + 1, LIVES = 3;      // nodes 0 (near bank) .. 9 (far bank)
+const nx = n => 6 + n * (88 / END), ny = n => (n % 2 ? 70 : 32);
+let pos, lives, hops, queue, lastEn, busy, runId = 0;
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Hop: <b id="hn">0</b>/' + END + '</span><span class="hearts" id="lives"></span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="fr-pond" id="pond"></div>' +
+  '<div class="fr-msg" id="msg" aria-live="polite"></div>' +
+  '<div class="row"><button class="btn primary" id="hop" style="min-width:200px;font-size:1.2rem">Hop! 🐸</button></div>';
+
+let score = 0;
+function nextQ() {
+  if (!queue.length) {
+    const kinds = [Q.enMy, Q.myEn, Q.listen, Q.hear, Q.blank].concat(lvl >= 3 ? [Q.sentence] : []);
+    let ws = take(topic.words, 8);
+    if (ws[0].en === lastEn && ws.length > 1) ws.push(ws.shift());
+    queue = ws.map((w, k) => ({ w, f: kinds[(k + Math.floor(Math.random() * kinds.length)) % kinds.length] }));
+  }
+  const it = queue.shift(); lastEn = it.w.en;
+  return it.f(topic, it.w);
+}
+function build() {
+  const pond = $("#pond"); pond.innerHTML = "";
+  for (let n = 0; n <= END; n++) {
+    const d = document.createElement("div");
+    const bank = n === 0 || n === END;
+    d.className = "fr-node " + (bank ? "fr-bank" : "fr-pad");
+    d.style.left = nx(n) + "%"; d.style.top = (bank ? 50 : ny(n)) + "%";
+    d.textContent = n === 0 ? "🌿" : n === END ? "🌴" : n;
+    d.id = "n" + n;
+    pond.appendChild(d);
+  }
+  const f = document.createElement("div"); f.className = "fr-frog"; f.id = "frog"; f.innerHTML = "<span>🐸</span>";
+  pond.appendChild(f);
+}
+function place(n, instant) {
+  const f = $("#frog");
+  if (instant) f.style.transition = "none";
+  f.style.left = nx(n) + "%"; f.style.top = (n === 0 || n === END ? 50 : ny(n)) + "%";
+  if (instant) { void f.offsetWidth; f.style.transition = ""; }
+}
+function paint() {
+  $("#hn").textContent = pos; $("#lives").textContent = hearts(lives, LIVES); $("#score").textContent = score;
+  for (let n = 1; n <= PADS; n++) $("#n" + n).classList.toggle("done", n < pos);
+}
+function msg(t, cls) { const m = $("#msg"); m.textContent = t; m.className = "fr-msg " + (cls || ""); }
+function later(fn, ms) { const id = runId; setTimeout(() => { if (id === runId) fn(); }, ms); }
+
+function play() {
+  runId++; pos = 0; lives = LIVES; hops = 0; score = 0; queue = []; lastEn = null; busy = false;
+  build(); place(0, true); paint();
+  msg("Hop ကို နှိပ်ပြီး မေးခွန်းဖြေပါ။ မှန်ရင် ဖားက ခုန်မယ်! 🐸");
+  $("#hop").disabled = false; $("#hop").focus();
+}
+async function hop() {
+  if (busy || pos >= END || lives <= 0) return;
+  busy = true; $("#hop").disabled = true;
+  const id = runId;
+  const ok = await ask(nextQ());
+  if (id !== runId) return;
+  const frog = $("#frog");
+  if (ok) {
+    pos++; hops++; score += 10; addPoints(10); sfx.ok();
+    place(pos); frog.classList.remove("sad"); frog.classList.add("hop");
+    later(() => frog.classList.remove("hop"), 650);
+    paint();
+    if (pos >= END) { msg("ကမ်းခြေရောက်ပြီ! 🌴🎉", "ok"); return later(win, 1000); }
+    msg("ကောင်းတယ်! ✓ နောက်တစ်ခုန် ဆက်ပါ", "ok");
+  } else {
+    lives--; sfx.bad(); paint();
+    const s = document.createElement("div"); s.className = "fr-splash";
+    s.style.left = nx(pos + 1) + "%"; s.style.top = ((pos + 1 === END) ? 50 : ny(pos + 1)) + "%"; s.textContent = "💦";
+    $("#pond").appendChild(s); later(() => s.remove(), 1000);
+    frog.classList.remove("hop"); void frog.offsetWidth; frog.classList.add("sad"); later(() => frog.classList.remove("sad"), 900);
+    if (lives <= 0) { msg("ရေထဲကျသွားပါပြီ 💦", "no"); return later(lose, 1100); }
+    msg("ဝုန်း! 💦 ရေထဲ ကျတယ်၊ ❤️ တစ်ခု လျော့သွားတယ်။ ထပ်ကြိုးစားပါ", "no");
+  }
+  busy = false; $("#hop").disabled = false; $("#hop").focus();
+}
+function win() {
+  showResult({ title: lives === LIVES ? "ဖားမင်းကြီး! 🐸🎉" : "ကမ်းရောက်ပါပြီ! 👍", stars: lives, text: "ခုန်ကျော်ပြီး ❤️ " + lives + " ခု ကျန်တယ် · " + score + " points", onAgain: play });
+}
+function lose() {
+  showResult({ title: "ရေထဲကျသွားတယ် 💪", stars: 1, text: hops + " / " + END + " ခုန်ပြီးမှ ရေထဲကျတယ်။ ထပ်ကြိုးစားပါ", onAgain: play });
+}
+$("#hop").onclick = hop;
+play.gameId = "frog";
+play();
+</script>
+</body>
+</html>

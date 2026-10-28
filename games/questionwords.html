@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Question Words</title>
+<link rel="stylesheet" href="css/style.css">
+<style>.q-text, .fb { white-space: pre-line; }</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [question word, full question, answer, words that would ALSO fit the answer (so they are never used as wrong options)]
+const BANK = [
+  ["Who", "Who is that man?", "He is my uncle.", []],
+  ["Who", "Who cooked dinner?", "My mother cooked dinner.", []],
+  ["Who", "Who teaches you English?", "Mr. Aung teaches us English.", []],
+  ["Who", "Who lives next door?", "Mrs. Tin lives next door.", []],
+  ["What", "What do you want to drink?", "I want some orange juice.", []],
+  ["What", "What is your job?", "I am a nurse.", []],
+  ["What", "What did you buy?", "I bought a new shirt.", []],
+  ["What", "What is in your bag?", "My books and a bottle of water.", []],
+  ["Where", "Where do you live?", "I live in Mandalay.", []],
+  ["Where", "Where is the bank?", "It is next to the post office.", []],
+  ["Where", "Where did you put my keys?", "They are on the table.", []],
+  ["Where", "Where are you from?", "I am from Myanmar.", []],
+  ["When", "When is your birthday?", "It is on the fifth of May.", []],
+  ["When", "When did you arrive?", "I arrived yesterday.", []],
+  ["When", "When are you leaving?", "I am leaving tomorrow morning.", []],
+  ["When", "When did she start school?", "She started school in 2019.", []],
+  ["What time", "What time does the shop open?", "At nine o'clock.", ["When"]],
+  ["What time", "What time is the class?", "At half past two.", ["When"]],
+  ["What time", "What time do you wake up?", "At six o'clock.", ["When"]],
+  ["Why", "Why are you late?", "Because the bus was slow.", []],
+  ["Why", "Why is he crying?", "Because he lost his toy.", []],
+  ["Why", "Why do you study English?", "Because I want a better job.", []],
+  ["How", "How did you travel to Bagan?", "We went by train.", []],
+  ["How", "How is your mother?", "She is fine, thank you.", []],
+  ["How", "How do you go to school?", "I go on foot.", []],
+  ["Which", "Which shirt do you prefer?", "I prefer the red one.", ["What"]],
+  ["Which", "Which road goes to the market?", "The one on the left.", ["What"]],
+  ["Which", "Which day do you like best?", "I like Saturday best.", ["What"]],
+  ["Whose", "Whose pen is this?", "It is Su's pen.", ["Who"]],
+  ["Whose", "Whose phone is ringing?", "It is my brother's.", ["Who"]],
+  ["Whose", "Whose coat is on the chair?", "It is mine.", ["Who"]],
+  ["How much", "How much is this bag?", "It is five thousand kyats.", ["How many"]],
+  ["How much", "How much does the ticket cost?", "It costs two thousand kyats.", ["How many"]],
+  ["How much", "How much sugar do you want?", "Just a little, please.", []],
+  ["How many", "How many brothers do you have?", "I have two brothers.", []],
+  ["How many", "How many students are in your class?", "There are thirty students.", []],
+  ["How many", "How many eggs do you need?", "I need six eggs.", []],
+  ["How long", "How long have you lived here?", "For five years.", ["How many"]],
+  ["How long", "How long does the lesson last?", "It lasts one hour.", ["How many"]],
+  ["How often", "How often do you exercise?", "Three times a week.", ["How many"]],
+  ["How often", "How often does he visit you?", "Twice a month.", ["How many"]]
+];
+const QWORDS = ["Who", "What", "Where", "When", "What time", "Why", "How", "Which", "Whose", "How much", "How many", "How long", "How often"];
+const QMY = {
+  "Who": "Who = ဘယ်သူ (လူကို မေးတာ)",
+  "What": "What = ဘာ (အရာဝတ္ထု၊ အလုပ်ကို မေးတာ)",
+  "Where": "Where = ဘယ်မှာ (နေရာကို မေးတာ)",
+  "When": "When = ဘယ်တော့ (နေ့စွဲ၊ အချိန်ကာလကို မေးတာ)",
+  "What time": "What time = ဘယ်နှစ်နာရီ (နာရီအချိန်ကို မေးတာ)",
+  "Why": "Why = ဘာကြောင့် (အကြောင်းရင်းကို မေးတာ၊ Because နဲ့ ဖြေတယ်)",
+  "How": "How = ဘယ်လို (နည်းလမ်း၊ အခြေအနေကို မေးတာ)",
+  "Which": "Which = ဘယ်ဟာ (ရွေးစရာထဲက တစ်ခုကို မေးတာ)",
+  "Whose": "Whose = ဘယ်သူ့ရဲ့ (ပိုင်ဆိုင်မှုကို မေးတာ)",
+  "How much": "How much = ဘယ်လောက် (ဈေးနှုန်း၊ ရေတွက်မရတာကို မေးတာ)",
+  "How many": "How many = ဘယ်နှစ်ခု (ရေတွက်လို့ရတာကို မေးတာ)",
+  "How long": "How long = ဘယ်လောက်ကြာလဲ (ကြာချိန်ကို မေးတာ)",
+  "How often": "How often = ဘယ်နှစ်ကြိမ် (အကြိမ်ရေကို မေးတာ)"
+};
+const clash = (a, b) => a[0] === b[0] || a[3].includes(b[0]) || b[3].includes(a[0]);
+// Is question word c definitely wrong for item it? "What" and "Which" can fit many answers, so they only appear as wrong options where they cannot.
+const NO_WHAT = ["Who", "Whose", "Where", "When", "What time", "Which", "How"];
+const NO_WHICH = ["What", "Where", "When", "What time", "How", "Whose", "Which"];
+function wrongFor(it, c) {
+  if (c === it[0] || it[3].includes(c)) return false;
+  if (c === "What") return !NO_WHAT.includes(it[0]);
+  if (c === "Which") return !NO_WHICH.includes(it[0]);
+  if (c === "When") return it[0] !== "What time";
+  if (c === "What time") return it[0] !== "When";
+  return true;
+}
+
+function build() {
+  return take(BANK, 10).map((it, n) => {
+    const [qw, q, a] = it, why = QMY[qw] + "\n" + q + " — " + a;
+    const style = [0, 2, 1][n % 3];
+    if (style === 0) {
+      // answer given -> which question word?
+      const pool = QWORDS.filter(w => wrongFor(it, w));
+      return mcq({ label: "ဒီအဖြေအတွက် မေးခွန်းစကားလုံးကို ရွေးပါ", text: a, small: true, speak: a, answer: qw, pool, explain: why });
+    }
+    if (style === 2) {
+      // question with the word blanked + the answer
+      const stem = q.replace(new RegExp("^" + qw, "i"), "____");
+      const pool = QWORDS.filter(w => wrongFor(it, w));
+      return mcq({ label: "နေရာလပ်ကို ဖြည့်ပါ", text: "❓ " + stem + "\n💬 " + a, small: true, answer: qw, pool, explain: why });
+    }
+    // answer given -> which whole question matches it?
+    const wrong = [], seen = new Set();
+    shuffle(BANK).forEach(b => { if (!clash(it, b) && wrongFor(it, b[0]) && !seen.has(b[0]) && wrong.length < 3) { seen.add(b[0]); wrong.push(b[1]); } });
+    return mcq({ label: "ဒီအဖြေနဲ့ ကိုက်တဲ့ မေးခွန်းကို ရွေးပါ", text: a, small: true, speak: a, answer: q, pool: wrong, explain: why });
+  });
+}
+runChoice({ gameId: "questionwords", title: "Question Words", build });
+</script>
+</body>
+</html>

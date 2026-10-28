@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plural Pals</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+(() => {
+  // [singular, plural, rule, Burmese meaning, wrong options (3, or [] = sg+es, sg+ss, sg)]
+  const BANK = [
+    // + s
+    ["cat", "cats", "s", "ကြောင်"], ["dog", "dogs", "s", "ခွေး"], ["book", "books", "s", "စာအုပ်"], ["apple", "apples", "s", "ပန်းသီး"],
+    ["egg", "eggs", "s", "ဥ"], ["hand", "hands", "s", "လက်"], ["friend", "friends", "s", "သူငယ်ချင်း"], ["flower", "flowers", "s", "ပန်း"],
+    ["house", "houses", "s", "အိမ်"], ["cup", "cups", "s", "ခွက်"], ["bird", "birds", "s", "ငှက်"], ["banana", "bananas", "s", "ငှက်ပျောသီး"],
+    // + es (s, x, ch, sh, ss)
+    ["box", "boxes", "es", "ပုံး", ["boxs", "boxies", "box"]], ["bus", "buses", "es", "ဘတ်စ်ကား", ["buss", "busies", "bus"]],
+    ["dish", "dishes", "es", "ပန်းကန်", ["dishs", "dishies", "dish"]], ["watch", "watches", "es", "လက်ပတ်နာရီ", ["watchs", "watchies", "watch"]],
+    ["glass", "glasses", "es", "ဖန်ခွက်", ["glasss", "glassies", "glass"]], ["brush", "brushes", "es", "ဘရပ်ရှ်", ["brushs", "brushies", "brush"]],
+    ["church", "churches", "es", "ခရစ်ယာန်ဘုရားကျောင်း", ["churchs", "churchies", "church"]], ["fox", "foxes", "es", "မြေခွေး", ["foxs", "foxses", "fox"]],
+    ["class", "classes", "es", "အတန်း", ["classs", "classies", "class"]],
+    // o
+    ["potato", "potatoes", "o", "အာလူး", ["potatos", "potatoies", "potato"]], ["tomato", "tomatoes", "o", "ခရမ်းချဉ်သီး", ["tomatos", "tomatoies", "tomato"]],
+    ["photo", "photos", "os", "ဓာတ်ပုံ", ["photoes", "photoies", "photo"]],
+    // consonant + y -> ies
+    ["baby", "babies", "y", "ကလေးငယ်", ["babys", "babyes", "baby"]], ["city", "cities", "y", "မြို့", ["citys", "cityes", "city"]],
+    ["story", "stories", "y", "ပုံပြင်", ["storys", "storyes", "story"]], ["country", "countries", "y", "နိုင်ငံ", ["countrys", "countryes", "country"]],
+    ["party", "parties", "y", "ပါတီပွဲ", ["partys", "partyes", "party"]], ["lady", "ladies", "y", "အမျိုးသမီး", ["ladys", "ladyes", "lady"]],
+    ["fly", "flies", "y", "ယင်ကောင်", ["flys", "flyes", "fly"]],
+    // vowel + y -> just s
+    ["toy", "toys", "vy", "ကစားစရာ", ["toies", "toyes", "toy"]], ["boy", "boys", "vy", "ယောက်ျားလေး", ["boies", "boyes", "boy"]],
+    ["day", "days", "vy", "ရက်", ["daies", "dayes", "day"]],
+    // f / fe -> ves
+    ["leaf", "leaves", "f", "အရွက်", ["leafes", "leafies", "leaf"]], ["knife", "knives", "f", "ဓား", ["knifees", "knifs", "knife"]],
+    ["wolf", "wolves", "f", "ဝံပုလွေ", ["wolfes", "wolfies", "wolf"]],
+    // irregular
+    ["child", "children", "irr", "ကလေး", ["childs", "childrens", "child"]], ["man", "men", "irr", "ယောက်ျား", ["mans", "mens", "man"]],
+    ["woman", "women", "irr", "မိန်းမ", ["womans", "womens", "woman"]], ["foot", "feet", "irr", "ခြေထောက်", ["foots", "feets", "foot"]],
+    ["tooth", "teeth", "irr", "သွား", ["tooths", "teeths", "tooth"]], ["mouse", "mice", "irr", "ကြွက်", ["mouses", "mices", "mouse"]],
+    ["person", "people", "irr", "လူ", ["persones", "personies", "person"]], ["goose", "geese", "irr", "ငန်း", ["gooses", "geeses", "goose"]],
+    ["fish", "fish", "same", "ငါး", ["fishs", "fishies", "fishen"]], ["sheep", "sheep", "same", "သိုး", ["sheeps", "sheepes", "sheepies"]]
+  ];
+  const RULE = {
+    s: "ပုံမှန်အားဖြင့် နောက်မှာ -s ထည့်ရုံပဲ။",
+    es: "s, x, ch, sh, ss နဲ့ ဆုံးရင် -es ထည့်ရတယ် (အသံ ဆက်ထွက်လို့ရအောင်)။",
+    o: "ဒီစာလုံးက -o ပြီးရင် -es ထည့်တယ် (potatoes, tomatoes)။",
+    os: "photo လို စာလုံးတချို့က -o နောက်မှာ -s ပဲ ထည့်တယ် (photos, pianos)။ potato / tomato က -es ထည့်တာနဲ့ မတူဘူး။",
+    y: "ဗျည်း + y နဲ့ ဆုံးရင် y ကို ဖြုတ်ပြီး -ies ထည့်တယ်။",
+    vy: "သရ (a, e, o) + y နဲ့ ဆုံးရင် y မပြောင်းဘူး၊ -s ထည့်ရုံပဲ။",
+    f: "f / fe နဲ့ ဆုံးရင် f ကို v ပြောင်းပြီး -ves ထည့်တယ်။",
+    irr: "ပုံမှန်စည်းမျဉ်း မလိုက်တဲ့ irregular စာလုံး ဖြစ်လို့ ကျက်ထားရမယ်။",
+    same: "တစ်ကောင်ရော အများရော ပုံစံတူတူပဲ (ပြောင်းလဲမှု မရှိဘူး)။"
+  };
+  const QUOTA = { s: 2, es: 2, y: 2, vy: 1, f: 1, irr: 3, o: 1 };
+  const group = r => r[2] === "os" ? "o" : r[2] === "same" ? "irr" : r[2];
+
+  function build() {
+    const picked = [];
+    Object.keys(QUOTA).forEach(g => picked.push(...shuffle(BANK.filter(r => group(r) === g)).slice(0, QUOTA[g])));
+    return shuffle(picked).map((r, k) => {
+      const [sg, pl, rule, mm, bad] = r;
+      const wrong = bad || [sg + "es", sg + "ss", sg];
+      const expl = sg + " (" + mm + ") → " + pl + " — " + RULE[rule];
+      const o = { answer: pl, pool: wrong, explain: expl };
+      return mcq(k % 2 ? Object.assign(o, { label: "ကွက်လပ်မှာ plural (အများကိန်း) ကို ဖြည့်ပါ", text: "There are two ___. (" + sg + ")", small: true })
+        : Object.assign(o, { label: "plural (အများကိန်း) က ဘာလဲ?", text: "one " + sg + " → two ___", speak: sg }));
+    });
+  }
+  runChoice({ gameId: "plural", title: "Plural Pals", build });
+})();
+</script>
+</body>
+</html>

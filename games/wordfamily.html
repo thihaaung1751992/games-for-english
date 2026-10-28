@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Family</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  #meaning { text-align: center; line-height: 1.6; }
+  #meaning b { color: var(--accent); }
+  #fb { white-space: pre-line; }
+  .fam { display: inline-block; margin-top: 4px; padding: 2px 12px; border-radius: 99px; background: var(--bg); border: 2px solid var(--line); font-size: .95rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [sentence, base word, accepted answers, hint (part of speech + ending), Burmese explanation]
+// Each sentence allows only ONE part of speech, so only the intended form fits.
+const FAM = [
+  ["He was full of ___ (happy) when he won the prize.", "happy", ["happiness"], "noun · ends -ness", "happy (adj) → happiness (နာမ်) = ပျော်ရွှင်မှု"],
+  ["She made a difficult ___ (decide) about her job.", "decide", ["decision"], "noun · ends -sion", "decide (v) → decision (နာမ်) = ဆုံးဖြတ်ချက်"],
+  ["He drives very ___ (quick), so he is often early.", "quick", ["quickly"], "adverb · ends -ly", "quick (adj) → quickly (adv) = မြန်မြန် (ကြိယာကို ဖော်ပြ)"],
+  ["He is ___ (care) with money; he always loses it.", "care", ["careless"], "adjective · ends -less", "care → careless (adj) = ဂရုမစိုက်သော"],
+  ["She is a very ___ (create) person; she paints and writes songs.", "create", ["creative"], "adjective · ends -ive", "create (v) → creative (adj) = ဖန်တီးနိုင်သော"],
+  ["The school concert was very ___ (success).", "success", ["successful"], "adjective · ends -ful", "success (နာမ်) → successful (adj) = အောင်မြင်သော"],
+  ["We had a long ___ (discuss) about the new plan.", "discuss", ["discussion"], "noun · ends -ion", "discuss (v) → discussion (နာမ်) = ဆွေးနွေးမှု"],
+  ["He spoke ___ (polite) to the old teacher.", "polite", ["politely"], "adverb · ends -ly", "polite (adj) → politely (adv) = ယဉ်ကျေးစွာ"],
+  ["Her ___ (kind) made everyone smile.", "kind", ["kindness"], "noun · ends -ness", "kind (adj) → kindness (နာမ်) = ကြင်နာမှု"],
+  ["It is ___ (possible) to walk to Bagan in one hour; it is too far.", "possible", ["impossible"], "adjective · starts im-", "possible → impossible (adj) = မဖြစ်နိုင်သော (im- = မ)"],
+  ["My ___ (teach) gave us a lot of homework.", "teach", ["teacher", "teachers"], "noun (person) · ends -er", "teach (v) → teacher (နာမ်) = ဆရာ/ဆရာမ"],
+  ["I am ___ (hope) that I will pass the test.", "hope", ["hopeful"], "adjective · ends -ful", "hope → hopeful (adj) = မျှော်လင့်ချက်ရှိသော"],
+  ["This medicine is very ___ (effect); my fever went down fast.", "effect", ["effective"], "adjective · ends -ive", "effect (နာမ်) → effective (adj) = ထိရောက်သော"],
+  ["Albert Einstein was a famous ___ (science).", "science", ["scientist"], "noun (person) · ends -ist", "science → scientist (နာမ်) = သိပ္ပံပညာရှင်"],
+  ["We made an ___ (arrange) to meet at six o'clock.", "arrange", ["arrangement"], "noun · ends -ment", "arrange (v) → arrangement (နာမ်) = စီစဉ်မှု"],
+  ["Fruit and vegetables are very ___ (health) food.", "health", ["healthy"], "adjective · ends -y", "health (နာမ်) → healthy (adj) = ကျန်းမာစေသော"],
+  ["What is your ___ (nation)? I am from Myanmar.", "nation", ["nationality"], "noun · ends -ality", "nation → nationality (နာမ်) = နိုင်ငံသား/လူမျိုး"],
+  ["She answered every question ___ (correct).", "correct", ["correctly"], "adverb · ends -ly", "correct (adj) → correctly (adv) = မှန်မှန်ကန်ကန်"],
+  ["The company has fifty ___ (employ).", "employ", ["employees"], "noun (people) · ends -ees", "employ (v) → employee (နာမ်) = ဝန်ထမ်း၊ employees = အများကိန်း"],
+  ["I felt very ___ (comfort) on the soft sofa.", "comfort", ["comfortable"], "adjective · ends -able", "comfort → comfortable (adj) = သက်တောင့်သက်သာရှိသော"],
+  ["Mozart was a great ___ (music).", "music", ["musician"], "noun (person) · ends -ian", "music → musician (နာမ်) = ဂီတပညာရှင်"],
+  ["It is ___ (wonder) to see you again!", "wonder", ["wonderful"], "adjective · ends -ful", "wonder → wonderful (adj) = အံ့ဩဖွယ်ကောင်းသော"],
+  ["Don't swim here; the river is very ___ (danger).", "danger", ["dangerous"], "adjective · ends -ous", "danger (နာမ်) → dangerous (adj) = အန္တရာယ်ရှိသော"],
+  ["The nurse was very ___ (help) and showed me the way.", "help", ["helpful"], "adjective · ends -ful", "help → helpful (adj) = အကူအညီပေးသော"],
+  ["A phone is very ___ (use) because you can call for help.", "use", ["useful"], "adjective · ends -ful", "use → useful (adj) = အသုံးဝင်သော"],
+  ["Every ___ (visit) must sign the book at the door.", "visit", ["visitor"], "noun (person) · ends -or", "visit (v) → visitor (နာမ်) = လာရောက်လည်ပတ်သူ"],
+  ["We had an ___ (agree) about the price.", "agree", ["agreement"], "noun · ends -ment", "agree (v) → agreement (နာမ်) = သဘောတူညီချက်"],
+  ["We were all ___ (surprise) by the gift.", "surprise", ["surprised"], "adjective · ends -ed", "surprise → surprised (adj) = အံ့ဩသွားသော (လူ၏ခံစားချက်)"],
+  ["Thank you for your ___ (explain); now I understand.", "explain", ["explanation"], "noun · ends -ation", "explain (v) → explanation (နာမ်) = ရှင်းပြချက်"],
+  ["We watched a very ___ (interest) film about the sea.", "interest", ["interesting"], "adjective · ends -ing", "interest → interesting (adj) = စိတ်ဝင်စားဖွယ်ကောင်းသော"],
+  ["The little boy shouted ___ (loud) for his mother.", "loud", ["loudly"], "adverb · ends -ly", "loud (adj) → loudly (adv) = ကျယ်ကျယ်လောင်လောင်"],
+  ["There is a big ___ (differ) between the two cars.", "differ", ["difference"], "noun · ends -ence", "differ (v) → difference (နာမ်) = ကွာခြားချက်"],
+  ["My father is a ___ (write) of children's books.", "write", ["writer"], "noun (person) · ends -er", "write (v) → writer (နာမ်) = စာရေးဆရာ"],
+  ["It is very ___ (usual) to see snow in July.", "usual", ["unusual"], "adjective · starts un-", "usual → unusual (adj) = ပုံမှန်မဟုတ်သော (un- = မ)"],
+  ["I am very ___ (thank) for your help.", "thank", ["thankful"], "adjective · ends -ful", "thank (v) → thankful (adj) = ကျေးဇူးတင်သော"],
+  ["Smoke from cars causes ___ (pollute) in big cities.", "pollute", ["pollution"], "noun · ends -ion", "pollute (v) → pollution (နာမ်) = ညစ်ညမ်းမှု"],
+  ["I am very ___ (hunger); I haven't eaten since morning.", "hunger", ["hungry"], "adjective · ends -y", "hunger (နာမ်) → hungry (adj) = ဗိုက်ဆာသော"],
+  ["The ___ (long) of the river is about five hundred kilometres.", "long", ["length"], "noun · ends -th", "long (adj) → length (နာမ်) = အရှည်၊ အလျား (ပုံမမှန်)"],
+  ["What is the ___ (high) of that mountain?", "high", ["height"], "noun · ends -ght", "high (adj) → height (နာမ်) = အမြင့် (ပုံမမှန်)"],
+  ["Her ___ (strong) surprised everyone; she lifted the heavy box alone.", "strong", ["strength"], "noun · ends -th", "strong (adj) → strength (နာမ်) = အားအင် (ပုံမမှန်)"],
+  ["Please tell me the ___ (true), not a lie.", "true", ["truth"], "noun · ends -th", "true (adj) → truth (နာမ်) = အမှန်တရား"],
+  ["Our grandfather is very ___ (depend) on us; he cannot walk alone.", "depend", ["dependent"], "adjective · ends -ent", "depend (v) → dependent (adj) = မှီခိုနေရသော"],
+  ["Can you ___ (large) this photo so I can see it better?", "large", ["enlarge"], "verb · starts en-", "large (adj) → enlarge (v) = ကြီးအောင်လုပ်သည် (en- = လုပ်သည်)"],
+  ["Exercise will ___ (strong) your muscles.", "strong", ["strengthen"], "verb · ends -en", "strong (adj) → strengthen (v) = ခိုင်ခံ့စေသည်"],
+  ["She made a quick ___ (recover) after the operation.", "recover", ["recovery"], "noun · ends -y", "recover (v) → recovery (နာမ်) = ပြန်လည်ကောင်းမွန်ခြင်း"],
+  ["He cannot walk because he is ___ (injury).", "injury", ["injured"], "adjective · ends -ed", "injury (နာမ်) → injured (adj) = ဒဏ်ရာရသော"],
+  ["She wants to be a ___ (medicine) student at the university.", "medicine", ["medical"], "adjective · ends -al", "medicine (နာမ်) → medical (adj) = ဆေးပညာဆိုင်ရာ"]
+];
+
+runType({
+  gameId: "wordfamily", title: "Word Family",
+  build: () => shuffle(FAM).slice(0, 10).map(([s, base, answers, hint, why]) => ({
+    label: "စာလုံးပုံစံ ပြောင်းပြီး ဖြည့်ပါ · Word Family", text: s,
+    answers, hint: hint + " · " + answers[0].length + " letters · " + answers[0][0] + "…",
+    explain: why
+  }))
+});
+</script>
+</body>
+</html>

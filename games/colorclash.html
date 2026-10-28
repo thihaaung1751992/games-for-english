@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Color Clash</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.cc-rule { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; border-radius: 14px; border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); font-weight: 800; line-height: 1.5; min-height: 64px; }
+.cc-rule.word { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, var(--card)); }
+.cc-rule.flash { animation: ccflash .6s; }
+.cc-card { margin: 12px 0; min-height: 150px; border-radius: 20px; border: 2px solid var(--line); background: var(--card); display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; }
+.cc-word { font-size: clamp(2.6rem, 14vw, 4.2rem); font-weight: 900; letter-spacing: .04em; text-transform: uppercase; line-height: 1.2;
+  -webkit-text-stroke: 7px var(--ink); paint-order: stroke fill; }
+.cc-msg { font-size: 1.1rem; font-weight: 800; color: var(--muted); }
+.cc-clock { height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 10px; }
+.cc-clock > i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: left; }
+.cc-clock.low > i { background: var(--bad); }
+.cc-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cc-btn { font: inherit; font-weight: 800; font-size: 1.05rem; min-height: 60px; padding: 4px 10px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.3; }
+.cc-btn:hover:not(:disabled) { border-color: var(--accent); }
+.cc-btn:disabled { opacity: .5; cursor: default; }
+.cc-btn .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--ink); flex: none; }
+.cc-btn small { display: block; font-weight: 600; color: var(--muted); font-size: .85rem; }
+.cc-btn.good { border-color: var(--good); background: color-mix(in srgb, var(--good) 20%, var(--card)); }
+.cc-btn.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 18%, var(--card)); animation: shake .3s; }
+.cc-help { text-align: left; line-height: 1.8; }
+.cc-help p { margin: 8px 0; }
+.cc-help .eg { font-weight: 900; -webkit-text-stroke: 5px var(--ink); paint-order: stroke fill; letter-spacing: .04em; }
+@keyframes ccflash { 0% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .cc-rule.flash, .cc-btn.bad { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Stroop game: the word and its ink colour disagree. Two rules take turns: tap the INK colour, or tap what the WORD says.
+const topic = getTopic(), LV = getLevel(), lvl = topic.level;
+renderBar("Color Clash · " + topic.name);
+const ALLC = [
+  { en: "red", my: "အနီ", hex: "#e5484d" }, { en: "blue", my: "အပြာ", hex: "#2f6fed" }, { en: "green", my: "အစိမ်း", hex: "#2f9e44" },
+  { en: "yellow", my: "အဝါ", hex: "#f5c400" }, { en: "orange", my: "လိမ္မော်ရောင်", hex: "#f08a1c" }, { en: "purple", my: "ခရမ်းရောင်", hex: "#8b5cf6" },
+  { en: "pink", my: "ပန်းရောင်", hex: "#ec4899" }, { en: "brown", my: "အညို", hex: "#a0652d" }
+];
+const NCOL = [4, 5, 6, 8][lvl - 1];      // colours in play
+const SECONDS = 45;
+const SWITCH = 5;                         // the rule changes after this many answers
+const PEN = [1, 2, 2, 3][lvl - 1];        // seconds lost for a wrong answer
+const GOAL = [11, 15, 19, 23][lvl - 1];   // right answers for a full score
+const WORD_SECS = [0, 7, 5, 3.5][lvl - 1]; // per-word limit (0 = none)
+const SWATCH = lvl <= 2;                  // colour dots on the buttons (Lv 3-4: you must know the names)
+const RULES = {
+  ink: { cls: "", icon: "🎨", my: "စာလုံးရဲ့ အရောင်ကို နှိပ်ပါ", en: "Tap the INK colour" },
+  word: { cls: "word", icon: "📖", my: "စာလုံးက ဘာအရောင်လဲ ဖတ်ပြီး နှိပ်ပါ", en: "Tap what the WORD says" }
+};
+let cols, rule, answered, right, wrong, streak, best, score, left, cur, last, running, tick, wordT, frozen, tPrev, runId = 0;
+
+function showHelp() {
+  clearInterval(tick); clearTimeout(wordT); running = false;
+  cols = ALLC.slice(0, NCOL);
+  $("#app").innerHTML = '<div class="panel cc-help"><h2 style="margin:0 0 6px;text-align:center">🎨 Color Clash</h2>' +
+    '<p>စာလုံးတစ်လုံးပေါ်လာပါမယ်။ စာလုံးရဲ့ <b>အရောင်</b> နဲ့ <b>အဓိပ္ပါယ်</b> မတူနိုင်ပါဘူး။ စည်းမျဉ်းက ' + SWITCH + ' ကြိမ်တိုင်း ပြောင်းပါမယ်။</p>' +
+    '<p>🎨 <b>' + RULES.ink.my + '</b><br><span class="muted">Example: </span><span class="eg" style="color:' + ALLC[1].hex + '">RED</span> <span class="muted">→ blue</span></p>' +
+    '<p>📖 <b>' + RULES.word.my + '</b><br><span class="muted">Example: </span><span class="eg" style="color:' + ALLC[1].hex + '">RED</span> <span class="muted">→ red</span></p>' +
+    '<p class="muted">⏱ ' + SECONDS + ' စက္ကန့် · မှားရင် −' + PEN + ' စက္ကန့် · ဆက်တိုက်မှန်ရင် 🔥 ပိုရမယ်</p>' +
+    '<div class="row"><button class="btn primary" id="go">Start ▶</button></div></div>';
+  $("#go").onclick = begin; $("#go").focus();
+}
+
+function begin() {
+  const id = ++runId;
+  rule = Math.random() < 0.5 ? "ink" : "word"; answered = 0; right = 0; wrong = 0; streak = 0; best = 0; score = 0; left = SECONDS * 1000;
+  last = null; cur = null; running = true; frozen = false;
+  $("#app").innerHTML =
+    '<div class="stats"><span>Right: <b id="rt">0</b></span><span>Streak: <b id="st">0</b> 🔥</span><span>Score: <b id="sc">0</b></span></div>' +
+    '<div class="cc-clock" id="clk"><i id="clkbar"></i></div>' +
+    '<div class="cc-rule" id="rule" aria-live="polite"></div>' +
+    '<div class="cc-card"><div class="cc-word" id="word" aria-hidden="true"></div><div class="cc-msg" id="msg" hidden></div></div>' +
+    '<div class="cc-btns" id="btns"></div><div class="fb" id="fb" aria-live="polite" style="min-height:2em;text-align:center"></div>';
+  const box = $("#btns");
+  cols.forEach((c, n) => {
+    const b = document.createElement("button");
+    b.className = "cc-btn"; b.dataset.c = c.en; b.setAttribute("aria-label", c.en + " " + c.my + " (" + (n + 1) + ")");
+    b.innerHTML = (SWATCH ? '<span class="dot"></span>' : "") + '<span><span class="en"></span><small></small></span>';
+    if (SWATCH) $(".dot", b).style.background = c.hex;
+    $(".en", b).textContent = c.en; $("small", b).textContent = c.my;
+    b.onclick = () => pick(c.en);
+    box.appendChild(b);
+  });
+  setRule(rule, true);
+  tPrev = performance.now();
+  clearInterval(tick);
+  tick = setInterval(() => { if (id === runId) clock(); }, 100);
+  nextWord();
+}
+function setRule(r, quiet) {
+  rule = r;
+  const el = $("#rule"), R = RULES[r];
+  el.className = "cc-rule " + R.cls;
+  el.innerHTML = '<span style="font-size:1.6rem">' + R.icon + '</span><span>' + R.my + '<br><span class="muted" style="font-weight:600">' + R.en + '</span></span>';
+  if (!quiet) { void el.offsetWidth; el.classList.add("flash"); }
+}
+function clock() {
+  const now = performance.now(), dt = Math.min(now - tPrev, 250); tPrev = now;
+  if (!running || frozen) return;
+  left -= dt;
+  const f = Math.max(0, left / (SECONDS * 1000));
+  $("#clkbar").style.transform = "scaleX(" + f + ")";
+  $("#clk").classList.toggle("low", left < 10000);
+  if (left <= 0) return end();
+}
+function nextWord() {
+  clearTimeout(wordT);
+  if (!running) return;
+  let w, ink;
+  do {
+    w = cols[Math.floor(Math.random() * cols.length)];
+    ink = Math.random() < 0.15 ? w : cols[Math.floor(Math.random() * cols.length)];
+    if (ink === w && Math.random() < 0.85) ink = cols[(cols.indexOf(w) + 1 + Math.floor(Math.random() * (cols.length - 1))) % cols.length];
+  } while (last && last.w === w && last.ink === ink);
+  cur = { w, ink }; last = cur;
+  const el = $("#word"); el.textContent = w.en; el.style.color = ink.hex;
+  $("#word").hidden = false; $("#msg").hidden = true;
+  [...$("#btns").children].forEach(b => { b.disabled = false; b.classList.remove("good", "bad"); });
+  if (WORD_SECS) { const id = runId; wordT = setTimeout(() => { if (id === runId && running && !frozen) miss(null, "⏱ အချိန်ကုန်ပါပြီ"); }, WORD_SECS * 1000); }
+}
+function pick(name) {
+  if (!running || frozen || !cur) return;
+  const goal = rule === "ink" ? cur.ink : cur.w;
+  const btn = [...$("#btns").children].find(b => b.dataset.c === name);
+  if (name === goal.en) {
+    clearTimeout(wordT);
+    right++; streak++; best = Math.max(best, streak);
+    const pts = 10 + Math.min(streak - 1, 6) * 2; score += pts; addPoints(pts); sfx.ok();
+    if (btn) btn.classList.add("good");
+    $("#fb").className = "fb ok"; $("#fb").textContent = "✓ " + goal.en + " = " + goal.my + (streak >= 3 ? "  🔥 x" + streak : "");
+    advance();
+  } else miss(btn, "✗ " + goal.en + " = " + goal.my);
+}
+function miss(btn, text) {
+  clearTimeout(wordT);
+  wrong++; streak = 0; left -= PEN * 1000; sfx.bad();
+  if (btn) btn.classList.add("bad");
+  $("#fb").className = "fb no"; $("#fb").textContent = text + "  −" + PEN + "s";
+  advance();
+}
+function advance() {
+  answered++;
+  $("#rt").textContent = right; $("#st").textContent = streak; $("#sc").textContent = score;
+  if (left <= 0) return end();
+  if (answered % SWITCH === 0) {
+    // announce the new rule: the clock waits while the player reads it
+    frozen = true; clearTimeout(wordT);
+    setRule(rule === "ink" ? "word" : "ink");
+    $("#word").hidden = true; $("#msg").hidden = false; $("#msg").textContent = "စည်းမျဉ်းပြောင်းပါပြီ! 🔄";
+    [...$("#btns").children].forEach(b => { b.disabled = true; });
+    const id = runId;
+    setTimeout(() => { if (id !== runId || !running) return; frozen = false; tPrev = performance.now(); nextWord(); }, 1300);
+  } else {
+    // a short beat so the feedback registers; the clock keeps running
+    cur = null;
+    const id = runId;
+    setTimeout(() => { if (id !== runId || !running || frozen) return; nextWord(); }, 220);
+  }
+}
+function end() {
+  if (!running) return;
+  running = false; clearInterval(tick); clearTimeout(wordT); runId++;
+  const ratio = Math.max(0, right - wrong * 0.5) / GOAL;
+  showResult({
+    title: cheer(ratio), stars: starsFor(ratio),
+    text: right + " မှန်တယ် · " + wrong + " မှား · အကောင်းဆုံး 🔥 " + best + " · " + score + " points",
+    onAgain: play
+  });
+}
+// keyboard: 1..n picks a colour button
+document.addEventListener("keydown", e => {
+  if (!running || e.ctrlKey || e.metaKey || e.altKey) return;
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= cols.length) pick(cols[n - 1].en);
+});
+function play() { showHelp(); }
+play.gameId = "colorclash";
+play();</script>
+</body>
+</html>

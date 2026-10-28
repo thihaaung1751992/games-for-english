@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Formation</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.q-text { word-break: break-word; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [BASE, accepted answers (first one is shown), sentence with ____, Burmese rule]
+const WORDS = [
+  ["DECIDE", ["decision"], "After much thought, she made a ____ to move abroad.", "verb → noun (-ion): ဆုံးဖြတ်ချက်"],
+  ["ABLE", ["inability"], "His ____ to say no often got him into trouble.", "adjective → opposite noun (in- + -ity): မစွမ်းဆောင်နိုင်ခြင်း"],
+  ["COMPETE", ["competitive"], "The job market is extremely ____ these days.", "verb → adjective (-itive): ယှဉ်ပြိုင်မှုပြင်းထန်တဲ့"],
+  ["EMPLOY", ["employment"], "She has ten years of ____ in the banking sector.", "verb → noun (-ment): အလုပ်အကိုင်"],
+  ["REALISE", ["realisation", "realization"], "There was a sudden ____ that he had left the keys at home.", "verb → noun (-ation): သဘောပေါက်လာခြင်း"],
+  ["ARGUE", ["argument"], "They had a heated ____ about money.", "verb → noun (-ument, e ကျသွားတယ်): ငြင်းခုံမှု"],
+  ["ACTIVE", ["actively"], "Students should take part ____ in class discussions.", "adjective → adverb (-ly): တက်တက်ကြွကြွ"],
+  ["ASSIST", ["assistant"], "She works as a shop ____ in a large bookstore.", "verb → person noun (-ant): လက်ထောက်"],
+  ["SUCCESS", ["successful"], "The company was ____ in launching its new app.", "noun → adjective (-ful): အောင်မြင်တဲ့"],
+  ["CREATE", ["creative"], "Artists need to be ____ to stand out from the crowd.", "verb → adjective (-ive): ဖန်တီးနိုင်တဲ့"],
+  ["RELIABLE", ["reliability"], "Customers value the ____ of the service above everything else.", "adjective → noun (-ility): ယုံကြည်စိတ်ချရမှု"],
+  ["POLLUTE", ["pollution"], "Air ____ is a danger to public health.", "verb → noun (-ion): ညစ်ညမ်းမှု"],
+  ["GOVERN", ["government"], "The ____ announced new tax rules yesterday.", "verb → noun (-ment): အစိုးရ"],
+  ["ECONOMY", ["economic"], "The country faces serious ____ problems.", "noun → adjective (-ic): စီးပွားရေးဆိုင်ရာ"],
+  ["BEAUTY", ["beautifully"], "She sings so ____ that everyone stops to listen.", "noun → adjective → adverb (beautiful + ly): လှပစွာ"],
+  ["EDUCATE", ["educational"], "The documentary was both entertaining and highly ____.", "verb → adjective (-ional): ပညာပေးတဲ့"],
+  ["DANGER", ["dangerous"], "It is ____ to swim in this river after heavy rain.", "noun → adjective (-ous): အန္တရာယ်ရှိတဲ့"],
+  ["INFORM", ["information"], "Please give me more ____ about the course.", "verb → noun (-ation): သတင်းအချက်အလက်"],
+  ["RELATE", ["relationship", "relation"], "He has a very close ____ with his father.", "verb → noun (-ship): ဆက်ဆံရေး"],
+  ["DIFFER", ["difference"], "There is a big ____ between the two proposals.", "verb → noun (-ence): ကွာခြားချက်"],
+  ["PREFER", ["preference"], "Do you have a ____ for tea or coffee?", "verb → noun (-ence): ရွေးချယ်မှု၊ ပိုနှစ်သက်ခြင်း"],
+  ["ACHIEVE", ["achievement"], "Winning the national prize was her greatest ____.", "verb → noun (-ment): အောင်မြင်မှု"],
+  ["IMPROVE", ["improvement"], "There has been a significant ____ in his English.", "verb → noun (-ment): တိုးတက်မှု"],
+  ["SUGGEST", ["suggestion"], "Does anyone have a ____ for the name of the project?", "verb → noun (-ion): အကြံပြုချက်"],
+  ["AGREE", ["agreement"], "After hours of talks, the two sides reached an ____.", "verb → noun (-ment): သဘောတူညီချက်"],
+  ["ADVANTAGE", ["disadvantage"], "The main ____ of this plan is its very high cost.", "noun → opposite (dis-): အားနည်းချက်"],
+  ["POSSIBLE", ["impossible"], "Without a map, it was ____ to find the village.", "prefix im- (p ရှေ့မှာ im): မဖြစ်နိုင်တဲ့"],
+  ["RESPONSIBLE", ["responsibility"], "Parents have a ____ to protect their children.", "adjective → noun (-ility): တာဝန်"],
+  ["CURIOUS", ["curiosity"], "Her ____ about space led her to become an astronomer.", "adjective → noun (-ity, ous ကျသွားတယ်): စူးစမ်းလိုစိတ်"],
+  ["STRONG", ["strength"], "Honesty is his greatest ____.", "adjective → noun (strong → strength): ခွန်အား၊ အားသာချက်"],
+  ["LONG", ["length"], "What is the ____ of this river?", "adjective → noun (long → length): အရှည်"],
+  ["ENJOY", ["enjoyable"], "The trip was very ____ and we learned a lot.", "verb → adjective (-able): ပျော်စရာကောင်းတဲ့"],
+  ["ACCEPT", ["acceptable"], "In this school, such behaviour is simply not ____.", "verb → adjective (-able): လက်ခံနိုင်တဲ့"],
+  ["CARE", ["careless"], "The accident was caused by a ____ driver.", "noun → adjective (-less = မရှိတဲ့): ဂရုမစိုက်တဲ့"],
+  ["HOPE", ["hopeless"], "He felt ____ after failing the exam three times.", "noun → adjective (-less = မျှော်လင့်ချက်မရှိတဲ့)"],
+  ["ORGANISE", ["organisation", "organization"], "She works for a charity ____ that helps refugees.", "verb → noun (-ation): အဖွဲ့အစည်း"],
+  ["COMMUNICATE", ["communication"], "Good ____ is essential in any team.", "verb → noun (-ation): ဆက်သွယ်ပြောဆိုမှု"],
+  ["POPULAR", ["popularity"], "The ____ of online shopping is growing fast.", "adjective → noun (-ity): လူကြိုက်များမှု"],
+  ["EXTREME", ["extremely"], "It was ____ hot in the city yesterday.", "adjective → adverb (-ly): အလွန်အမင်း"],
+  ["SAD", ["sadness"], "She couldn't hide her ____ when she said goodbye.", "adjective → noun (-ness): ဝမ်းနည်းမှု"],
+  ["LOSE", ["loss"], "The company reported a heavy ____ last year.", "verb → noun (lose → loss): ဆုံးရှုံးမှု"],
+  ["KNOW", ["knowledge"], "He has a wide ____ of ancient history.", "verb → noun (know → knowledge): အသိပညာ"],
+  ["FREE", ["freedom"], "People should have the ____ to express their opinions.", "adjective → noun (-dom): လွတ်လပ်ခွင့်"],
+  ["DEPEND", ["independent"], "Having her own salary made her financially ____ of her parents.", "verb → adjective with in- (depend → independent): သူများအားမကိုးတဲ့"],
+  ["CONSIDER", ["considerable"], "He made a ____ effort to finish the project on time.", "verb → adjective (-able): များပြားသော/သိသိသာသာ"]
+].map(a => ({ base: a[0], answers: a[1], s: a[2], note: a[3] }));
+
+function build() {
+  return take(WORDS, 10).map(e => ({
+    label: "🏗️ စကားလုံးပုံစံ ပြောင်းပြီး ဖြည့်ပါ → " + e.base,
+    text: e.s,
+    answers: e.answers,
+    explain: e.base.toLowerCase() + " → " + e.answers[0] + " (" + e.note + ")"
+  }));
+}
+runType({ gameId: "wordform", title: "Word Formation", build });
+</script>
+</body>
+</html>

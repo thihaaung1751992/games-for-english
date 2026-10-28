@@ -40,8 +40,9 @@
 <script src="js/common.js"></script>
 <script>
 const topic = getTopic();
+const LV = getLevel();
 renderBar("Word Guess · " + topic.name);
-const ROUNDS = 3, TRIES = 6, kbBtns = {}, rank = { x: 1, y: 2, g: 3 };
+const ROUNDS = 3, TRIES = LV.tries, kbBtns = {}, rank = { x: 1, y: 2, g: 3 };
 let list, i, word, rows, cur, keys, solved, score, done;
 
 function colorGuess(g, ans) {

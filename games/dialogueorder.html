@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dialogue Order</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* every dialogue line is one chip: full width, wraps nicely on a phone */
+  .chip { flex: 1 1 100%; max-width: 100%; white-space: normal; text-align: left; line-height: 1.5; padding: 8px 14px; }
+  .chip::before { content: "💭 "; }
+  .chip.placed::before { content: "💬 "; }
+  .chips.line { flex-direction: column; flex-wrap: nowrap; align-items: stretch; min-height: 64px; }
+  .chips.line:empty::after { content: "👆 စာကြောင်းတွေကို အစီအစဉ်အတိုင်း နှိပ်ပါ"; color: var(--muted); text-align: center; align-self: center; padding: 10px; }
+  #fb { white-space: pre-line; text-align: left; }
+  #fb.ok { background: var(--bg); border-radius: 12px; padding: 8px 12px; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [Burmese situation, [lines in the right order]]
+const DIALOGUES = [
+  ["ဆရာဝန်နဲ့ ပြသခြင်း", [
+    "Doctor: Good morning. What seems to be the problem?",
+    "Patient: I have had a headache and a fever since yesterday.",
+    "Doctor: Let me check your temperature. Hmm, it is thirty-eight degrees.",
+    "Doctor: You should rest and take this medicine twice a day.",
+    "Patient: Thank you, doctor. How long will it take to recover?",
+    "Doctor: Probably three or four days. Come back if you do not feel better."]],
+  ["စားသောက်ဆိုင်မှာ အစားအစာ မှာခြင်း", [
+    "Waiter: Good evening. Are you ready to order?",
+    "Customer: Yes, I'd like the chicken curry, please.",
+    "Waiter: Would you like something to drink with that?",
+    "Customer: Just a glass of water, thanks.",
+    "Waiter: Certainly. Your food will be ready in ten minutes."]],
+  ["လမ်းမေးခြင်း", [
+    "Tourist: Excuse me, how do I get to the train station?",
+    "Local: Go straight for two blocks, then turn left at the traffic lights.",
+    "Tourist: Is it far from here?",
+    "Local: No, it only takes about five minutes on foot.",
+    "Tourist: Great, thank you very much!"]],
+  ["ဖုန်းနဲ့ တက္ကစီ ခေါ်ခြင်း", [
+    "Operator: City Taxi, how can I help you?",
+    "Caller: I'd like a taxi to the airport, please.",
+    "Operator: Certainly. Where are you now?",
+    "Caller: I'm at 25 Lake Road, near the post office.",
+    "Operator: A taxi will be there in about ten minutes.",
+    "Caller: Perfect. Thank you!"]],
+  ["ဟိုတယ်ခန်း ကြိုတင်မှာခြင်း", [
+    "Receptionist: Good afternoon, Royal Hotel. How can I help?",
+    "Guest: Hello, I'd like to book a double room for two nights.",
+    "Receptionist: Certainly. When would you like to arrive?",
+    "Guest: This Friday, if possible.",
+    "Receptionist: That's fine. The room is sixty dollars a night.",
+    "Guest: Good, I'll take it."]],
+  ["လေဆိပ်မှာ ပျောက်သွားတဲ့ ခရီးဆောင်အိတ်", [
+    "Passenger: Excuse me, my suitcase did not arrive on the flight from Bangkok.",
+    "Clerk: I'm sorry to hear that. Can you describe it?",
+    "Passenger: It's a large blue suitcase with a red ribbon on the handle.",
+    "Clerk: Thank you. Please fill in this form, and we will call you as soon as we have news.",
+    "Passenger: Thank you. I hope you find it soon."]],
+  ["ဆေးဆိုင်မှာ ဆေးဝယ်ခြင်း", [
+    "Pharmacist: Hello. Can I help you?",
+    "Customer: Yes, I have a sore throat and a cough.",
+    "Pharmacist: Do you have a fever?",
+    "Customer: No, I only feel a little tired.",
+    "Pharmacist: Then take these tablets three times a day after meals.",
+    "Customer: Thank you. How much are they?"]],
+  ["အလုပ်ခန့်ဖို့ မေးမြန်းခြင်း (job interview)", [
+    "Interviewer: Please take a seat. Tell me a little about yourself.",
+    "Candidate: I'm a business graduate, and I have two years of experience in sales.",
+    "Interviewer: Why do you want to work for our company?",
+    "Candidate: Because it is growing fast, and I'd like to learn from your team.",
+    "Interviewer: Thank you. We will contact you by the end of the week."]],
+  ["သူငယ်ချင်းနဲ့ ရုပ်ရှင်သွားဖို့ ချိန်းခြင်း", [
+    "Ko Ko: Are you free this Saturday evening?",
+    "Su Su: I think so. Why?",
+    "Ko Ko: There's a new comedy at the cinema. Would you like to come?",
+    "Su Su: That sounds great! What time does it start?",
+    "Ko Ko: At seven o'clock. Let's meet outside at half past six."]],
+  ["ဘတ်စ်ကားလက်မှတ် ဝယ်ခြင်း", [
+    "Passenger: Hello, one ticket to Bagan, please.",
+    "Clerk: One way or return?",
+    "Passenger: Return, please. I'm coming back on Sunday.",
+    "Clerk: That's twenty-five thousand kyats. The bus leaves at eight o'clock.",
+    "Passenger: Thanks. Which platform is it?",
+    "Clerk: Platform three, on your left."]],
+  ["ဝယ်ထားတဲ့ ပစ္စည်း ပြန်အပ်ခြင်း", [
+    "Customer: Hello. I bought this shirt yesterday, but it is too small.",
+    "Assistant: I'm sorry about that. Do you have the receipt?",
+    "Customer: Yes, here it is.",
+    "Assistant: Would you like a bigger size or a refund?",
+    "Customer: A refund, please.",
+    "Assistant: No problem. The money will be back on your card in three days."]],
+  ["နေမကောင်းလို့ အလုပ်ပိတ်ကြောင်း ဖုန်းဆက်ခြင်း", [
+    "Employee: Hello, it's Hla speaking. I'm calling to say I can't come to work today.",
+    "Manager: Oh no. What's the matter?",
+    "Employee: I have a high fever and a bad headache.",
+    "Manager: I'm sorry to hear that. Please see a doctor and rest.",
+    "Employee: Thank you. I will send you the doctor's note tomorrow."]],
+  ["စာတိုက်မှာ ပါဆယ်ပို့ခြင်း", [
+    "Clerk: Next, please. How can I help you?",
+    "Customer: I'd like to send this parcel to Singapore.",
+    "Clerk: Let me weigh it. It's two kilos. Do you want airmail or sea mail?",
+    "Customer: Airmail, please. How long will it take?",
+    "Clerk: About one week. That will be ten thousand kyats."]],
+  ["အိမ်နီးချင်းသစ်နဲ့ စတင်ခင်မင်ခြင်း", [
+    "Aye: Hi, I'm Aye. I live in the flat next door.",
+    "Kyaw: Nice to meet you. I'm Kyaw. We moved in last week.",
+    "Aye: Welcome to the building! Do you like it so far?",
+    "Kyaw: Yes, it's very quiet and the people are friendly.",
+    "Aye: Great. Let me know if you need any help."]]
+];
+
+// Five dialogues per run. Each line is one piece; the finished dialogue is shown after a right answer.
+runOrder({
+  gameId: "dialogueorder", title: "Dialogue Order",
+  build: () => shuffle(DIALOGUES).slice(0, 5).map(([sit, lines]) => ({
+    label: "စကားပြောကို အစီအစဉ်အတိုင်း စီပါ", text: sit, my: true,
+    tokens: lines, join: "\n", explain: "\n" + lines.join("\n")
+  }))
+});
+</script>
+</body>
+</html>

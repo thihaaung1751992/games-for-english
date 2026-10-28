@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Passive Voice</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const F = "Passive = be + V3 (အတိတ်ပုဒ်)။ ";
+// Gap items: [sentence with ___, answer, [wrong], Burmese rule]
+const GAPS = [
+  ["English ___ all over the world.", "is spoken", ["speaks", "is speaking", "spoke"], F + "present simple passive: is/are + V3 (အမြဲတမ်း မှန်တဲ့အရာ)။"],
+  ["This bridge ___ in 1998.", "was built", ["is built", "has been built", "built"], F + "အတိတ်အချိန်အတိအကျ (in 1998) → past simple passive: was/were + V3။"],
+  ["The homework ___ yet.", "hasn't been done", ["hasn't done", "doesn't done", "has not being done"], F + "present perfect passive: has/have been + V3။"],
+  ["Your parcel ___ tomorrow morning.", "will be delivered", ["will deliver", "will be deliver", "has delivered"], F + "future passive: will be + V3။"],
+  ["The road ___ at the moment, so use another route.", "is being repaired", ["is repaired", "has repaired", "repairs"], F + "ယခုလုပ်နေဆဲ passive: is/are being + V3။"],
+  ["All forms must ___ by Friday.", "be finished", ["finish", "be finish", "been finished"], F + "modal passive: must/can/should + be + V3။"],
+  ["The window ___ by a football last night.", "was broken", ["broke", "has been broken", "is broken"], F + "“by a football” ပါရင် action လုပ်သူကို ပြထားတဲ့ passive ဖြစ်ပါတယ်။ ညက = past simple passive။"],
+  ["Hundreds of cars ___ in this factory every year.", "are produced", ["produce", "is produced", "are producing"], F + "cars က လူမလုပ်ဘဲ ထုတ်လုပ်ခံရတာ၊ plural ဖြစ်လို့ are + V3။"],
+  ["He was ___ the job after the interview.", "offered", ["offering", "offer", "been offered"], F + "was + V3 (offer → offered)။"],
+  ["The thief ___ by the police yesterday.", "was arrested", ["arrested", "is arrested", "has arrested"], F + "ဖမ်းခံရသူက subject ဖြစ်လို့ passive: was arrested by ...။"],
+  ["The new law ___ next year.", "will be introduced", ["will introduce", "has introduced", "is introducing"], F + "future passive: will be + V3။"],
+  ["I ___ to the party by my cousin last week.", "was invited", ["invited", "have been invited", "am invited"], F + "last week = past simple → was invited။"],
+  ["Is English ___ in your country?", "spoken", ["speaking", "speak", "spoke"], F + "မေးခွန်း: Is/Are + subject + V3?"],
+  ["The report ___ before the meeting starts.", "has to be finished", ["has to finish", "have to be finished", "has to been finished"], F + "has/have to + be + V3။ Subject က report (singular) ဖြစ်လို့ has to။"],
+  ["Many languages ___ in Myanmar.", "are spoken", ["speak", "is spoken", "are speaking"], F + "Subject plural → are + V3။"],
+  ["The patient ___ to the hospital when I arrived.", "was being taken", ["was taking", "took", "had taking"], F + "past continuous passive: was/were being + V3။"],
+  ["The cake ___ by my mum. It was delicious.", "was baked", ["baked", "has baked", "bake"], F + "past simple passive: was + V3။"],
+  ["My phone ___!", "has been stolen", ["has stolen", "is stealing", "was stealing"], F + "present perfect passive: has been + V3၊ ခိုးသူကို မသိ/မအရေးကြီးရင် passive သုံးပါတယ်။"],
+  ["Rice ___ in many Asian countries.", "is grown", ["are grown", "grown", "is growed"], F + "Rice (uncountable) → is grown။ grow ရဲ့ V3 က grown။"],
+  ["The meeting ___ because of the storm.", "was cancelled", ["cancelled", "has cancelled", "was cancelling"], F + "အစည်းအဝေးက ဖျက်သိမ်းခံရတာ → was cancelled။"],
+  ["Results ___ to the students next week.", "will be sent", ["will send", "will be sending", "have sent"], F + "future passive: will be + V3 (send → sent)။"],
+  ["The house ___ when we got home.", "had been sold", ["had sold", "has been sold", "was selling"], F + "past perfect passive: had been + V3 (အိမ်ပြန်ရောက်ခင်က ရောင်းပြီးသား)။"],
+  ["By next year, the bridge ___.", "will have been completed", ["will complete", "will be completing", "has completed"], F + "future perfect passive: will have been + V3။"],
+  ["She hates ___ by strangers.", "being stared at", ["staring at", "to staring", "be stared at"], F + "hate + being + V3 (gerund passive)။"],
+  ["I don't like ___ what to do.", "being told", ["telling", "be told", "to be telling"], F + "like + being + V3 = တစ်ယောက်ယောက်က ပြောခံရတာ မကြိုက်ဘူး။"],
+  ["The film ___ to win several awards.", "is expected", ["expects", "is expecting", "expected"], F + "is/are expected to + V = ... လိမ့်မယ်လို့ မျှော်လင့်ခံရတယ်။"],
+  ["He is said ___ ten languages.", "to speak", ["speaking", "to be spoken", "to have speak"], F + "is said to + V = ... တယ်လို့ ပြောကြတယ် (reporting passive)။"],
+  ["I had my car ___ yesterday.", "repaired", ["repair", "repairing", "to repair"], "have + object + V3 = တစ်ယောက်ယောက်ကို ပြင်ခိုင်းတယ် (causative passive)။"],
+  ["Passengers are asked ___ their seatbelts.", "to fasten", ["fastening", "fasten", "be fastened"], F + "be asked + to + V = ... ဖို့ တောင်းဆိုခံရတယ်။"],
+  ["The windows ___ every week.", "are cleaned", ["clean", "are cleaning", "cleaned"], F + "present simple passive: are + V3 (အမြဲလုပ်နေကျ)။"],
+  ["The documents ___ by the manager at the moment.", "are being signed", ["are signing", "were signing", "signed"], F + "at the moment → are being + V3။"],
+  ["Pandas ___ in the wild now.", "are rarely seen", ["rarely see", "are rarely seeing", "rarely seen"], F + "are + V3၊ adverb (rarely) က are နဲ့ V3 ကြားမှာ ထားပါတယ်။"]
+];
+// Transform items: [active sentence, passive answer, [wrong], Burmese rule]
+const TRANS = [
+  ["Someone cleans the office every day.", "The office is cleaned every day.", ["The office cleans every day.", "The office is cleaning every day.", "The office was cleaned every day."], "Object (the office) က subject ဖြစ်လာတယ်၊ tense အတူတူ (present simple → is + V3)။"],
+  ["They built this castle in 1450.", "This castle was built in 1450.", ["This castle is built in 1450.", "This castle has been built in 1450.", "This castle built in 1450."], "past simple → was/were + V3။"],
+  ["The chef is preparing the meal.", "The meal is being prepared by the chef.", ["The meal is prepared by the chef.", "The meal was being prepared by the chef.", "The meal is preparing by the chef."], "present continuous → is/are being + V3။"],
+  ["They have cancelled the flight.", "The flight has been cancelled.", ["The flight has cancelled.", "The flight is being cancelled.", "The flight had been cancelled."], "present perfect → has/have been + V3။"],
+  ["Someone will repair the car tomorrow.", "The car will be repaired tomorrow.", ["The car will repair tomorrow.", "The car is repaired tomorrow.", "The car would be repaired tomorrow."], "will + V → will be + V3။"],
+  ["Everyone must follow the rules.", "The rules must be followed.", ["The rules must follow.", "The rules must be following.", "The rules must been followed."], "modal + V → modal + be + V3။"],
+  ["Maria wrote this letter.", "This letter was written by Maria.", ["This letter is written by Maria.", "This letter wrote by Maria.", "This letter has been written by Maria."], "past simple → was + V3 (write → written)။ by + လုပ်သူ။"],
+  ["The teacher gave the students homework.", "The students were given homework by the teacher.", ["The students gave homework by the teacher.", "The students are given homework by the teacher.", "The students were gave homework by the teacher."], "give နှစ်ခုပါတဲ့ ဝါကျမှာ လူကို subject လုပ်လို့ရတယ်: were given။"],
+  ["People speak Spanish in Mexico.", "Spanish is spoken in Mexico.", ["Spanish speaks in Mexico.", "Spanish is speaking in Mexico.", "Spanish was spoken in Mexico."], "present simple → is/are + V3။"],
+  ["Did someone steal your bag?", "Was your bag stolen?", ["Did your bag steal?", "Is your bag stolen?", "Was your bag stealing?"], "past simple မေးခွန်း → Was/Were + subject + V3?"],
+  ["The company is going to launch a new product.", "A new product is going to be launched by the company.", ["A new product is going to launch by the company.", "A new product is going to been launched by the company.", "A new product was going to launch by the company."], "be going to + V → be going to + be + V3။"],
+  ["They didn't invite me.", "I wasn't invited.", ["I didn't invited.", "I wasn't inviting.", "I am not invited."], "past simple negative → wasn't/weren't + V3။"],
+  ["Someone has stolen my bike.", "My bike has been stolen.", ["My bike was stolen.", "My bike has stolen.", "My bike is being stolen."], "present perfect → has been + V3။"],
+  ["People should recycle plastic.", "Plastic should be recycled.", ["Plastic should recycle.", "Plastic should be recycling.", "Plastic should been recycled."], "should + V → should be + V3။"],
+  ["Who painted the Mona Lisa?", "Who was the Mona Lisa painted by?", ["Who did the Mona Lisa paint by?", "Who painted the Mona Lisa by?", "Who is the Mona Lisa painted?"], "who + passive: Who was ... + V3 + by?"],
+  ["They had finished the work before noon.", "The work had been finished before noon.", ["The work has been finished before noon.", "The work had been finish before noon.", "The work was been finished before noon."], "past perfect → had been + V3။"]
+];
+const items = [
+  ...GAPS.map(([s, a, w, e]) => ({ label: "မှန်တဲ့ passive ပုံစံကို ရွေးပါ", text: s, answer: a, pool: w, small: true, explain: "“" + s.replace("___", a) + "” — " + e })),
+  ...TRANS.map(([s, a, w, e]) => ({ label: "Active → Passive: ဘယ်ဟာ မှန်လဲ", text: "Active: “" + s + "”", answer: a, pool: w, small: true, explain: a + " — " + e }))
+];
+// Level 4 has an 8 second clock per question; the longer options need a little extra time.
+const LV0 = getLevel();
+if (LV0.secs) LV0.secs += 8;
+runChoice({
+  gameId: "passive", title: "Passive Voice",
+  build: () => take(items, 10).map(q => mcq(q))
+});
+</script>
+</body>
+</html>

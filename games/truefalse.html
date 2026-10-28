@@ -15,8 +15,11 @@
 <script>
 runChoice({
   gameId: "truefalse", title: "True or False",
-  build: topic => shuffle(topic.words).map((w, n) => {
-    const same = n % 2 === 0;
+  build: topic => {
+    // Shuffle which questions are true so the answers do not alternate.
+    const flags = shuffle(topic.words.map((_, n) => n % 2 === 0));
+    return shuffle(topic.words).map((w, n) => {
+    const same = flags[n];
     const shown = same ? w : others(topic, w, 1)[0];
     return {
       label: "ဒီစာလုံးနဲ့ အဓိပ္ပါယ် ကိုက်လား", text: w.en + " = " + shown.my, speak: w.en,
@@ -24,7 +27,8 @@ runChoice({
       answer: same ? "True ✓ မှန်တယ်" : "False ✗ မှားတယ်",
       explain: w.en + " = " + w.my
     };
-  })
+  });
+  }
 });
 </script>
 </body>

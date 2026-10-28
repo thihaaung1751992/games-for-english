@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dragon Boss</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.dg-arena { padding: 14px; position: relative; overflow: hidden; }
+.dg-phase { display: inline-block; padding: 2px 12px; border-radius: 99px; border: 2px solid var(--line); font-weight: 800; font-size: .85rem; }
+.dg-phase.shield { border-color: #3b82f6; } .dg-phase.hp { border-color: var(--warn); } .dg-phase.rage { border-color: var(--bad); color: var(--bad); }
+.dg-dragon { font-size: clamp(4.5rem, 24vw, 6.5rem); line-height: 1.1; margin: 4px 0; position: relative; display: inline-block; filter: drop-shadow(0 4px 6px rgba(0,0,0,.25)); }
+.dg-dragon.rage { filter: drop-shadow(0 0 14px #e5484d) saturate(1.6); }
+.dg-dragon.hit { animation: dgshake .4s; }
+.dg-dragon.dead { transform: rotate(90deg) scale(.7); opacity: .5; transition: all .8s; }
+.dg-shield { display: flex; gap: 8px; justify-content: center; font-size: 1.6rem; min-height: 40px; align-items: center; }
+.dg-shield span { opacity: .22; filter: grayscale(1); transition: all .25s; }
+.dg-shield span.on { opacity: 1; filter: none; transform: scale(1.12); }
+.dg-bar { height: 16px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 8px 0; border: 2px solid var(--line); }
+.dg-bar i { display: block; height: 100%; width: 100%; background: var(--bad); transition: width .4s; }
+.dg-bar.locked i { background: #3b82f6; }
+.dg-msg { min-height: 3.2em; font-weight: 700; margin: 4px 0; }
+.dg-combo { display: flex; gap: 6px; justify-content: center; align-items: center; margin: 6px 0; font-size: .9rem; color: var(--muted); }
+.dg-combo i { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); background: var(--bg); }
+.dg-combo i.on { background: var(--star); border-color: var(--star); }
+.dg-combo.ready i.on { box-shadow: 0 0 10px var(--star); }
+.dg-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.dg-actions .btn { font-size: 1rem; }
+.dg-actions .btn.slay:not(:disabled) { border-color: var(--star); background: color-mix(in srgb, var(--star) 25%, var(--card)); }
+.dg-float { position: absolute; left: 50%; top: 30%; font-weight: 900; font-size: 2rem; color: var(--bad); pointer-events: none; animation: dgfloat 1s forwards; text-shadow: 0 2px 4px rgba(0,0,0,.3); }
+.dg-fire { position: absolute; inset: 0; background: radial-gradient(circle at 50% 30%, rgba(255,120,30,.55), transparent 65%); pointer-events: none; animation: dgfire .7s forwards; }
+.dg-hearts { font-size: 1.4rem; letter-spacing: 2px; }
+@keyframes dgshake { 25% { transform: translateX(-10px) rotate(-3deg); } 75% { transform: translateX(10px) rotate(3deg); } }
+@keyframes dgfloat { to { transform: translateY(-60px); opacity: 0; } }
+@keyframes dgfire { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .dg-dragon.hit, .dg-float, .dg-fire { animation: none; } .dg-float, .dg-fire { display: none; } .dg-bar i { transition: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// ---------- mini banks ----------
+const IDIOMS = [
+  ["break the ice", "make people feel relaxed when they first meet", "စကားစပြီး အေးအေးဆေးဆေးဖြစ်အောင်လုပ်တယ်"],
+  ["a piece of cake", "something very easy", "အလွန်လွယ်တဲ့အရာ"],
+  ["under the weather", "slightly ill", "နည်းနည်းနေမကောင်းဘူး"],
+  ["spill the beans", "reveal a secret", "လျှို့ဝှက်ချက်ကို ပြောမိတယ်"],
+  ["once in a blue moon", "very rarely", "အလွန်ရှားပါးစွာ"],
+  ["cost an arm and a leg", "be extremely expensive", "အလွန်ဈေးကြီးတယ်"],
+  ["bite the bullet", "face a difficult situation bravely", "ခက်ခဲတာကို ရဲရဲရင်ဆိုင်တယ်"],
+  ["hit the nail on the head", "say exactly the right thing", "အတိအကျ မှန်အောင်ပြောတယ်"],
+  ["on the fence", "unable to decide between two choices", "ဘယ်ဘက်မှ မဆုံးဖြတ်နိုင်သေးဘူး"],
+  ["call it a day", "stop working for now", "ဒီနေ့အတွက် အလုပ်ရပ်တယ်"],
+  ["get cold feet", "become too nervous to do something planned", "စီစဉ်ထားတာကို ရုတ်တရက် ကြောက်လာတယ်"],
+  ["burn the midnight oil", "work late into the night", "ညနက်အထိ အလုပ်လုပ်တယ်"],
+  ["back to square one", "start again from the beginning", "အစကနေ ပြန်စရတယ်"],
+  ["throw in the towel", "give up completely", "လုံးဝ လက်လျှော့လိုက်တယ်"],
+  ["go the extra mile", "make more effort than expected", "မျှော်လင့်တာထက် ပိုကြိုးစားတယ်"],
+  ["in the same boat", "in the same difficult situation", "ခက်ခဲမှုချင်း တူနေကြတယ်"]
+];
+const PHRASAL = [
+  ["give up", "stop trying", "လက်လျှော့တယ်"],
+  ["turn down", "refuse an offer", "ငြင်းပယ်တယ်"],
+  ["carry on", "continue", "ဆက်လုပ်တယ်"],
+  ["run out of", "have no more left", "ကုန်သွားတယ်"],
+  ["get along with", "have a friendly relationship with", "ဖော်ဖော်ရွေရွေ ဆက်ဆံတယ်"],
+  ["set up", "establish or start", "စတင်တည်ထောင်တယ်"],
+  ["look forward to", "wait for with pleasure", "စိတ်လှုပ်ရှားစွာ စောင့်မျှော်တယ်"],
+  ["put up with", "tolerate", "သည်းခံတယ်"],
+  ["come up with", "think of an idea", "စိတ်ကူးထုတ်တယ်"],
+  ["put off", "postpone", "ရွှေ့ဆိုင်းတယ်"],
+  ["break down", "stop working (a machine)", "ပျက်သွားတယ် (စက်)"],
+  ["find out", "discover information", "အချက်အလက်ကို သိရှိလာတယ်"],
+  ["call off", "cancel", "ပယ်ဖျက်တယ်"]
+];
+const GAPS = [
+  ["I'm looking ___ to the holiday.", "forward", ["up", "after", "at"], "look forward to = စိတ်လှုပ်ရှားစွာ စောင့်မျှော်တယ်"],
+  ["Please don't give ___ — you are almost there!", "up", ["at", "with", "for"], "give up = လက်လျှော့တယ်"],
+  ["We ran ___ of milk this morning.", "out", ["over", "away", "down"], "run out of = ကုန်သွားတယ်"],
+  ["The match was called ___ because of the storm.", "off", ["at", "with", "from"], "call off = ပယ်ဖျက်တယ်"]
+];
+// [sentence, answer, wrong options, Burmese rule]
+const GRAMMAR = [
+  ["By the time we arrived, the film ___.", "had already started", ["already started", "has already started", "would already start"], "Past perfect = အတိတ်ထဲက ပိုစောတဲ့ ဖြစ်ရပ်"],
+  ["If I ___ you, I would take the job.", "were", ["am", "will be", "have been"], "Type 2: If + past (were), would + verb = စိတ်ကူးထဲက အခြေအနေ"],
+  ["She has lived in Yangon ___ 2015.", "since", ["for", "during", "from"], "since + အချိန်အချက် (2015)၊ for + ကာလ (ဥပမာ ၅ နှစ်)"],
+  ["I ___ for two hours when he finally called.", "had been waiting", ["have been waiting", "was wait", "would wait"], "Past perfect continuous = ခေါ်မလာခင်ထိ ကြာကြာစောင့်နေခဲ့တာ"],
+  ["By next year, she ___ her degree.", "will have finished", ["has finished", "finished", "is finishing"], "Future perfect = အနာဂတ်အချိန်တစ်ခုမတိုင်ခင် ပြီးမယ့်အရာ"],
+  ["He ___ TV when the lights went out.", "was watching", ["watches", "has watched", "will watch"], "Past continuous = တခြားအဖြစ်အပျက်ဖြစ်ချိန်မှာ ဆက်လုပ်နေတာ"],
+  ["I wish I ___ more time to study.", "had", ["have", "would have", "will have"], "wish + past = ယခုအချိန် မဖြစ်နိုင်တာကို ရင်ဖွင့်တာ"],
+  ["She suggested ___ a taxi.", "taking", ["to take", "take", "took"], "suggest + V-ing"],
+  ["I'm not used to ___ up so early.", "getting", ["get", "got", "have got"], "be used to + V-ing = ရိုးနေပြီ"],
+  ["If it hadn't rained, we ___ to the beach.", "would have gone", ["would go", "will go", "went"], "Type 3: If + past perfect, would have + V3 = ဖြစ်ပြီးသွားတာကို ပြန်ပြောတာ"],
+  ["He denied ___ the window.", "breaking", ["to break", "break", "broke"], "deny + V-ing"],
+  ["She ___ in this company since she graduated.", "has worked", ["worked", "works", "is working"], "since + present perfect = အတိတ်ကနေ ယခုအထိ"]
+];
+const WORDS = [
+  ["The economy is slowly ___ from the crisis.", "recovering", ["recalling", "removing", "resigning"], "recover from = ပြန်လည်ကောင်းမွန်လာတယ်"],
+  ["I had no ___ but to cancel the trip.", "choice", ["chance", "wish", "need"], "have no choice but to = ရွေးစရာမရှိတော့ဘူး"],
+  ["Please ___ my apologies for the delay.", "accept", ["except", "expect", "excuse"], "accept apologies = တောင်းပန်မှုကို လက်ခံတယ်"],
+  ["The manager was ___ to hear our opinions.", "keen", ["sharp", "thick", "tall"], "keen to = စိတ်အားထက်သန်တယ်"],
+  ["The team worked hard to ___ the deadline.", "meet", ["catch", "carry", "win"], "meet a deadline = နောက်ဆုံးရက်ကို မီအောင်လုပ်တယ်"],
+  ["She was ___ for the promotion because of her excellent results.", "considered", ["consisted", "consulted", "concluded"], "be considered for = ရွေးချယ်ခံရဖို့ စဉ်းစားခံရတယ်"],
+  ["His argument was so ___ that nobody disagreed.", "convincing", ["convinced", "convince", "convinces"], "convincing = ယုံကြည်စေတဲ့ (adjective)"],
+  ["The film received very ___ reviews.", "positive", ["possible", "polite", "popular"], "positive reviews = ကောင်းတဲ့ သုံးသပ်ချက်"],
+  ["He was ___ of stealing the money, but he was innocent.", "accused", ["blamed", "charged", "punished"], "be accused of + V-ing"],
+  ["Our flight was ___ because of the heavy fog.", "delayed", ["deleted", "denied", "decided"], "delayed = နောက်ကျတယ်"]
+];
+
+// ---------- question builders (every call returns a fresh question) ----------
+function fixOpts(sentence, answer, wrong, label, explain) {
+  const n = getLevel().opts - 1;
+  return { label, text: sentence, small: true, answer, options: shuffle([answer].concat(shuffle(wrong).slice(0, n))), explain };
+}
+function qIdiom(it) {
+  return mcq({ label: "🔎 Idiom", text: "What does “" + it[0] + "” mean?", small: true, answer: it[1], pool: IDIOMS.map(x => x[1]), explain: "“" + it[0] + "” = " + it[1] + " (" + it[2] + ")" });
+}
+function qPhrasal(it) {
+  return mcq({ label: "🧳 Phrasal verb", text: "What does “" + it[0] + "” mean?", small: true, answer: it[1], pool: PHRASAL.map(x => x[1]), explain: "“" + it[0] + "” = " + it[1] + " (" + it[2] + ")" });
+}
+function qGap(it) { return fixOpts(it[0], it[1], it[2], "🧳 Particle", it[0].replace("___", it[1]) + " — " + it[3]); }
+function qGram(it) { return fixOpts(it[0], it[1], it[2], "⏳ Grammar", it[0].replace("___", it[1]) + " — " + it[3]); }
+function qWord(it) { return fixOpts(it[0], it[1], it[2], "📚 Word choice", it[0].replace("___", it[1]) + " — " + it[3]); }
+function makeDeck(topic) {
+  const d = [];
+  IDIOMS.forEach(it => d.push(() => qIdiom(it)));
+  PHRASAL.forEach(it => d.push(() => qPhrasal(it)));
+  GAPS.forEach(it => d.push(() => qGap(it)));
+  GRAMMAR.forEach(it => d.push(() => qGram(it)));
+  WORDS.forEach(it => d.push(() => qWord(it)));
+  topic.words.forEach((w, k) => d.push(() => [Q.enMy, Q.myEn, Q.blank, Q.listen][k % 4](topic, w)));
+  return shuffle(d);
+}
+
+// ---------- the fight ----------
+const MAXH = 5, HP0 = 150, RAGE_AT = 50, NEED = 3, COMBO_READY = 5;
+const topic = getTopic();
+let deck, hearts5, dhp, phase, prog, combo, score, busy, slain, over;
+
+renderBar("Dragon Boss · " + topic.name);
+$("#app").innerHTML =
+  '<div class="stats"><span class="dg-hearts" id="hh" aria-label="Your hearts"></span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="panel dg-arena" id="arena"><span class="dg-phase" id="phase"></span><div><div class="dg-dragon" id="dragon" aria-hidden="true">🐉</div></div>' +
+  '<div class="dg-shield" id="shield" aria-label="Shield"></div>' +
+  '<div class="dg-bar" id="bar2" role="progressbar" aria-label="Dragon HP"><i id="dhp"></i></div>' +
+  '<div class="dg-msg" id="msg" aria-live="polite"></div>' +
+  '<div class="dg-combo" id="combo"><span>Combo</span><i></i><i></i><i></i><i></i><i></i><span id="clabel"></span></div>' +
+  '<div class="dg-actions"><button class="btn primary" id="atk" type="button">⚔️ Attack!</button><button class="btn slay" id="slay" type="button" disabled>🗡️ Dragon-Slayer</button></div></div>';
+
+function play() {
+  deck = makeDeck(topic); hearts5 = MAXH; dhp = HP0; phase = "shield"; prog = 0; combo = 0; score = 0; busy = false; over = false; slain = 0;
+  $("#dragon").className = "dg-dragon";
+  say("🐉 နဂါးကြီး ပေါ်လာပြီ! အကာကို ဆက်တိုက် ၃ ကြိမ် မှန်အောင်ဖြေပြီး ဖောက်ပါ။");
+  paint();
+  $("#atk").focus();
+}
+function say(t) { $("#msg").textContent = t; }
+function paint() {
+  $("#hh").textContent = hearts(hearts5, MAXH);
+  $("#score").textContent = score;
+  const ph = $("#phase");
+  ph.className = "dg-phase " + phase;
+  ph.textContent = phase === "shield" ? "🛡️ Phase 1 · Shield" : phase === "hp" ? "💥 Phase 2 · Attack" : "🔥 Phase 3 · RAGE (အချိန်တိုတယ်!)";
+  $("#dragon").classList.toggle("rage", phase === "rage");
+  const sh = $("#shield"); sh.innerHTML = "";
+  if (phase === "shield") {
+    for (let i = 0; i < NEED; i++) { const s = document.createElement("span"); s.textContent = "🛡️"; if (i < prog) s.className = "on"; sh.appendChild(s); }
+  } else { sh.textContent = "💔 အကာကွဲပြီ"; }
+  $("#bar2").classList.toggle("locked", phase === "shield");
+  const pct = Math.round(Math.max(0, dhp) / HP0 * 100);
+  $("#dhp").style.width = pct + "%";
+  $("#bar2").setAttribute("aria-valuenow", pct);
+  const pips = [...document.querySelectorAll("#combo i")];
+  pips.forEach((p, i) => p.classList.toggle("on", i < combo));
+  $("#combo").classList.toggle("ready", combo >= COMBO_READY);
+  $("#clabel").textContent = combo >= COMBO_READY ? "🗡️ READY!" : combo + "/" + COMBO_READY;
+  $("#atk").disabled = busy || over; $("#slay").disabled = busy || over || combo < COMBO_READY;
+}
+function float(t, color) {
+  const f = document.createElement("div");
+  f.className = "dg-float"; f.textContent = t; if (color) f.style.color = color;
+  $("#arena").appendChild(f); setTimeout(() => f.remove(), 1000);
+}
+function hitAnim() {
+  const d = $("#dragon"); d.classList.remove("hit"); void d.offsetWidth; d.classList.add("hit");
+}
+function nextQ() {
+  if (!deck.length) deck = makeDeck(topic);
+  return deck.pop()();
+}
+async function attack() {
+  if (busy || over) return;
+  busy = true; paint();
+  const LV = getLevel(), old = LV.secs;
+  // rage phase: less time per question
+  if (phase === "rage" && old) LV.secs = Math.max(4, Math.round(old * 0.6));
+  let ok = false;
+  try { ok = await ask(nextQ()); } finally { LV.secs = old; }
+  busy = false;
+  if (ok) hit(); else miss();
+}
+function hit() {
+  combo++; slain++;
+  const pts = 10 + Math.min(combo - 1, 5) * 2; score += pts; addPoints(pts);
+  if (phase === "shield") {
+    prog++;
+    if (prog >= NEED) { phase = "hp"; prog = 0; hitAnim(); float("🛡️💥", "#3b82f6"); say("🛡️ အကာကွဲသွားပြီ! အခုနဂါးကို တိုက်ခိုက်လို့ရပြီ။"); }
+    else say("✓ မှန်တယ်! အကာ " + prog + "/" + NEED + " — ဆက်တိုက်ဖြေပါ။");
+  } else {
+    const dmg = 8 + Math.min(Math.max(combo - 3, 0), 4) * 2;
+    damage(dmg, "💥 " + dmg + " damage!");
+  }
+  if (!over) paint();
+}
+function damage(dmg, text) {
+  dhp -= dmg; hitAnim(); float("-" + dmg);
+  if (dhp <= 0) return win();
+  if (phase === "hp" && dhp <= RAGE_AT) { phase = "rage"; say(text + " 🔥 နဂါး ဒေါသထွက်ပြီ! အချိန်တိုတိုနဲ့ ဖြေရမယ်။"); }
+  else say(text);
+}
+function miss() {
+  combo = 0; hearts5--; sfx.bad();
+  if (phase === "shield") prog = 0;
+  const a = $("#arena"), f = document.createElement("div");
+  f.className = "dg-fire"; a.appendChild(f); setTimeout(() => f.remove(), 700);
+  say("🔥 နဂါးက မီးမှုတ်လိုက်တယ်! နှလုံး ၁ ခု ဆုံးရှုံး" + (phase === "shield" ? " — အကာအစကပြန်စ" : ""));
+  if (hearts5 <= 0) return lose();
+  paint(); $("#atk").focus();
+}
+function slayer() {
+  if (busy || over || combo < COMBO_READY) return;
+  combo = 0; sfx.win(); score += 30; addPoints(30);
+  if (phase === "shield") { phase = "hp"; prog = 0; hitAnim(); float("🗡️✨", "#e0a000"); say("🗡️ Dragon-Slayer! အကာကို တစ်ချက်တည်း ဖြိုချလိုက်တယ်!"); }
+  else damage(40, "🗡️ Dragon-Slayer! ");
+  if (!over) { paint(); $("#atk").focus(); }
+}
+function win() {
+  over = true; $("#dragon").classList.add("dead"); paint();
+  const stars = hearts5 >= 4 ? 3 : hearts5 >= 2 ? 2 : 1;
+  setTimeout(() => showResult({ title: "🏆 နဂါးကို အနိုင်ယူပြီ!", stars, text: "နှလုံး " + hearts5 + "/" + MAXH + " ကျန် · " + slain + " မေးခွန်းမှန် · " + score + " points", onAgain: play }), 700);
+}
+function lose() {
+  over = true; paint();
+  setTimeout(() => showResult({ title: "💀 နဂါးက အနိုင်ရသွားတယ်", stars: 1, text: "နဂါး HP " + Math.round(Math.max(0, dhp) / HP0 * 100) + "% ကျန်သေးတယ် · ထပ်ကြိုးစားကြည့်ပါ 💪", onAgain: play }), 700);
+}
+$("#atk").onclick = attack;
+$("#slay").onclick = slayer;
+play.gameId = "dragon";
+play();
+</script>
+</body>
+</html>

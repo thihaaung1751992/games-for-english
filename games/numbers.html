@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Number Words</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+#qtext { white-space: pre-line; letter-spacing: .04em; }
+#opts .opt { font-size: 1.25rem; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+(() => {
+  const ONES = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+    "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+  const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+  const MY = ["", "တစ်", "နှစ်", "သုံး", "လေး", "ငါး", "ခြောက်", "ခုနစ်", "ရှစ်", "ကိုး"];
+  const EMOJI = ["🍎", "🐶", "⭐", "🚗", "🌸", "🐟", "🎈", "🍌", "🐱", "⚽"];
+
+  const word = n => n === 100 ? "one hundred" : n < 20 ? ONES[n] : TENS[Math.floor(n / 10)] + (n % 10 ? "-" + ONES[n % 10] : "");
+  const my = n => {
+    if (n === 100) return "တစ်ရာ";
+    if (n < 10) return MY[n];
+    if (n === 10) return "ဆယ်";
+    if (n < 20) return "ဆယ့်" + MY[n - 10];
+    const t = Math.floor(n / 10), o = n % 10;
+    return o ? MY[t] + "ဆယ့်" + MY[o] : MY[t] + "ဆယ်";
+  };
+  const tag = n => word(n) + " (" + my(n) + ")";
+  // the look-alike pair: thirteen <-> thirty, fourteen <-> forty ...
+  const twin = n => (n >= 13 && n <= 19) ? (n - 10) * 10 : (n >= 30 && n <= 90 && n % 10 === 0) ? n / 10 + 10 : 0;
+  const tip = n => twin(n) ? "  💡 -teen (13–19) နဲ့ -ty (30, 40 …) မရောပါနဲ့: " + word(Math.min(n, twin(n))) + " = " + Math.min(n, twin(n)) + " · " + word(Math.max(n, twin(n))) + " = " + Math.max(n, twin(n)) : "";
+
+  const canHear = () => "speechSynthesis" in window && !Store.get("mute", false);
+  const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+
+  function build() {
+    const L = getLevel(), lvl = getTopic().level, used = new Set();
+    // later questions climb from 1-10 to 1-20 to the tens
+    const poolFor = k => {
+      if (k < 4) return range(1, 10);
+      if (k < 8) return range(1, 20);
+      const p = range(11, 20).concat([30, 40, 50, 60, 70, 80, 90, 100]);
+      return lvl >= 3 ? p.concat([21, 25, 34, 42, 56, 67, 78, 89, 93]) : p;
+    };
+    const fresh = pool => {
+      const ok = pool.filter(n => !used.has(n));
+      const n = (ok.length ? ok : pool)[Math.floor(Math.random() * (ok.length || pool.length))];
+      used.add(n); return n;
+    };
+    const wrongs = (n, pool, count) => {
+      const w = [];
+      const t = twin(n);
+      if (t && Math.random() < 0.55) w.push(t);
+      shuffle(pool.concat(range(1, 10))).forEach(x => { if (x !== n && !w.includes(x)) w.push(x); });
+      return w.slice(0, count);
+    };
+    const asOptions = (n, pool, fmt) => shuffle([n].concat(wrongs(n, pool, L.opts - 1))).map(fmt);
+    const kinds = ["d2w", "count", "w2d", "hear", "d2w", "big", "w2d", "count", "hear", "d2w", "w2d", "small"];
+    return kinds.map((kind, k) => {
+      const pool = poolFor(k);
+      if (kind === "hear" && !canHear()) kind = "d2w";
+      if (kind === "d2w") {
+        const n = fresh(pool);
+        return { label: "ဂဏန်းကို English စာလုံးနဲ့ ရွေးပါ", text: String(n), options: asOptions(n, pool, word), answer: word(n), explain: n + " = " + tag(n) + tip(n) };
+      }
+      if (kind === "w2d") {
+        const n = fresh(pool);
+        return { label: "English စာလုံးကို ဂဏန်းနဲ့ ရွေးပါ", text: word(n), speak: word(n), options: asOptions(n, pool, String), answer: String(n), explain: word(n) + " = " + n + " (" + my(n) + ")" + tip(n) };
+      }
+      if (kind === "hear") {
+        const n = fresh(pool);
+        return { label: "ကြားတဲ့ နံပါတ်ကို ရွေးပါ (အသံမကြားရင် 🔊 ကိုနှိပ်ပါ)", text: "🎧", speak: word(n), auto: true, options: asOptions(n, pool, String), answer: String(n), explain: word(n) + " = " + n + " (" + my(n) + ")" + tip(n) };
+      }
+      if (kind === "count") {
+        const n = fresh(range(1, Math.min(10, lvl >= 3 ? 10 : 8)));
+        const e = EMOJI[Math.floor(Math.random() * EMOJI.length)];
+        const rows = [];
+        for (let i = 0; i < n; i += 5) rows.push(e.repeat(Math.min(5, n - i)));
+        return { label: "ဘယ်နှစ်ခုလဲ? ရေကြည့်ပါ", text: rows.join("\n"), options: asOptions(n, range(1, 10), word), answer: word(n), explain: e + " × " + n + " = " + tag(n) };
+      }
+      // bigger / smaller: LV.opts different numbers shown as words, answer picked as digits
+      const big = kind === "big";
+      const set = shuffle(pool).slice(0, L.opts);
+      const ans = big ? Math.max(...set) : Math.min(...set);
+      used.add(ans);
+      const sorted = set.slice().sort((a, b) => a - b);
+      return { label: big ? "ဘယ်ဟာ အကြီးဆုံးလဲ? (ဂဏန်းနဲ့ ရွေးပါ)" : "ဘယ်ဟာ အသေးဆုံးလဲ? (ဂဏန်းနဲ့ ရွေးပါ)", text: set.map(word).join(" · "), small: true,
+        options: shuffle(set).map(String), answer: String(ans), explain: sorted.join(" < ") + " → " + (big ? "အကြီးဆုံး" : "အသေးဆုံး") + " = " + tag(ans) };
+    });
+  }
+
+  runChoice({ gameId: "numbers", title: "Number Words", build });
+})();
+</script>
+</body>
+</html>

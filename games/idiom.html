@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Idiom Detective</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.opt { text-align: left; line-height: 1.5; }
+.q-text { word-break: break-word; }
+.case { font-size: 2.2rem; line-height: 1.2; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [idiom, key word, meaning (English), Burmese, literal joke, group of similar meanings]
+const IDIOMS = [
+  ["break the ice", "ice", "to start a friendly conversation with people you don't know", "မသိသေးတဲ့သူတွေနဲ့ စကားစပြီး ပတ်ဝန်းကျင်ကို အေးအေးဆေးဆေး ဖြစ်စေတယ်", "🧊 စာလုံးအရ: ရေခဲကို ရိုက်ခွဲတာ"],
+  ["piece of cake", "cake", "something very easy to do", "အလွန်လွယ်တဲ့ အလုပ်", "🍰 စာလုံးအရ: ကိတ်တစ်စ"],
+  ["under the weather", "weather", "slightly ill", "နည်းနည်း နေမကောင်းဘူး", "☁️ စာလုံးအရ: ရာသီဥတုအောက်မှာ ရှိတာ"],
+  ["hit the nail on the head", "nail", "to say or do exactly the right thing", "အတိအကျ မှန်အောင် ပြောတယ်/လုပ်တယ်", "🔨 စာလုံးအရ: သံချောင်းခေါင်းကို တည့်တည့်ထုတာ"],
+  ["spill the beans", "beans", "to reveal a secret", "လျှို့ဝှက်ချက်ကို ပြောမိတယ်", "🫘 စာလုံးအရ: ပဲတွေ ဖိတ်ကျတာ", "secret"],
+  ["let the cat out of the bag", "cat", "to give away a secret by accident", "မတော်တဆ လျှို့ဝှက်ချက် ပေါက်ကြားစေတယ်", "🐈 စာလုံးအရ: အိတ်ထဲက ကြောင်ကို လွှတ်လိုက်တာ", "secret"],
+  ["once in a blue moon", "moon", "very rarely", "အလွန်ရှားပါးစွာ (ကြာကြာမှ တစ်ခါ)", "🌙 စာလုံးအရ: လပြာတစ်ခါ"],
+  ["cost an arm and a leg", "arm", "to be very expensive", "အလွန်ဈေးကြီးတယ်", "💪 စာလုံးအရ: လက်တစ်ဖက်၊ ခြေတစ်ဖက်ဈေး"],
+  ["bite the bullet", "bullet", "to accept something unpleasant and just do it", "မကြိုက်ပေမယ့် သည်းခံပြီး လုပ်ရတယ်", "😬 စာလုံးအရ: ကျည်ဆံကို ကိုက်တာ"],
+  ["the ball is in your court", "court", "it is your turn to decide or act", "ဆုံးဖြတ်ရမယ့် အလှည့်က သင့်ဘက်ရောက်ပြီ", "🎾 စာလုံးအရ: ဘောလုံးက သင့်ကွင်းထဲမှာ"],
+  ["on the fence", "fence", "undecided about something", "ဆုံးဖြတ်မရသေးဘူး", "🚧 စာလုံးအရ: ခြံစည်းရိုးပေါ် ထိုင်နေတာ", "hesitate"],
+  ["get cold feet", "feet", "to become too nervous to do something you planned", "လုပ်မယ့်အရာကို ကြောက်လာပြီး နောက်ဆုတ်တယ်", "🥶 စာလုံးအရ: ခြေထောက်အေးတာ", "hesitate"],
+  ["kill two birds with one stone", "birds", "to solve two problems with one action", "တစ်ချက်တည်းနဲ့ အလုပ်နှစ်ခု ပြီးအောင်လုပ်တယ်", "🐦 စာလုံးအရ: ကျောက်တစ်လုံးနဲ့ ငှက်နှစ်ကောင်ပစ်တာ"],
+  ["beat around the bush", "bush", "to avoid talking about the main point", "အဓိကအချက်ကို တိုက်ရိုက်မပြောဘဲ ရှောင်ပြောတယ်", "🌳 စာလုံးအရ: ချုံပတ်ပတ်လည်ကို ရိုက်တာ"],
+  ["call it a day", "day", "to stop working for today", "ဒီနေ့အတွက် အလုပ်ရပ်လိုက်တယ်", "📅 စာလုံးအရ: ဒါကို 'တစ်ရက်' လို့ ခေါ်လိုက်တာ", "stop"],
+  ["cut corners", "corners", "to do something cheaply or carelessly to save time or money", "အချိန်/ငွေ သက်သာဖို့ အလုပ်ကို ကြမ်းကြမ်းတမ်းတမ်း လုပ်တယ်", "✂️ စာလုံးအရ: ထောင့်တွေကို ဖြတ်တာ"],
+  ["burn the midnight oil", "oil", "to work or study late into the night", "ညနက်အထိ အလုပ်လုပ်/စာကျက်တယ်", "🛢️ စာလုံးအရ: သန်းခေါင်ယံ ဆီမီးလောင်တာ", "work"],
+  ["back to square one", "square", "to start again from the beginning", "အစကနေ ပြန်စရတယ်", "⬜ စာလုံးအရ: ပထမကွက်ကို ပြန်ရောက်တာ"],
+  ["bite off more than you can chew", "chew", "to try to do more than you can manage", "မစွမ်းနိုင်လောက်အောင် များများ ယူလုပ်တယ်", "🍔 စာလုံးအရ: ဝါးမရလောက်အောင် များများကိုက်တာ"],
+  ["a blessing in disguise", "blessing", "something that seems bad but turns out to be good", "ဆိုးတယ်ထင်ရပေမယ့် နောက်ပိုင်းမှာ ကောင်းကျိုးဖြစ်တဲ့ အရာ", "🎭 စာလုံးအရ: မျက်နှာဖုံးစွပ်ထားတဲ့ ကောင်းချီး"],
+  ["the last straw", "straw", "the final problem that makes you lose your patience", "သည်းမခံနိုင်တော့အောင် လုပ်တဲ့ နောက်ဆုံးပြဿနာ", "🌾 စာလုံးအရ: နောက်ဆုံး ကောက်ရိုးတစ်ပင်", "worse"],
+  ["miss the boat", "boat", "to be too late to take an opportunity", "အခွင့်အရေးကို နောက်ကျပြီး လက်လွတ်သွားတယ်", "⛴️ စာလုံးအရ: သင်္ဘောလွတ်တာ"],
+  ["pull someone's leg", "leg", "to joke with someone by telling them something untrue", "မဟုတ်တာ ပြောပြီး နောက်တယ်", "🦵 စာလုံးအရ: တစ်ယောက်ရဲ့ ခြေထောက်ကို ဆွဲတာ"],
+  ["in hot water", "water", "in trouble", "ပြဿနာ/အပြစ်ထဲ ရောက်နေတယ်", "♨️ စာလုံးအရ: ရေပူထဲမှာ"],
+  ["see eye to eye", "eye", "to agree with someone", "တစ်ယောက်နဲ့တစ်ယောက် သဘောတူတယ်", "👀 စာလုံးအရ: မျက်လုံးချင်း တည့်တည့်ကြည့်တာ"],
+  ["out of the blue", "blue", "suddenly and unexpectedly", "မမျှော်လင့်ဘဲ ရုတ်တရက်", "🟦 စာလုံးအရ: ကောင်းကင်ပြာထဲက ကျလာတာ"],
+  ["the tip of the iceberg", "iceberg", "a small visible part of a much bigger problem", "ပြဿနာကြီးရဲ့ မြင်ရတဲ့ အပေါ်ယံလေးသာ", "🧊 စာလုံးအရ: ရေခဲတောင်ရဲ့ ထိပ်ဖျား"],
+  ["jump on the bandwagon", "bandwagon", "to join something because it has become popular", "လူကြိုက်များလာတာကို လိုက်လုပ်တယ်", "🎺 စာလုံးအရ: ဂီတလှည်းပေါ် ခုန်တက်တာ"],
+  ["add insult to injury", "insult", "to make a bad situation even worse", "ဆိုးနေတာကို ပိုဆိုးအောင် လုပ်တယ်", "🤕 စာလုံးအရ: ဒဏ်ရာပေါ် စော်ကားစကား ထပ်ထည့်တာ", "worse"],
+  ["break a leg", "leg", "good luck (said before a performance)", "ကံကောင်းပါစေ (ဖျော်ဖြေပွဲမတိုင်ခင် ပြောတတ်တယ်)", "🎭 စာလုံးအရ: ခြေထောက်ကျိုးပါစေ?! (ကံကောင်းအောင် ပြောတာ)", "luck"],
+  ["hit the sack", "sack", "to go to bed", "အိပ်ရာဝင်တယ်", "🛏️ စာလုံးအရ: အိတ်ကို ထိုးတာ (sack = အိပ်ရာ)"],
+  ["let sleeping dogs lie", "dogs", "to leave a situation alone so it doesn't cause trouble", "ပြဿနာမဖြစ်အောင် မထိမခိုက်ဘဲ ထားလိုက်တယ်", "🐕 စာလုံးအရ: အိပ်နေတဲ့ ခွေးကို မနှိုးနဲ့"],
+  ["the elephant in the room", "elephant", "an obvious problem that nobody wants to talk about", "အားလုံးသိပေမယ့် ဘယ်သူမှ မပြောချင်တဲ့ ပြဿနာ", "🐘 စာလုံးအရ: အခန်းထဲက ဆင်"],
+  ["barking up the wrong tree", "tree", "to be wrong about the cause or the person to blame", "အမှားလူ/အမှားအကြောင်းရင်းကို လိုက်နေတယ်", "🐶 စာလုံးအရ: ပင်မှားပေါ်ကို ဟောင်နေတာ"],
+  ["cry over spilt milk", "milk", "to be upset about something that cannot be changed", "ပြင်လို့မရတော့တာကို ဝမ်းနည်းနေတယ်", "🥛 စာလုံးအရ: ဖိတ်ကျတဲ့နို့အတွက် ငိုတာ", "fuss"],
+  ["go the extra mile", "mile", "to make more effort than people expect", "မျှော်လင့်ထားတာထက် ပိုကြိုးစားတယ်", "🏃 စာလုံးအရ: နောက်ထပ် တစ်မိုင် သွားတာ", "work"],
+  ["in the same boat", "boat", "in the same difficult situation as other people", "တခြားသူတွေလိုပဲ အခက်အခဲ အတူတူ ကြုံနေတယ်", "🚣 စာလုံးအရ: လှေတစ်စီးတည်းထဲမှာ"],
+  ["read between the lines", "lines", "to understand a hidden meaning", "စာကြောင်းတွေကြားက ဝှက်ထားတဲ့ အဓိပ္ပါယ်ကို နားလည်တယ်", "📖 စာလုံးအရ: စာကြောင်းကြားကို ဖတ်တာ"],
+  ["a storm in a teacup", "teacup", "a big fuss about something unimportant", "အရေးမကြီးတာကို ကြီးကြီးမားမား ဆူညံနေတယ်", "☕ စာလုံးအရ: လက်ဖက်ရည်ခွက်ထဲက မုန်တိုင်း", "fuss"],
+  ["take it with a pinch of salt", "salt", "not to believe something completely", "အပြည့်အဝ မယုံဘဲ သတိထားပြီး နားထောင်တယ်", "🧂 စာလုံးအရ: ဆားတစ်ဆုပ်နဲ့အတူ ယူတာ"],
+  ["hit the books", "books", "to study hard", "စာကြိုးစားကျက်တယ်", "📚 စာလုံးအရ: စာအုပ်တွေကို ရိုက်တာ", "work"],
+  ["throw in the towel", "towel", "to give up", "လက်လျှော့လိုက်တယ်", "🥊 စာလုံးအရ: ပဝါကို ပစ်ထည့်လိုက်တာ", "stop"],
+  ["off the record", "record", "not official and not to be made public", "တရားဝင်မဟုတ်ဘဲ လူသိရှင်ကြား မပြောရဘူး", "🎙️ စာလုံးအရ: မှတ်တမ်းပြင်ပ", "secret"],
+  ["keep your fingers crossed", "fingers", "to hope for good luck", "ကံကောင်းပါစေလို့ မျှော်လင့်ပေးတယ်", "🤞 စာလုံးအရ: လက်ချောင်းတွေ ထပ်ထားတာ", "luck"],
+  ["bury the hatchet", "hatchet", "to stop arguing and become friends again", "ရန်ကိုဖြေပြီး ပြန်လည်ပေါင်းသင်းတယ်", "🪓 စာလုံးအရ: ပုဆိန်ကို မြှုပ်လိုက်တာ"]
+].map(a => ({ i: a[0], k: a[1], m: a[2], my: a[3], lit: a[4], g: a[5] || a[0] }));
+
+// Time to read long meanings: the per-question timer is stretched on this page only.
+const LV0 = getLevel();
+if (LV0.secs) LV0.secs = Math.max(LV0.secs, 14);
+
+function same(a, b) { return a === b || a.g === b.g; }
+function pool(e) { return IDIOMS.filter(x => !same(x, e)); }
+function blankIdiom(e) { return e.i.replace(new RegExp("\\b" + e.k + "\\b"), "____"); }
+function explain(e) { return e.lit + " — “" + e.i + "” = " + e.m + " (" + e.my + ")"; }
+
+function build() {
+  const kinds = shuffle(["meaning", "meaning", "meaning", "meaning", "idiomEn", "idiomMy", "idiomEn", "blank", "blank", "blank"]);
+  return take(IDIOMS, 10).map((e, n) => {
+    const kind = kinds[n % kinds.length];
+    if (kind === "meaning") {
+      return mcq({ label: "🔎 ဒီစကားပုံရဲ့ အဓိပ္ပါယ်က ဘာလဲ", text: "“" + e.i + "”", small: true, speak: e.i,
+        answer: e.m, pool: pool(e).map(x => x.m), explain: explain(e) });
+    }
+    if (kind === "idiomEn") {
+      return mcq({ label: "🔎 ဘယ်စကားပုံက ဒီအဓိပ္ပါယ်လဲ", text: "= " + e.m, small: true,
+        answer: e.i, pool: pool(e).map(x => x.i), explain: explain(e) });
+    }
+    if (kind === "idiomMy") {
+      return mcq({ label: "🔎 ဘယ်စကားပုံက ဒီအဓိပ္ပါယ်လဲ", text: e.my, my: true, small: true,
+        answer: e.i, pool: pool(e).map(x => x.i), explain: explain(e) });
+    }
+    // missing word: the meaning is shown as a clue, so only one idiom fits
+    const wrong = IDIOMS.filter(x => !same(x, e) && x.k !== e.k).map(x => x.k)
+      .filter(k => !IDIOMS.some(y => y.i === blankIdiom(e).replace("____", k)));
+    return mcq({ label: "🔎 ကျန်နေတဲ့ စကားလုံးကို ဖြည့်ပါ", text: blankIdiom(e) + "  (= " + e.m + ")", small: true,
+      answer: e.k, pool: wrong, explain: explain(e) });
+  });
+}
+
+runChoice({ gameId: "idiom", title: "Idiom Detective", build });
+</script>
+</body>
+</html>

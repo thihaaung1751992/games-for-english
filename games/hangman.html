@@ -23,6 +23,7 @@
 <script src="js/common.js"></script>
 <script>
 const topic = getTopic();
+const LV = getLevel();
 renderBar("Hangman · " + topic.name);
 const kbBtns = {};
 let list, i, word, guessed, lives, solved, score, done, reveal;
@@ -39,7 +40,7 @@ document.addEventListener("keydown", e => {
 
 function play() { list = shuffle(topic.words).slice(0, 5); i = 0; solved = 0; score = 0; load(); }
 function load() {
-  word = list[i].en.toLowerCase(); guessed = new Set(); lives = 6; done = false; reveal = false;
+  word = list[i].en.toLowerCase(); guessed = new Set(); lives = LV.lives; done = false; reveal = false;
   $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
   render();
 }
@@ -47,7 +48,7 @@ function render() {
   $("#wn").textContent = i + 1; $("#score").textContent = score;
   $("#meaning").textContent = list[i].my;
   $("#mask").textContent = [...word].map(c => (guessed.has(c) || reveal) ? c : "_").join(" ");
-  $("#lives").textContent = "❤️".repeat(lives) + "🖤".repeat(6 - lives);
+  $("#lives").textContent = "❤️".repeat(lives) + "🖤".repeat(LV.lives - lives);
   for (const c in kbBtns) {
     const b = kbBtns[c], g = guessed.has(c);
     b.disabled = g || done;

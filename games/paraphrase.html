@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paraphrase Pro</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.opt { text-align: left; font-size: 1rem; line-height: 1.5; }
+.q-text { word-break: break-word; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [original, same meaning, [three sentences with a different meaning], Burmese explanation]
+const BANK = [
+  ["She didn't leave the office until nine o'clock.", "She left the office at nine o'clock, not earlier.",
+    ["She left the office before nine o'clock.", "She never left the office at nine o'clock.", "She was in the office until eight o'clock."],
+    "not ... until = ... မှသာ။ ကိုးနာရီမှ ထွက်တာ၊ အရင်ထွက်တာ မဟုတ်ဘူး။"],
+  ["The soup was so hot that I couldn't eat it.", "The soup was too hot for me to eat.",
+    ["The soup was hot enough for me to eat.", "The soup was not hot, so I couldn't eat it.", "I couldn't eat the soup because it was too cold."],
+    "so ... that ... couldn't = too ... (for someone) to ... (အရမ်း...လွန်းလို့ မလုပ်နိုင်ဘူး)။"],
+  ["He is too young to drive a car.", "He is not old enough to drive a car.",
+    ["He is old enough to drive a car.", "He is so young that he drives a car.", "He is young, but he can drive a car."],
+    "too young to = not old enough to။ အရွယ်မရောက်သေးလို့ မမောင်းနိုင်ဘူး။"],
+  ["If you don't hurry, you'll miss the bus.", "Unless you hurry, you'll miss the bus.",
+    ["Unless you hurry, you won't miss the bus.", "If you hurry, you'll miss the bus.", "Unless you don't hurry, you'll miss the bus."],
+    "unless = if ... not။ unless နောက်မှာ not မသုံးဘူး (နှစ်ထပ်ငြင်း မဖြစ်စေနဲ့)။"],
+  ["I used to play football every weekend.", "I played football every weekend in the past, but not now.",
+    ["I am used to playing football every weekend.", "I am going to play football every weekend.", "I have never played football at the weekend."],
+    "used to + verb = အတိတ်အကျင့် (အခု မလုပ်တော့ဘူး)။ be used to + -ing = ယခု ကျင့်သားရနေတာ။"],
+  ["I had hardly left home when it started to rain.", "As soon as I left home, it started to rain.",
+    ["It rained for a long time before I left home.", "I left home after the rain stopped.", "It started to rain, so I did not leave home."],
+    "hardly ... when = ... တာနဲ့ ချက်ချင်း။ အိမ်ထွက်တာနဲ့ မိုးရွာတာ။"],
+  ["No sooner had she sat down than the phone rang.", "The phone rang immediately after she sat down.",
+    ["She sat down immediately after the phone rang.", "The phone rang long after she sat down.", "She answered the phone and then sat down."],
+    "no sooner ... than = ... တာနဲ့ ချက်ချင်း။ ထိုင်ပြီးတာနဲ့ ဖုန်းမြည်တာ။"],
+  ["They built this bridge in 1990.", "This bridge was built in 1990.",
+    ["This bridge will be built in 1990.", "This bridge was repaired in 1990.", "This bridge is being built in 1990."],
+    "Passive အတိတ် = was/were + past participle။ in 1990 = အတိတ်အချိန်။"],
+  ["Someone is repairing my car.", "My car is being repaired.",
+    ["My car has been repaired.", "I am repairing my car myself.", "My car was repaired last week."],
+    "Passive continuous = is/are being + past participle (ပြင်နေဆဲ)။ has been repaired = ပြင်ပြီးသွားပြီ။"],
+  ["People say that he is a genius.", "He is said to be a genius.",
+    ["He says that people are geniuses.", "People think that he was never a genius.", "He is said to dislike geniuses."],
+    "People say that ... = He is said to ... (ပုဂ္ဂိုလ်တစ်ဦးကို အခြေခံတဲ့ passive)။"],
+  ["“I will call you tomorrow,” she said.", "She said she would call me the next day.",
+    ["She said she will call you tomorrow.", "She said she called me the next day.", "She said I would call her the next day."],
+    "Reported speech: will → would, you → me, tomorrow → the next day။"],
+  ["“Where do you live?” he asked me.", "He asked me where I lived.",
+    ["He asked me where he lived.", "He told me where I lived.", "He asked me where I will live."],
+    "Reported question: စကားစီအတိုင်း (where I lived)၊ present → past, do/does မသုံးတော့ဘူး။"],
+  ["“Don't touch the wire,” the teacher said to us.", "The teacher warned us not to touch the wire.",
+    ["The teacher told us to touch the wire.", "The teacher asked us if we had touched the wire.", "The teacher allowed us to touch the wire."],
+    "warn someone not to + verb = သတိပေးတယ်။ Don't ... = not to ... ။"],
+  ["“I didn't take your phone,” he said.", "He denied taking my phone.",
+    ["He admitted taking my phone.", "He refused to take my phone.", "He promised to take my phone."],
+    "deny + -ing = ငြင်းဆိုတယ် (မလုပ်ခဲ့ဘူးလို့ ပြောတာ)။ admit = ဝန်ခံတယ်။"],
+  ["“Why don't we go to the beach?” she said.", "She suggested going to the beach.",
+    ["She refused to go to the beach.", "She complained about going to the beach.", "She asked why we went to the beach."],
+    "suggest + -ing = အကြံပြုတယ်။ Why don't we ...? = အကြံပေးတာ။"],
+  ["“I'm sorry I broke your vase,” said Tom.", "Tom apologised for breaking the vase.",
+    ["Tom accused me of breaking the vase.", "Tom insisted on breaking the vase.", "Tom threatened to break the vase."],
+    "apologise for + -ing = တောင်းပန်တယ်။ accuse someone of = စွပ်စွဲတယ်။"],
+  ["I started learning English five years ago.", "I have been learning English for five years.",
+    ["I learned English for five years and then stopped.", "I will have learned English in five years.", "I have never learned English."],
+    "အတိတ်ကစပြီး အခုထိ ဆက်လုပ်နေတာ = present perfect continuous + for။"],
+  ["It's a long time since I saw her.", "I haven't seen her for a long time.",
+    ["I have seen her for a long time.", "I will not see her for a long time.", "I saw her a few minutes ago."],
+    "It's a long time since I saw her = I haven't seen her for a long time။"],
+  ["This is the first time I have eaten sushi.", "I have never eaten sushi before.",
+    ["I ate sushi many times before.", "I have eaten sushi every day.", "I will never eat sushi again."],
+    "This is the first time + present perfect = never ... before။ ပထမဆုံးအကြိမ်။"],
+  ["I would prefer to stay home rather than go out.", "I would rather stay home than go out.",
+    ["I would rather go out than stay home.", "I must stay home rather than go out.", "I used to stay home rather than go out."],
+    "would prefer to = would rather (+ verb) = ပိုနှစ်သက်တယ်။"],
+  ["You should see a doctor.", "You had better see a doctor.",
+    ["You had better not see a doctor.", "You used to see a doctor.", "You are seeing a doctor now."],
+    "should = had better = အကြံပေးတာ။ had better not = မလုပ်ပါနဲ့ (ဆန့်ကျင်ဘက်)။"],
+  ["Although it was raining, we went for a walk.", "Despite the rain, we went for a walk.",
+    ["Because of the rain, we went for a walk.", "Despite the rain, we stayed at home.", "We went for a walk after the rain stopped."],
+    "although + clause = despite + noun။ မိုးရွာပေမယ့် လမ်းလျှောက်ထွက်တာ။"],
+  ["She was tired, so she went to bed early.", "She went to bed early because she was tired.",
+    ["She was tired because she went to bed early.", "She went to bed early, although she was tired.", "She went to bed early so that she would be tired."],
+    "so = ရလဒ်၊ because = အကြောင်းရင်း။ မောလို့ စောစောအိပ်တာ။"],
+  ["He works hard so that he can buy a house.", "He works hard in order to buy a house.",
+    ["He works hard because he bought a house.", "He works hard although he can't buy a house.", "He bought a house so that he can work hard."],
+    "so that + can = in order to = ရည်ရွယ်ချက်။"],
+  ["Take an umbrella in case it rains.", "Take an umbrella because it might rain.",
+    ["Take an umbrella only if it rains.", "Take an umbrella because it is raining.", "Take an umbrella after it rains."],
+    "in case = မိုးရွာနိုင်လို့ ကြိုယူထားတာ (မရွာသေးခင်)။ if = ရွာမှသာ။"],
+  ["The more you practise, the better you become.", "If you practise a lot, you become much better.",
+    ["If you practise less, you become better.", "The better you become, the less you practise.", "You become better whether or not you practise."],
+    "the more ..., the better ... = တစ်ခုတိုးလာရင် နောက်တစ်ခုလည်း တိုးလာတယ်။"],
+  ["The last time I visited Yangon was in 2019.", "I haven't visited Yangon since 2019.",
+    ["I have visited Yangon since 2019.", "I will visit Yangon in 2019.", "I have never visited Yangon."],
+    "The last time ... was ... = I haven't ... since ... ။ 2019 ကတည်းက မရောက်တော့ဘူး။"],
+  ["She is the best student in the class.", "No other student in the class is better than her.",
+    ["Every other student in the class is better than her.", "She is not as good as the others in the class.", "She is the worst student in the class."],
+    "the best = No other ... is better than ... (superlative = အခြားသူ ဘယ်သူမှ မကျော်ဘူး)။"],
+  ["My brother is older than me.", "I am younger than my brother.",
+    ["I am older than my brother.", "My brother is as old as me.", "My brother is younger than me."],
+    "older than me = ကျွန်တော်က ပိုငယ်တယ်။ comparative ဆန့်ကျင်ဘက်လှန်ရင် အဓိပ္ပါယ်တူတယ်။"],
+  ["I don't have enough money to buy this car.", "This car is too expensive for me.",
+    ["I have so much money that I can buy this car.", "I have enough money, but I don't like this car.", "This car is cheap, so I can buy it."],
+    "not enough money to = too expensive for me။ ငွေမလောက်လို့ မဝယ်နိုင်ဘူး။"],
+  ["He said, “You must finish the report by Friday.”", "He told me I had to finish the report by Friday.",
+    ["He told me I could finish the report by Friday.", "He asked me whether I had finished the report by Friday.", "He told me he had to finish the report by Friday."],
+    "must → had to (reported)။ you → I (ပြောခံရသူ)။ could = ခွင့်ပြုတာ၊ had to = မဖြစ်မနေ။"],
+  ["They have cancelled the match.", "The match has been cancelled.",
+    ["The match will be cancelled.", "The match has been postponed.", "The match is being played."],
+    "Passive present perfect = has/have been + past participle။ cancelled ≠ postponed။"],
+  ["The manager must sign this form.", "This form must be signed by the manager.",
+    ["This form may be signed by the manager.", "This form has already been signed by the manager.", "This form must be signed by a lawyer."],
+    "must + passive = must be + past participle။ may = ဖြစ်နိုင်၊ must = မဖြစ်မနေ။"],
+  ["I wish I had more free time.", "I don't have enough free time and I would like more.",
+    ["I have plenty of free time.", "I will have more free time soon.", "I regret having so much free time."],
+    "wish + past simple = အခု မရှိတာကို တမ်းတတာ။"],
+  ["It's time we left.", "We should leave now.",
+    ["We left a long time ago.", "We will never leave.", "We have just arrived."],
+    "It's time + past simple = ထွက်သင့်ပြီ (အခုပဲ)။ အတိတ်အဓိပ္ပါယ် မဟုတ်ဘူး။"],
+  ["He is too proud to apologise.", "He is so proud that he won't apologise.",
+    ["He is proud enough to apologise.", "He apologised because he is proud.", "He is not proud, so he never apologises."],
+    "too ... to = so ... that ... not။ မာနကြီးလွန်းလို့ တောင်းပန်ဖို့ ငြင်းတယ်။"],
+  ["The film was so boring that we left early.", "We left early because the film was very boring.",
+    ["We left early, although the film was exciting.", "The film was boring because we left early.", "We stayed until the end of the boring film."],
+    "so ... that = အကြောင်းရင်း → ရလဒ်။ ပျင်းစရာကောင်းလို့ စောစောပြန်တာ။"],
+  ["Unless you pay today, we will cancel your order.", "If you don't pay today, we will cancel your order.",
+    ["If you pay today, we will cancel your order.", "If you don't pay today, we won't cancel your order.", "We will cancel your order whether you pay today or not."],
+    "unless = if ... not။ ဒီနေ့ မပေးရင် ဖျက်မယ်။"],
+  ["She asked me, “Can you swim?”", "She asked me if I could swim.",
+    ["She asked me if she could swim.", "She told me that I could swim.", "She asked me how I could swim."],
+    "Yes/No question ကို reported လုပ်ရင် if/whether + can → could၊ you → I။"],
+  ["“I was at home last night,” she said.", "She said she had been at home the night before.",
+    ["She said she was at home tonight.", "She said she would be at home the night before.", "She said I had been at home the night before."],
+    "Reported speech: was → had been, last night → the night before။"]
+].map(a => ({ s: a[0], a: a[1], w: a[2], my: a[3] }));
+
+// Whole sentences take time to read: stretch the per-question timer on this page only.
+const LV0 = getLevel();
+if (LV0.secs) LV0.secs = Math.max(LV0.secs, 25);
+
+function build() {
+  return take(BANK, 10).map(e => mcq({
+    label: "🔁 အဓိပ္ပါယ်တူတဲ့ ဝါကျကို ရွေးပါ", text: e.s, small: true,
+    answer: e.a, pool: e.w, explain: "“" + e.a + "” — " + e.my
+  }));
+}
+runChoice({ gameId: "paraphrase", title: "Paraphrase Pro", build });
+</script>
+</body>
+</html>

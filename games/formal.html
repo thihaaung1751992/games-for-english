@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formal or Casual</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// 1) Classify: [sentence, F | I | N, Burmese note]
+const REG = {
+  F: "Formal 👔 (တရားဝင်)", I: "Informal 👕 (အလွတ်သဘော)", N: "Neutral 🙂 (အလယ်အလတ်)"
+};
+const SORT = [
+  ["I would be grateful if you could confirm your attendance.", "F", "would be grateful if = အလွန်ယဉ်ကျေးတဲ့ ရုံးသုံး/စာရေးပုံစံ"],
+  ["Gonna grab some lunch, wanna come?", "I", "gonna / wanna / grab = စကားပြောမှာသာ သုံးတဲ့ အလွတ်သဘော ပုံစံ"],
+  ["The meeting starts at nine o'clock.", "N", "အချက်အလက်ပဲ ပြောတာ၊ formal လည်းမဟုတ် informal လည်းမဟုတ်"],
+  ["We regret to inform you that your application was unsuccessful.", "F", "regret to inform you = စာတမ်းတွေမှာ သုံးတဲ့ တရားဝင်စကား"],
+  ["Hey, what's up? Long time no see!", "I", "Hey / what's up / Long time no see = သူငယ်ချင်းချင်း နှုတ်ဆက်စကား"],
+  ["Please find the report attached.", "F", "Please find ... attached = အီးမေးလ်မှာ ဖိုင်ပူးတွဲတဲ့ တရားဝင်ပုံစံ"],
+  ["Thanks a bunch for helping me out!", "I", "a bunch / helping me out = ပေါ့ပေါ့ပါးပါး ကျေးဇူးတင်စကား"],
+  ["I am writing to enquire about the vacancy.", "F", "I am writing to enquire about = အလုပ်လျှောက်စာ/စုံစမ်းစာ ပုံစံ"],
+  ["The shop closes at six on Sundays.", "N", "ရိုးရိုးအချက်အလက်၊ ဘယ်နေရာမဆို သုံးလို့ရတယ်"],
+  ["That film was totally awesome.", "I", "totally awesome = လူငယ်တွေ ပြောတဲ့ အလွတ်သဘော စကား"],
+  ["We would appreciate your prompt reply.", "F", "would appreciate + prompt reply = ယဉ်ကျေးတဲ့ ရုံးသုံးတောင်းဆိုချက်"],
+  ["My brother lives in London.", "N", "ရိုးရိုးဝါကျ၊ ဘယ်အခြေအနေမှာမဆို သုံးလို့ရတယ်"],
+  ["No worries, I'll sort it out later.", "I", "No worries / sort it out = စကားပြောမှာ သုံးတဲ့ ပေါ့ပါးတဲ့ ပုံစံ"],
+  ["Should you require further assistance, please do not hesitate to contact us.", "F", "Should you require ... = if you need ကို တရားဝင်ပြောတဲ့ ပုံစံ"],
+  ["She is a teacher at the local school.", "N", "ရိုးရိုးဖော်ပြချက်၊ formal / informal မပါဘူး"],
+  ["It was a total nightmare, mate.", "I", "total nightmare / mate = အလွတ်သဘော slang"]
+];
+// 2) The most formal way to say it: [Burmese situation, formal, [informal ways]]
+const MORE = [
+  ["ကလောင်ငှားချင်တဲ့အခါ", "Would it be possible for me to borrow your pen?", ["Can I borrow your pen?", "Gimme your pen.", "Lend us your pen, will ya?"]],
+  ["အီးမေးလ်ကို နှုတ်ဆက်ဖို့ (လူကို သိတယ်)", "Dear Mr Thompson,", ["Hi Tom,", "Hey Tommy!", "Yo Tom,"]],
+  ["အီးမေးလ်ကို ရေးအဆုံးသတ်ဖို့", "Yours sincerely,", ["Cheers,", "Laters!", "Catch ya later,"]],
+  ["ဖိတ်ကြားမှုကို ငြင်းတဲ့အခါ", "Unfortunately, I am unable to attend.", ["Sorry, I can't make it.", "Nah, can't be bothered.", "No way, I'm busy."]],
+  ["အချိန်မေးတဲ့အခါ", "Excuse me, could you tell me the time, please?", ["What time is it?", "Got the time?", "Time?"]],
+  ["သဘောမတူတဲ့အခါ", "I am afraid I do not entirely agree.", ["No way, you're wrong.", "That's rubbish.", "Nope, I don't buy it."]],
+  ["ခဏစောင့်ခိုင်းတဲ့အခါ", "Would you mind waiting a moment?", ["Hang on a sec.", "Wait up!", "Hold your horses."]],
+  ["ဝန်ဆောင်မှုအကြောင်း တိုင်ကြားတဲ့အခါ", "I would like to make a complaint about the service.", ["Your service is rubbish.", "This is a total joke.", "I'm so fed up with this place."]],
+  ["ဈေးနှုန်းမေးတဲ့အခါ", "Could you tell me how much this costs?", ["How much is this?", "What's the damage?", "How much for this thing?"]],
+  ["တောင်းပန်တဲ့အခါ", "I sincerely apologise for the inconvenience.", ["Sorry about that.", "My bad!", "Oops, sorry 'bout that!"]],
+  ["ပြန်ခွဲတဲ့အခါ (အလုပ်ကိစ္စ)", "It was a pleasure meeting you.", ["Nice one, see ya!", "Catch you later!", "Later, mate!"]],
+  ["အကူအညီပေးမယ်ဆိုတဲ့အခါ", "May I be of assistance?", ["Need a hand?", "What's up, need anything?", "Want me to sort it?"]],
+  ["ကိစ္စကို စုံစမ်းမယ်လို့ ပြောတဲ့အခါ", "I shall look into the matter immediately.", ["I'll check it out right now.", "I'm on it.", "Leave it with me, mate."]],
+  ["ကိုယ့်ကိုယ်ကို မိတ်ဆက်တဲ့အခါ", "Allow me to introduce myself. I am Daw Su.", ["Hi, I'm Su.", "Call me Su.", "Name's Su."]],
+  ["ပြန်စာစောင့်နေတယ်လို့ ပြောတဲ့အခါ", "I look forward to hearing from you.", ["Get back to me soon.", "Drop me a line.", "Hit me up."]]
+];
+// 3) Replace the informal part with a formal one: [sentence with [..], formal answer, wrong options, Burmese note]
+const SWAP = [
+  ["We need to [sort out] this problem today.", "resolve", ["ignore", "cause", "delay"], "sort out = resolve (ဖြေရှင်းသည်)"],
+  ["The manager was [mad] about the mistake.", "angry", ["confused", "pleased", "careless"], "mad (စကားပြော) = angry (တရားဝင်)"],
+  ["I need to [get hold of] the director.", "contact", ["avoid", "replace", "recognise"], "get hold of = contact (ဆက်သွယ်သည်)"],
+  ["The company [got rid of] fifty workers.", "dismissed", ["hired", "promoted", "trained"], "got rid of = dismissed (အလုပ်ထုတ်ခဲ့တယ်)"],
+  ["Let's [kick off] the meeting.", "begin", ["cancel", "finish", "postpone"], "kick off = begin (စတင်သည်)"],
+  ["He [turned up] late for the interview.", "arrived", ["left", "waited", "worked"], "turned up = arrived (ရောက်လာသည်)"],
+  ["Please [fill me in on] what happened.", "inform me of", ["ask me about", "warn me against", "remind me to"], "fill me in on = inform me of (အကြောင်းကြားပါ)"],
+  ["We need to [come up with] a better plan.", "devise", ["forget", "copy", "avoid"], "come up with = devise (စဉ်းစားထုတ်သည်)"],
+  ["I will [look into] your complaint.", "investigate", ["ignore", "repeat", "sell"], "look into = investigate (စုံစမ်းသည်)"],
+  ["The board [put off] the decision until May.", "postponed", ["announced", "regretted", "accepted"], "put off = postpone (ရွှေ့ဆိုင်းသည်)"],
+  ["We are [fed up with] the constant delays.", "frustrated by", ["pleased with", "curious about", "responsible for"], "fed up with = frustrated by (စိတ်ပျက်လာတယ်)"],
+  ["The kids were [wiped out] after the trip.", "exhausted", ["excited", "confused", "hungry"], "wiped out = exhausted (အလွန်ပင်ပန်းတယ်)"],
+  ["We must [cut down on] our costs.", "reduce", ["increase", "hide", "predict"], "cut down on = reduce (လျှော့ချသည်)"],
+  ["His uncle is [loaded].", "wealthy", ["generous", "lazy", "tired"], "loaded (slang) = wealthy (ချမ်းသာတယ်)"]
+];
+
+function build() {
+  const sort = take(SORT, 4).map(([t, k, why]) => ({
+    label: "ဒီဝါကျက ဘယ်လို စကားပြောပုံစံလဲ", text: "“" + t + "”", small: true, speak: t,
+    options: ["F", "I", "N"].map(x => REG[x]), answer: REG[k],
+    explain: REG[k].split(" ")[0] + " — " + why
+  }));
+  const more = take(MORE, 4).map(([my, f, inf]) => mcq({
+    label: "အတရားဝင်ဆုံးက ဘယ်ဟာလဲ — " + my, text: "Which is the MOST formal?", small: true,
+    answer: f, pool: inf, speak: f,
+    explain: "Formal: “" + f + "” — ကျန်တဲ့ဟာတွေက ပိုပြီး အလွတ်သဘော/စကားပြောပုံစံ"
+  }));
+  const swap = take(SWAP, 4).map(([s, ans, wrong, note]) => mcq({
+    label: "[ ] ထဲက စကားလုံးကို တရားဝင်စကားနဲ့ အစားထိုးပါ", text: s, small: true,
+    answer: ans, pool: wrong, speak: s.replace(/[\[\]]/g, ""),
+    explain: note
+  }));
+  // no repeated sentence in one run
+  return shuffle(sort.concat(more, swap));
+}
+runChoice({ gameId: "formal", title: "Formal or Casual", build });
+</script>
+</body>
+</html>

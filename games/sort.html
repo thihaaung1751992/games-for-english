@@ -60,7 +60,7 @@ renderBar("Sort It · " + topic.name);
 let sides, deck, idx, correct, score, lock, counts;
 
 function play() {
-  const other = shuffle(TOPICS.filter(t => t !== topic))[0];
+  const other = shuffle(TOPICS.filter(t => t.id !== topic.id))[0];
   const enA = new Set(topic.words.map(w => w.en.toLowerCase())), enB = new Set(other.words.map(w => w.en.toLowerCase()));
   const a = shuffle(topic.words.filter(w => !enB.has(w.en.toLowerCase()))).slice(0, 5).map(w => ({ w, side: 0 }));
   const b = shuffle(other.words.filter(w => !enA.has(w.en.toLowerCase()))).slice(0, 5).map(w => ({ w, side: 1 }));

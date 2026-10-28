@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Make or Do</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [sentence with ____, right verb, three wrong verbs (each one really does not fit), Burmese note]
+// Only one verb in the option list fits; other valid verbs are left out of the options on purpose.
+const BANK = [
+  ["Everyone can ____ a mistake.", "make", ["do", "take", "have"], "make a mistake = အမှားလုပ်မိတယ်။ \"do a mistake\" လို့ မသုံးပါ။"],
+  ["You must ____ your homework before dinner.", "do", ["make", "take", "give"], "do homework = အိမ်စာလုပ်တယ်။ homework နဲ့ do တွဲရတယ်။"],
+  ["Please ____ a photo of us.", "take", ["make", "do", "pay"], "take a photo = ဓာတ်ပုံရိုက်တယ်။ photo နဲ့ take တွဲသုံးတယ်။"],
+  ["I usually ____ a shower in the morning.", "have", ["make", "do", "give"], "have a shower = ရေချိုးတယ်။ (take a shower လည်း သုံးနိုင်တယ်။)"],
+  ["She wants to ____ a job in a bank.", "get", ["make", "pay", "go"], "get a job = အလုပ်ရတယ်။ get က \"ရယူတယ်၊ ရတယ်\" ဆိုတဲ့ အဓိပ္ပါယ်။"],
+  ["Can you ____ me some advice?", "give", ["make", "do", "pay"], "give advice = အကြံပေးတယ်။ advice နဲ့ give တွဲသုံးတယ်။"],
+  ["Please ____ attention to the teacher.", "pay", ["make", "do", "take"], "pay attention = အာရုံစိုက်တယ်။ attention နဲ့ pay သာ တွဲသုံးတယ်။"],
+  ["You must ____ your promise.", "keep", ["do", "take", "pay"], "keep a promise = ကတိတည်တယ်။ promise ကို ထိန်းသိမ်းတယ်ဆိုတဲ့ အဓိပ္ပါယ်။"],
+  ["Let's ____ a break for ten minutes.", "take", ["make", "do", "pay"], "take a break = ခဏနားတယ်။ (have a break လည်း ရတယ်။)"],
+  ["I need to ____ a decision today.", "make", ["do", "go", "pay"], "make a decision = ဆုံးဖြတ်ချက်ချတယ်။ decision နဲ့ make တွဲတယ်။"],
+  ["Did you ____ fun at the party?", "have", ["give", "do", "pay"], "have fun = ပျော်တယ်။ fun နဲ့ have တွဲသုံးတယ်။"],
+  ["Could you ____ me a favour?", "do", ["make", "pay", "take"], "do someone a favour = ကူညီတယ်။ favour နဲ့ do တွဲသုံးတယ်။"],
+  ["I'd like to ____ a complaint about the noise.", "make", ["do", "give", "take"], "make a complaint = ဆူညံတာကို တိုင်ကြားတယ်။ complaint နဲ့ make။"],
+  ["Don't forget to ____ the bills on time.", "pay", ["make", "do", "give"], "pay the bills = ဘီလ်ပေးချေတယ်။ ငွေပေးတာတွေနဲ့ pay တွဲတယ်။"],
+  ["Let's ____ a walk after lunch.", "take", ["make", "do", "give"], "take a walk = လမ်းလျှောက်တယ်။ walk နဲ့ take တွဲတယ်။"],
+  ["She will ____ a speech at the wedding.", "give", ["do", "take", "pay"], "give a speech = မိန့်ခွန်းပြောတယ်။ (make a speech လည်း သုံးတယ်။)"],
+  ["I want to ____ for a swim.", "go", ["make", "do", "have"], "go for a swim = ရေကူးထွက်တယ်။ go for a + လှုပ်ရှားမှု။"],
+  ["You should ____ exercise every day.", "do", ["make", "give", "pay"], "do exercise = လေ့ကျင့်ခန်းလုပ်တယ်။ exercise နဲ့ do တွဲတယ်။"],
+  ["I need to ____ a phone call to the doctor.", "make", ["do", "give", "take"], "make a phone call = ဖုန်းခေါ်တယ်။ call/phone call နဲ့ make တွဲတယ်။"],
+  ["Who will ____ the dishes tonight?", "do", ["make", "take", "give"], "do the dishes = ပန်းကန်ဆေးတယ်။ အိမ်မှုကိစ္စတွေ (dishes, laundry) နဲ့ do တွဲတယ်။"],
+  ["It's hard to ____ friends in a new city.", "make", ["do", "take", "give"], "make friends = သူငယ်ချင်းရှာတယ်။ friends နဲ့ make တွဲတယ်။"],
+  ["We need to ____ an appointment with the doctor.", "make", ["do", "take", "give"], "make an appointment = ချိန်းတယ်။ appointment နဲ့ make တွဲတယ်။"],
+  ["She is going to ____ a baby in June.", "have", ["make", "do", "take"], "have a baby = ကလေးမွေးတယ်။ baby နဲ့ have တွဲတယ်။"],
+  ["Can you ____ care of my cat this weekend?", "take", ["make", "do", "give"], "take care of = ဂရုစိုက်တယ်။ ဒီစကားစုက အသေအချာ တွဲပြီးသား။"],
+  ["It is important to ____ a good impression at an interview.", "make", ["do", "take", "pay"], "make an impression = ထင်မြင်ချက်ကောင်း ဖန်တီးတယ်။ impression နဲ့ make တွဲတယ်။"],
+  ["He didn't ____ any progress this week.", "make", ["do", "take", "give"], "make progress = တိုးတက်တယ်။ progress နဲ့ make တွဲတယ်။"],
+  ["Don't ____ so much noise; the baby is sleeping.", "make", ["do", "have", "give"], "make noise = ဆူညံတယ်။ noise နဲ့ make တွဲတယ်။"],
+  ["I will ____ my best to help you.", "do", ["make", "take", "pay"], "do my best = အတတ်နိုင်ဆုံး ကြိုးစားတယ်။ best နဲ့ do တွဲတယ်။"],
+  ["Can I ____ a look at your phone?", "have", ["make", "do", "pay"], "have a look = ကြည့်တယ်။ (take a look လည်း ရတယ်။)"],
+  ["I want to ____ a degree in medicine.", "get", ["make", "give", "pay"], "get a degree = ဘွဲ့ရတယ်။ get က ရယူတယ်လို့ ဆိုလိုတယ်။"],
+  ["Please ____ me a hand with this box.", "give", ["make", "do", "take"], "give someone a hand = ကူညီပေးတယ်။ ဒါက စကားစုအသေပါ။"],
+  ["I have to ____ a test tomorrow.", "take", ["make", "pay", "keep"], "take a test = စာမေးပွဲဖြေတယ်။ test/exam နဲ့ take တွဲတယ်။"],
+  ["You need to ____ a rest after the fever.", "take", ["make", "do", "pay"], "take a rest = အနားယူတယ်။ rest နဲ့ take တွဲတယ်။"],
+  ["The doctor will ____ you some medicine.", "give", ["make", "do", "pay"], "give someone medicine = ဆေးပေးတယ်။ give + လူ + အရာ။"],
+  ["Please ____ this medicine after meals.", "take", ["make", "do", "pay"], "take medicine = ဆေးသောက်တယ်။ ဆေးနဲ့ take တွဲတယ်၊ drink မသုံးပါ။"],
+  ["He has to ____ an operation next week.", "have", ["make", "pay", "keep"], "have an operation = ခွဲစိတ်ခံရတယ်။ ကိုယ်တိုင် ခွဲတာမဟုတ်ဘဲ ခွဲစိတ်ခံရတာ။"],
+  ["Try to ____ calm during the exam.", "keep", ["make", "do", "give"], "keep calm = စိတ်အေးအေးထားတယ်။ keep + အခြေအနေ။"],
+  ["Can you ____ a secret?", "keep", ["make", "do", "pay"], "keep a secret = လျှို့ဝှက်ချက်ကို ထိန်းထားတယ်။ secret နဲ့ keep တွဲတယ်။"],
+  ["We promised to ____ in touch.", "keep", ["make", "do", "pay"], "keep in touch = အဆက်အသွယ်မပြတ်ထားတယ်။ ဒါက စကားစုအသေပါ။"],
+  ["Let's ____ shopping on Saturday.", "go", ["make", "take", "give"], "go shopping = ဈေးဝယ်ထွက်တယ်။ go + ing (shopping, fishing, swimming)။"],
+  ["I always ____ to bed at ten o'clock.", "go", ["make", "do", "take"], "go to bed = အိပ်ရာဝင်တယ်။ go to bed က စကားစုအသေပါ။"],
+  ["I will ____ the laundry this afternoon.", "do", ["make", "take", "give"], "do the laundry = အဝတ်လျှော်တယ်။ အိမ်မှုကိစ္စနဲ့ do တွဲတယ်။"],
+  ["He couldn't ____ a ticket for the match.", "get", ["make", "do", "go"], "get a ticket = လက်မှတ်ရတယ်။ get က ရယူတယ်ဆိုတဲ့ အဓိပ္ပါယ်။"],
+  ["We need to ____ a plan before we start.", "make", ["do", "take", "give"], "make a plan = အစီအစဉ်ဆွဲတယ်။ plan နဲ့ make တွဲတယ်။"],
+  ["Don't ____ a fuss about a small problem.", "make", ["do", "take", "give"], "make a fuss = အကြီးအကျယ်ဖြစ်အောင် လုပ်တယ်။ fuss နဲ့ make တွဲတယ်။"],
+  ["Can you ____ the bed, please?", "make", ["do", "take", "give"], "make the bed = အိပ်ယာသိမ်းတယ်။ bed နဲ့ make တွဲတယ်၊ do မဟုတ်ပါ။"],
+  ["I'd like to ____ a suggestion.", "make", ["do", "take", "pay"], "make a suggestion = အကြံပြုတယ်။ suggestion နဲ့ make တွဲတယ်။"],
+  ["You should ____ an effort to study every day.", "make", ["do", "take", "pay"], "make an effort = ကြိုးစားအားထုတ်တယ်။ effort နဲ့ make တွဲတယ်။"],
+  ["Who is going to ____ the cooking tonight?", "do", ["make", "take", "pay"], "do the cooking = ချက်ပြုတ်တယ်။ the cooking/the shopping/the cleaning နဲ့ do တွဲတယ်။"],
+  ["It is polite to ____ a visit when someone is sick.", "pay", ["do", "take", "keep"], "pay a visit = သွားတွေ့တယ်။ visit နဲ့ pay တွဲတယ်။"],
+  ["Please ____ a seat and wait for the nurse.", "take", ["make", "do", "pay"], "take a seat = ထိုင်ပါ။ ဒါက ယဉ်ကျေးတဲ့ စကားစုအသေပါ။"]
+];
+runChoice({
+  gameId: "collocation", title: "Make or Do",
+  build: () => take(BANK, 10).map(([sent, ans, wrongs, note]) => {
+    const full = sent.replace("____", ans);
+    return mcq({ label: "ဘယ်ကြိယာနဲ့ တွဲသုံးလဲ", text: sent, small: true, answer: ans, pool: wrongs,
+      speak: full.replace(/\s+/g, " "), explain: "✓ " + full + " — " + note });
+  })
+});
+</script>
+</body>
+</html>

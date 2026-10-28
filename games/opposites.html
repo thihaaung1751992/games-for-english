@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opposites</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const PAIRS = [
+  ["hot", "cold", "ပူ / ချမ်း"], ["big", "small", "ကြီး / သေး"], ["happy", "sad", "ပျော် / ဝမ်းနည်း"], ["fast", "slow", "မြန် / နှေး"],
+  ["up", "down", "အပေါ် / အောက်"], ["open", "close", "ဖွင့် / ပိတ်"], ["old", "new", "ဟောင်း / သစ်"], ["day", "night", "နေ့ / ည"],
+  ["long", "short", "ရှည် / တို"], ["good", "bad", "ကောင်း / ဆိုး"], ["early", "late", "စောတယ် / နောက်ကျတယ်"], ["yes", "no", "ဟုတ် / မဟုတ်"],
+  ["full", "empty", "ပြည့် / ဗလာ"], ["clean", "dirty", "သန့် / ညစ်"], ["easy", "hard", "လွယ် / ခက်"], ["young", "old", "ငယ် / အိုမင်း"]
+];
+const ALL = [...new Set(PAIRS.flat().filter(x => isNaN(x)))].filter(x => /^[a-z]+$/.test(x));
+runChoice({
+  gameId: "opposites", title: "Opposites",
+  build: () => take(PAIRS, 10).map(([a, b, my], n) => {
+    const flip = n % 2;
+    const [q, ans] = flip ? [b, a] : [a, b];
+    return mcq({ label: "ဆန့်ကျင်ဘက် စာလုံးက ဘာလဲ", text: q, speak: q, answer: ans, pool: ALL, explain: a + " ↔ " + b + " (" + my + ")" });
+  })
+});
+</script>
+</body>
+</html>

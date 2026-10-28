@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading Detective</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.rd-pass { text-align: left; padding: 16px; }
+.rd-pass h2 { margin: 0 0 6px; font-size: 1.1rem; line-height: 1.5; }
+.rd-kind { font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.rd-text { font-size: 1.05rem; line-height: 1.85; margin: 8px 0 0; }
+.rd-s { border-radius: 6px; padding: 1px 2px; transition: background .3s; }
+.rd-s.ev { background: color-mix(in srgb, var(--star) 40%, var(--card)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--star) 40%, var(--card)); }
+.rd-st { margin-top: 12px; }
+.rd-stmt { font-size: 1.2rem; font-weight: 800; line-height: 1.5; margin: 6px 0 4px; }
+.rd-guide { font-size: .85rem; color: var(--muted); margin: 0; }
+.rd-opts { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
+@media (min-width: 560px) { .rd-opts { grid-template-columns: repeat(3, 1fr); } }
+.rd-opts .opt { min-height: 52px; }
+.rd-say { min-height: 40px; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Each passage: s = sentences; q = statements with a = T (true) / F (false) / N (not given),
+// ev = indexes of the evidence sentences (none for N) and why = Burmese explanation.
+const PASSAGES = [
+  { title: "The Four-Day Week", kind: "News article", s: [
+    "In 2022, more than sixty British companies took part in a six-month trial of a four-day working week.",
+    "Employees kept their full salaries but worked only thirty-two hours instead of forty.",
+    "At the end of the trial, most firms said that productivity had stayed the same or even risen.",
+    "Staff reported lower stress levels, and the number of people leaving their jobs fell by more than half.",
+    "However, not every business found the change easy.",
+    "Companies in customer service, for example, struggled to cover all the hours their clients expected.",
+    "Critics argue that the results may not apply to large factories, where machines must run continuously.",
+    "Almost all of the firms that joined the trial decided to keep the shorter week afterwards."
+  ], q: [
+    { t: "Employees in the trial were paid less than before.", a: "F", ev: [1], why: "မီးမောင်းထိုးထားတဲ့ ဝါကျမှာ လစာအပြည့် ဆက်ရတယ်လို့ ပါတယ်၊ ဒါကြောင့် False။" },
+    { t: "The number of workers quitting their jobs fell significantly.", a: "T", ev: [3], why: "ထွက်သွားသူအရေအတွက် တစ်ဝက်ကျော် ကျသွားတယ်လို့ ပါတယ်၊ ဒါကြောင့် True။" },
+    { t: "The trial was paid for by the British government.", a: "N", ev: [], why: "စာထဲမှာ ကုန်ကျစရိတ်ကို ဘယ်သူပေးသလဲဆိုတာ လုံးဝ မပါဘူး၊ ဒါကြောင့် Not Given။" },
+    { t: "Nearly all the companies chose to continue with four days after the trial.", a: "T", ev: [7], why: "firms အားလုံးနီးပါး ဆက်ထားခဲ့တယ်လို့ ပါတယ် (Almost all = Nearly all)၊ ဒါကြောင့် True။" }
+  ] },
+  { title: "Marie Curie", kind: "Biography", s: [
+    "Marie Curie was born in Warsaw in 1867, but she moved to Paris at the age of twenty-four to continue her studies.",
+    "Life was hard, and she often went hungry because she spent her small income on books.",
+    "In 1903 she became the first woman to win a Nobel Prize, sharing the award for physics with her husband Pierre and another scientist.",
+    "Eight years later she won a second Nobel Prize, this time in chemistry, which made her the only person to receive the honour in two different sciences.",
+    "During the First World War she helped to develop mobile X-ray units that doctors used to treat wounded soldiers.",
+    "Although she was famous around the world, she remained modest and refused to make money from her discoveries.",
+    "She died in 1934, probably as a result of her many years of exposure to radiation."
+  ], q: [
+    { t: "Marie Curie was born in France.", a: "F", ev: [0], why: "သူမ Warsaw မှာ မွေးတာပါ၊ Paris ကို နောက်မှ ပြောင်းသွားတာ၊ ဒါကြောင့် False။" },
+    { t: "She won Nobel Prizes in two different sciences.", a: "T", ev: [3], why: "ရူပဗေဒနဲ့ ဓာတုဗေဒ နှစ်ခုလုံးမှာ ဆုရတယ်လို့ ပါတယ်၊ ဒါကြောင့် True။" },
+    { t: "Her mobile X-ray units were used to help injured soldiers.", a: "T", ev: [4], why: "ဒဏ်ရာရစစ်သားတွေကို ကုသဖို့ X-ray ယူနစ် သုံးခဲ့တယ်လို့ ပါတယ်၊ ဒါကြောင့် True။" },
+    { t: "She worked in a hospital in Warsaw before moving to Paris.", a: "N", ev: [], why: "Warsaw မှာ ဘာအလုပ်လုပ်ခဲ့လဲဆိုတာ စာထဲမှာ မပါဘူး၊ ဒါကြောင့် Not Given။" }
+  ] },
+  { title: "Review: The Lantern Café", kind: "Restaurant review", s: [
+    "The Lantern Café opened in March, and within weeks it had become the most talked-about place in the old town.",
+    "Its biggest attraction is the garden terrace, which is shaded by tall trees and lit by hundreds of small lanterns in the evening.",
+    "The menu is short but imaginative, and almost all the ingredients come from farms within fifty kilometres.",
+    "I tried the mushroom soup, which was excellent, although the bread that came with it was slightly stale.",
+    "Prices are reasonable, with main dishes starting at nine euros, but the service can be painfully slow when the café is full.",
+    "On my visit I waited forty minutes for dessert.",
+    "Despite this, the friendly atmosphere makes it worth a visit, and I would recommend booking a table in advance at weekends."
+  ], q: [
+    { t: "Most of the ingredients are bought from local farms.", a: "T", ev: [2], why: "ပါဝင်ပစ္စည်းအားလုံးနီးပါး ကီလိုမီတာ ၅၀ အတွင်း လယ်ယာတွေက လာတယ်လို့ ပါတယ်၊ ဒါကြောင့် True။" },
+    { t: "The bread served with the soup was fresh.", a: "F", ev: [3], why: "bread က slightly stale (နည်းနည်းဟောင်းနေ) လို့ ပါတယ်၊ ဒါကြောင့် False။" },
+    { t: "The owner used to work as a chef in another country.", a: "N", ev: [], why: "ပိုင်ရှင်အကြောင်း စာထဲမှာ လုံးဝ မပါဘူး၊ ဒါကြောင့် Not Given။" },
+    { t: "The service can be slow when the café is busy.", a: "T", ev: [4, 5], why: "ဆိုင်ပြည့်ရင် service နှေးတယ်လို့ ပါတယ်၊ ရေးသူက အချိုပွဲအတွက် မိနစ် ၄၀ စောင့်ခဲ့ရတယ်၊ ဒါကြောင့် True။" }
+  ] },
+  { title: "Cycling in Greenfield", kind: "City report", s: [
+    "Over the past decade, the city of Greenfield has spent nearly forty million pounds on cycle lanes, secure parking and a public bike-hire scheme.",
+    "As a result, the proportion of journeys made by bicycle has risen from four per cent to eleven per cent.",
+    "Traffic congestion in the centre has fallen slightly, although car use in the suburbs has hardly changed.",
+    "Local shopkeepers were initially worried that removing parking spaces would drive customers away.",
+    "In fact, a recent survey showed that sales on streets with new cycle lanes have increased by nine per cent.",
+    "The council now plans to extend the network to the outer districts by 2030, provided that it can secure additional funding from the national government.",
+    "Some residents remain unconvinced, claiming that the lanes are too narrow and that cyclists ignore traffic lights."
+  ], q: [
+    { t: "Cycling now accounts for more than ten per cent of journeys.", a: "T", ev: [1], why: "၄% ကနေ ၁၁% ကို တက်လာတယ်၊ ၁၀% ထက်များတယ်၊ ဒါကြောင့် True။" },
+    { t: "Car use in the suburbs has dropped sharply.", a: "F", ev: [2], why: "suburbs မှာ ကားသုံးမှု hardly changed (ဘာမှမပြောင်းဘူးလောက်ပဲ) လို့ ပါတယ်၊ ဒါကြောင့် False။" },
+    { t: "The shopkeepers' fears about losing customers proved to be unfounded.", a: "T", ev: [3, 4], why: "စိုးရိမ်ခဲ့ပေမယ့် cycle lane ရှိတဲ့လမ်းတွေမှာ ရောင်းအား ၉% တက်တယ်၊ စိုးရိမ်မှု အကြောင်းမရှိခဲ့ဘူး၊ ဒါကြောင့် True။" },
+    { t: "The council has already found the money it needs to expand the network.", a: "F", ev: [5], why: "provided that it can secure funding = ငွေရအောင် ရှာနိုင်မှသာ၊ ဆိုလိုတာက မရသေးဘူး၊ ဒါကြောင့် False။" }
+  ] },
+  { title: "Sleep and Teenagers", kind: "Science news", s: [
+    "Researchers at a university in Sydney have found that teenagers who sleep fewer than seven hours a night are more likely to struggle at school.",
+    "The study followed two thousand students aged fourteen to seventeen for three years.",
+    "Those who regularly stayed up late using their phones scored, on average, ten per cent lower in exams than their classmates.",
+    "The scientists point out that teenagers' body clocks naturally shift later during adolescence, which makes early bedtimes difficult.",
+    "For this reason, several schools in the region have already moved their start time from eight o'clock to nine thirty.",
+    "Early results suggest that attendance has improved, but it is too soon to say whether exam results will follow.",
+    "The researchers advise parents to keep phones out of bedrooms rather than punishing teenagers for going to bed late."
+  ], q: [
+    { t: "The study lasted for three years.", a: "T", ev: [1], why: "ကျောင်းသား ၂၀၀၀ ကို သုံးနှစ် လိုက်လံလေ့လာခဲ့တယ်လို့ ပါတယ်၊ ဒါကြောင့် True။" },
+    { t: "Teenagers' body clocks make them want to go to bed earlier.", a: "F", ev: [3], why: "body clock က နောက်ကျလာတယ် (shift later) လို့ ပါတယ်၊ စောစော အိပ်ရတာ ခက်တယ်၊ ဒါကြောင့် False။" },
+    { t: "Students who used their phones late at night did worse in exams.", a: "T", ev: [2], why: "ညဉ့်နက်ထိ ဖုန်းသုံးသူတွေ စာမေးပွဲရမှတ် ၁၀% နိမ့်တယ်လို့ ပါတယ်၊ ဒါကြောင့် True။" },
+    { t: "The research was paid for by phone companies.", a: "N", ev: [], why: "သုတေသနကို ဘယ်သူက ငွေထောက်ပံ့သလဲဆိုတာ စာထဲမှာ မပါဘူး၊ ဒါကြောင့် Not Given။" }
+  ] },
+  { title: "Too Many Tourists?", kind: "Opinion article", s: [
+    "Every summer, the small coastal town of Rivermouth receives more than two million visitors, although only nine thousand people live there.",
+    "Local residents say that tourism brings jobs but also pushes up rents, forcing young families to move away.",
+    "Last year the council introduced a small fee for day visitors, and the money is being spent on cleaning the beaches and repairing the old harbour.",
+    "Hotel owners opposed the fee at first, fearing that it would discourage people from coming.",
+    "So far, however, visitor numbers have fallen by only two per cent.",
+    "A few residents would like the town to go further by limiting the number of tourist buses during July and August.",
+    "The mayor has promised to consider the idea but has made no decision yet."
+  ], q: [
+    { t: "Fewer than ten thousand people live in Rivermouth all year round.", a: "T", ev: [0], why: "နေထိုင်သူ ၉၀၀၀ ပဲရှိတယ် (၁၀၀၀၀ အောက်)၊ ဒါကြောင့် True။" },
+    { t: "The fee has caused a large drop in visitor numbers.", a: "F", ev: [4], why: "ဧည့်သည်ဦးရေ ၂% ပဲ ကျတယ်၊ များများစားစား မကျဘူး၊ ဒါကြောင့် False။" },
+    { t: "The fee money is used to look after the town's facilities.", a: "T", ev: [2], why: "ကမ်းခြေသန့်ရှင်းရေးနဲ့ ဆိပ်ကမ်းပြုပြင်ရေးမှာ သုံးတယ်လို့ ပါတယ်၊ ဒါကြောင့် True။" },
+    { t: "Most hotel owners now support the fee.", a: "N", ev: [], why: "ပထမတော့ ကန့်ကွက်ခဲ့တယ်၊ အခုကော ဘယ်လိုလဲဆိုတာ စာထဲမှာ မပါဘူး၊ ဒါကြောင့် Not Given။" }
+  ] }
+];
+const LAB = { T: "True", F: "False", N: "Not Given" };
+const MYL = { T: "မှန်တယ်", F: "မှားတယ်", N: "စာထဲမှာ မပါဘူး" };
+let P, qs, qi, rights, answered;
+
+renderBar("Reading Detective · " + getTopic().name);
+$("#app").innerHTML =
+  '<div class="stats"><span>Statement: <b id="qn">1</b>/<span id="qt">4</span></span><span>Correct: <b id="ok">0</b></span></div>' +
+  '<div class="panel rd-pass"><div class="rd-kind" id="kind"></div><h2 id="ptitle"></h2>' +
+  '<button class="btn rd-say" id="say" type="button">🔊 Read it to me</button><p class="rd-text" id="ptext"></p></div>' +
+  '<div class="panel rd-st"><div class="q-label">📰 True / False / Not Given</div>' +
+  '<p class="rd-guide">စာထဲက အချက်နဲ့ ကိုက်ရင် True၊ ဆန့်ကျင်ရင် False၊ စာထဲမှာ လုံးဝမပါရင် Not Given</p>' +
+  '<div class="rd-stmt" id="stmt"></div><div class="rd-opts" id="opts"></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div><button class="btn primary" id="next" type="button" hidden>Next →</button></div>';
+
+function play() {
+  const last = Store.get("rd_last", -1);
+  let k;
+  do { k = Math.floor(Math.random() * PASSAGES.length); } while (k === last && PASSAGES.length > 1);
+  Store.set("rd_last", k);
+  P = PASSAGES[k]; qs = shuffle(P.q); qi = 0; rights = 0;
+  $("#kind").textContent = P.kind; $("#ptitle").textContent = P.title;
+  $("#qt").textContent = qs.length;
+  const box = $("#ptext"); box.innerHTML = "";
+  P.s.forEach((t, n) => {
+    const sp = document.createElement("span");
+    sp.className = "rd-s"; sp.textContent = t; sp.dataset.i = n;
+    box.appendChild(sp); box.appendChild(document.createTextNode(" "));
+  });
+  $("#say").onclick = () => speak(P.s.join(" "));
+  show();
+}
+function show() {
+  answered = false;
+  const q = qs[qi];
+  $("#qn").textContent = qi + 1; $("#ok").textContent = rights;
+  $("#stmt").textContent = q.t;
+  [...document.querySelectorAll(".rd-s")].forEach(s => s.classList.remove("ev"));
+  const box = $("#opts"); box.innerHTML = "";
+  ["T", "F", "N"].forEach(k => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "opt"; b.dataset.k = k;
+    b.textContent = (k === "T" ? "✓ " : k === "F" ? "✗ " : "？ ") + LAB[k];
+    b.onclick = () => pick(b, k);
+    box.appendChild(b);
+  });
+  $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
+}
+function pick(btn, k) {
+  if (answered) return;
+  answered = true;
+  const q = qs[qi], ok = k === q.a, fb = $("#fb");
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b.dataset.k === q.a) b.classList.add("right"); });
+  if (ok) { rights++; addPoints(10); sfx.ok(); } else { btn.classList.add("wrong"); sfx.bad(); }
+  q.ev.forEach(n => { const s = document.querySelector('.rd-s[data-i="' + n + '"]'); if (s) s.classList.add("ev"); });
+  const first = q.ev.length ? document.querySelector('.rd-s[data-i="' + q.ev[0] + '"]') : null;
+  if (first && first.scrollIntoView) first.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  fb.className = "fb " + (ok ? "ok" : "no");
+  fb.textContent = (ok ? "✓ မှန်ပါတယ်! " : "✗ မှားပါတယ်။ ") + "အဖြေမှန်: " + LAB[q.a] + " (" + MYL[q.a] + ") — " + q.why;
+  $("#ok").textContent = rights;
+  const n = $("#next"); n.hidden = false; n.textContent = qi === qs.length - 1 ? "Finish" : "Next →"; n.focus();
+}
+$("#next").onclick = () => {
+  if (qi < qs.length - 1) { qi++; show(); return; }
+  const r = rights / qs.length;
+  try { window.speechSynthesis.cancel(); } catch (e) {}
+  showResult({ title: cheer(r), stars: starsFor(r), text: rights + " / " + qs.length + " မှန်တယ် · \"" + P.title + "\"", onAgain: play });
+};
+play.gameId = "readdetect";
+play();
+</script>
+</body>
+</html>

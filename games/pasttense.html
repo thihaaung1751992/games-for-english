@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Past Tense Pirates</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.pt-sea { position: relative; height: 84px; border-radius: 16px; border: 2px solid var(--line); overflow: hidden; margin-bottom: 12px;
+  background: linear-gradient(color-mix(in srgb, var(--accent) 10%, var(--card)), color-mix(in srgb, var(--accent) 38%, var(--card))); }
+.pt-wave { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; letter-spacing: 6px; opacity: .45; white-space: nowrap; overflow: hidden; font-size: 1.1rem; }
+.pt-ship { position: absolute; bottom: 12px; font-size: 2.4rem; line-height: 1; transition: left .9s ease-in-out; transform: translateX(-50%); }
+.pt-ship.hit { animation: shake .35s; }
+.pt-isle { position: absolute; right: 8px; bottom: 8px; font-size: 2rem; line-height: 1; }
+.pt-gold { position: absolute; left: 10px; top: 4px; font-weight: 800; font-size: .95rem; }
+.pt-note { margin-top: 10px; }
+@media (prefers-reduced-motion: reduce) { .pt-ship { transition: none; } .pt-ship.hit { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="stats"><span>Question: <b id="qn">1</b>/<span id="qt"></span></span><span>Streak: <b id="streak">0</b> 🔥</span><span>Score: <b id="score">0</b></span></div>
+  <div class="pt-sea" aria-hidden="true"><span class="pt-gold">💰 <b id="gold">0</b></span><div class="pt-wave">〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️</div><div class="pt-ship" id="ship">🚢</div><div class="pt-isle">🏝️</div></div>
+  <div class="timer" id="timer" hidden><i id="tbar"></i></div>
+  <div class="panel"><div class="q-label" id="qlabel"></div><div class="q-text" id="qtext"></div><div class="muted" id="qhint"></div>
+    <button class="btn" id="say" style="min-height:40px">🔊 Listen</button><div class="opts" id="opts"></div>
+    <div class="fb" id="fb" aria-live="polite"></div><button class="btn primary" id="next" hidden>Next →</button></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const topic = getTopic(), LV = getLevel();
+renderBar("Past Tense Pirates · " + topic.name);
+const ROUNDS = 12;
+// [base, past simple, past participle (irregular verbs only), Burmese, sentence with ___, Burmese sentence, custom wrong forms (optional)]
+const VERBS = [
+  ["play", "played", 0, "ကစားသည်", "Yesterday we ___ football after school.", "မနေ့က ကျောင်းဆင်းပြီး ဘောလုံးကစားခဲ့တယ်။"],
+  ["watch", "watched", 0, "ကြည့်သည်", "Last night I ___ a funny film.", "မနေ့ညက ရယ်စရာကောင်းတဲ့ ရုပ်ရှင်ကြည့်ခဲ့တယ်။"],
+  ["walk", "walked", 0, "လမ်းလျှောက်သည်", "Yesterday morning she ___ to the market.", "မနေ့မနက်က သူမ ဈေးကို လမ်းလျှောက်သွားခဲ့တယ်။"],
+  ["open", "opened", 0, "ဖွင့်သည်", "He ___ the window an hour ago.", "သူ တစ်နာရီက ပြတင်းပေါက်ကို ဖွင့်ခဲ့တယ်။"],
+  ["help", "helped", 0, "ကူညီသည်", "Yesterday Su ___ her mother in the kitchen.", "မနေ့က စုက မီးဖိုချောင်မှာ အမေကို ကူခဲ့တယ်။"],
+  ["cook", "cooked", 0, "ချက်သည်", "My father ___ fish for dinner last night.", "မနေ့ညက အဖေ ညစာအတွက် ငါးချက်ခဲ့တယ်။"],
+  ["clean", "cleaned", 0, "သန့်ရှင်းသည်", "Last Friday we ___ the classroom.", "ပြီးခဲ့တဲ့ သောကြာနေ့က စာသင်ခန်းကို သန့်ရှင်းရေးလုပ်ခဲ့တယ်။"],
+  ["visit", "visited", 0, "လည်ပတ်သည်", "Last week I ___ my grandmother.", "ပြီးခဲ့တဲ့ပတ်က အဖွားဆီ သွားလည်ခဲ့တယ်။"],
+  ["call", "called", 0, "ဖုန်းခေါ်သည်", "Mya ___ me two minutes ago.", "မြက နှစ်မိနစ်က ကျွန်တော့်ကို ဖုန်းဆက်ခဲ့တယ်။"],
+  ["borrow", "borrowed", 0, "ငှားသည်", "Yesterday I ___ a book from the library.", "မနေ့က စာကြည့်တိုက်က စာအုပ်တစ်အုပ် ငှားခဲ့တယ်။"],
+  ["earn", "earned", 0, "ရှာဖွေသည်", "He ___ a hundred dollars last week.", "ပြီးခဲ့တဲ့ပတ်က သူ ဒေါ်လာတစ်ရာ ရှာခဲ့တယ်။"],
+  ["like", "liked", 0, "ကြိုက်သည်", "Yesterday she ___ the cake, so she ate two pieces.", "သူမ ကိတ်ကို ကြိုက်လို့ နှစ်တုံးစားခဲ့တယ်။"],
+  ["live", "lived", 0, "နေထိုင်သည်", "My family ___ in Mandalay when I was a child.", "ကျွန်တော် ကလေးဘဝတုန်းက မိသားစုက မန္တလေးမှာ နေခဲ့တယ်။"],
+  ["dance", "danced", 0, "ကသည်", "Last Saturday they ___ all night at the wedding.", "သူတို့ မင်္ဂလာပွဲမှာ ညတစ်ညလုံး ကခဲ့ကြတယ်။"],
+  ["use", "used", 0, "သုံးသည်", "I ___ my phone to call a taxi yesterday.", "မနေ့က တက္ကစီခေါ်ဖို့ ဖုန်းသုံးခဲ့တယ်။"],
+  ["save", "saved", 0, "စုသည်", "Last year she ___ ten thousand kyats.", "ပြီးခဲ့တဲ့နှစ်က သူမ ကျပ်တစ်သောင်း စုခဲ့တယ်။"],
+  ["move", "moved", 0, "ပြောင်းရွှေ့သည်", "We ___ to a new house last month.", "ပြီးခဲ့တဲ့လက အိမ်သစ်ကို ပြောင်းခဲ့တယ်။"],
+  ["arrive", "arrived", 0, "ရောက်လာသည်", "The bus ___ ten minutes late yesterday.", "မနေ့က ကားက ဆယ်မိနစ် နောက်ကျပြီး ရောက်လာတယ်။"],
+  ["owe", "owed", 0, "ကြွေးတင်သည်", "Last month I ___ my friend ten dollars, but now I have paid him.", "ပြီးခဲ့တဲ့လက သူငယ်ချင်းကို ဒေါ်လာ ၁၀ ကြွေးတင်ခဲ့တယ်၊ အခု ပြန်ဆပ်ပြီးပြီ။"],
+  ["study", "studied", 0, "လေ့လာသည်", "Yesterday he ___ English for two hours.", "မနေ့က သူ အင်္ဂလိပ်စာ နှစ်နာရီ လေ့လာခဲ့တယ်။"],
+  ["try", "tried", 0, "စမ်းသည်/ကြိုးစားသည်", "I ___ the new noodle soup last Sunday.", "ပြီးခဲ့တဲ့ တနင်္ဂနွေက ခေါက်ဆွဲရည်အသစ်ကို စမ်းစားကြည့်ခဲ့တယ်။"],
+  ["carry", "carried", 0, "သယ်သည်", "The boy ___ the heavy bag to the car a minute ago.", "ကောင်လေး အိတ်လေးကို ကားဆီ သယ်သွားခဲ့တယ်။"],
+  ["cry", "cried", 0, "ငိုသည်", "The baby ___ for hours last night.", "မနေ့ညက ကလေးက နာရီအတော်ကြာ ငိုခဲ့တယ်။"],
+  ["enjoy", "enjoyed", 0, "နှစ်သက်သည်", "We ___ the party last night.", "မနေ့ညက ပါတီကို ပျော်ပျော်ပါးပါး ကျင်းပခဲ့ကြတယ်။"],
+  ["stop", "stopped", 0, "ရပ်သည်", "The rain ___ at six o'clock yesterday.", "မိုးက ခြောက်နာရီမှာ ရပ်သွားတယ်။"],
+  ["plan", "planned", 0, "စီစဉ်သည်", "We ___ a trip to Bagan last month.", "ပြီးခဲ့တဲ့လက ပုဂံခရီး စီစဉ်ခဲ့တယ်။"],
+  ["shop", "shopped", 0, "ဈေးဝယ်သည်", "My mother ___ at the market yesterday.", "မနေ့က အမေ ဈေးမှာ ဈေးဝယ်ခဲ့တယ်။"],
+  ["drop", "dropped", 0, "ပြုတ်ကျစေသည်", "Yesterday I ___ my phone and the screen broke.", "ဖုန်းကို ပြုတ်ကျသွားလို့ မျက်နှာပြင် ကွဲသွားတယ်။"],
+  ["go", "went", "gone", "သွားသည်", "Yesterday I ___ to the market with my mother.", "မနေ့က အမေနဲ့ ဈေးကို သွားခဲ့တယ်။"],
+  ["eat", "ate", "eaten", "စားသည်", "We ___ rice and fish for lunch yesterday.", "မနေ့က နေ့လယ်စာ ထမင်းနဲ့ ငါးစားခဲ့တယ်။"],
+  ["buy", "bought", "bought", "ဝယ်သည်", "She ___ a new bag last week.", "ပြီးခဲ့တဲ့ပတ်က သူမ အိတ်အသစ်တစ်လုံး ဝယ်ခဲ့တယ်။"],
+  ["see", "saw", "seen", "မြင်သည်", "I ___ a big snake in the garden yesterday.", "မနေ့က ဥယျာဉ်ထဲမှာ မြွေကြီးတစ်ကောင် မြင်ခဲ့တယ်။"],
+  ["take", "took", "taken", "ယူသည်/ရိုက်သည်", "Yesterday he ___ a photo of the temple.", "သူ ဘုရားရဲ့ ဓာတ်ပုံ ရိုက်ခဲ့တယ်။"],
+  ["make", "made", "made", "ပြုလုပ်သည်", "Yesterday morning my mother ___ tea for us.", "မနေ့မနက်က အမေက ကျွန်တော်တို့အတွက် လက်ဖက်ရည်ဖျော်ခဲ့တယ်။"],
+  ["come", "came", "come", "လာသည်", "My uncle ___ to our house last Sunday.", "ပြီးခဲ့တဲ့ တနင်္ဂနွေက ဦးလေး ကျွန်တော်တို့အိမ် လာခဲ့တယ်။"],
+  ["give", "gave", "given", "ပေးသည်", "Last year Daw Mya ___ me a present on my birthday.", "ဒေါ်မြက ကျွန်တော့်မွေးနေ့မှာ လက်ဆောင်ပေးခဲ့တယ်။"],
+  ["write", "wrote", "written", "ရေးသည်", "I ___ a letter to my friend last night.", "မနေ့ညက သူငယ်ချင်းဆီ စာရေးခဲ့တယ်။"],
+  ["drink", "drank", "drunk", "သောက်သည်", "Yesterday she ___ a glass of water after the race.", "ပြိုင်ပွဲပြီးတော့ သူမ ရေတစ်ခွက် သောက်ခဲ့တယ်။"],
+  ["sleep", "slept", "slept", "အိပ်သည်", "The baby ___ for ten hours last night.", "မနေ့ညက ကလေး ဆယ်နာရီ အိပ်ခဲ့တယ်။"],
+  ["run", "ran", "run", "ပြေးသည်", "Yesterday we ___ to the bus stop because we were late.", "နောက်ကျနေလို့ ကားမှတ်တိုင်ကို ပြေးခဲ့ကြတယ်။"],
+  ["swim", "swam", "swum", "ရေကူးသည်", "They ___ in the river yesterday.", "မနေ့က သူတို့ မြစ်ထဲမှာ ရေကူးခဲ့ကြတယ်။"],
+  ["get", "got", "got", "ရသည်", "Last night I ___ a message from Ko Aung.", "မနေ့ညက ကိုအောင်ဆီက မက်ဆေ့ချ်တစ်စောင် ရခဲ့တယ်။"],
+  ["have", "had", "had", "ရှိသည်/စားသည်", "We ___ a big dinner last night.", "မနေ့ညက ညစာကြီးကြီးမားမား စားခဲ့ကြတယ်။"],
+  ["say", "said", "said", "ပြောသည်", "This morning the teacher ___ hello to the whole class.", "ဒီမနက် ဆရာမက တစ်တန်းလုံးကို ဟယ်လို လို့ နှုတ်ဆက်ခဲ့တယ်။"],
+  ["tell", "told", "told", "ပြောပြသည်", "My grandmother ___ us a story last night.", "မနေ့ညက အဖွားက ပုံပြင်တစ်ပုဒ် ပြောပြခဲ့တယ်။"],
+  ["find", "found", "found", "ရှာတွေ့သည်", "I ___ my keys under the chair yesterday.", "မနေ့က ကုလားထိုင်အောက်မှာ သော့ကို ရှာတွေ့ခဲ့တယ်။"],
+  ["know", "knew", "known", "သိသည်", "Yesterday in class I ___ the answer, so I put my hand up.", "အဖြေကို သိလို့ လက်ထောင်ခဲ့တယ်။"],
+  ["speak", "spoke", "spoken", "စကားပြောသည်", "He ___ to the manager on the phone yesterday.", "မနေ့က သူ မန်နေဂျာနဲ့ ဖုန်းနဲ့ စကားပြောခဲ့တယ်။"],
+  ["sit", "sat", "sat", "ထိုင်သည်", "She ___ next to me in class yesterday.", "မနေ့က သူမ စာသင်ခန်းထဲမှာ ကျွန်တော့်ဘေးမှာ ထိုင်ခဲ့တယ်။"],
+  ["stand", "stood", "stood", "ရပ်သည်", "Yesterday we ___ in a long line at the bank.", "ဘဏ်မှာ တန်းစီကြီးထဲ ရပ်စောင့်ခဲ့ကြတယ်။"],
+  ["leave", "left", "left", "ထွက်ခွာသည်", "Yesterday the train ___ at nine o'clock.", "မနေ့က ရထားက ကိုးနာရီမှာ ထွက်သွားတယ်။"],
+  ["bring", "brought", "brought", "ယူလာသည်", "Yesterday Su ___ some mangoes to school.", "မနေ့က စု ကျောင်းကို သရက်သီးတချို့ ယူလာခဲ့တယ်။"],
+  ["think", "thought", "thought", "ထင်သည်", "Yesterday I ___ about my old school and smiled.", "မနေ့က ကျောင်းဟောင်းအကြောင်း တွေးမိပြီး ပြုံးခဲ့တယ်။"],
+  ["meet", "met", "met", "တွေ့သည်", "I ___ my teacher at the market last week.", "ပြီးခဲ့တဲ့ပတ်က ဈေးမှာ ဆရာနဲ့ တွေ့ခဲ့တယ်။"],
+  ["lose", "lost", "lost", "ရှုံးသည်/ပျောက်သည်", "He ___ his wallet on the bus yesterday.", "မနေ့က သူ ကားပေါ်မှာ ပိုက်ဆံအိတ် ပျောက်ခဲ့တယ်။"],
+  ["drive", "drove", "driven", "မောင်းသည်", "My father ___ us to the airport last night.", "မနေ့ညက အဖေ ကျွန်တော်တို့ကို လေဆိပ်ကို ကားမောင်းပို့ခဲ့တယ်။"],
+  ["fly", "flew", "flown", "ပျံသည်/လေယာဉ်စီးသည်", "We ___ to Bangkok last summer.", "ပြီးခဲ့တဲ့ နွေရာသီက ဘန်ကောက်ကို လေယာဉ်နဲ့ သွားခဲ့တယ်။"],
+  ["sing", "sang", "sung", "သီဆိုသည်", "Yesterday the children ___ a song for their teacher.", "ကလေးတွေ ဆရာမအတွက် သီချင်းဆိုပေးခဲ့တယ်။"],
+  ["begin", "began", "begun", "စတင်သည်", "The film ___ at eight o'clock yesterday.", "မနေ့က ရုပ်ရှင်က ရှစ်နာရီမှာ စခဲ့တယ်။"],
+  ["forget", "forgot", "forgotten", "မေ့သည်", "I ___ my umbrella at school yesterday.", "မနေ့က ကျောင်းမှာ ထီးမေ့ခဲ့တယ်။"],
+  ["wear", "wore", "worn", "ဝတ်သည်", "Last Friday she ___ a red dress to the party.", "ပြီးခဲ့တဲ့ သောကြာနေ့က သူမ ပါတီကို အနီရောင်ဝတ်စုံ ဝတ်သွားခဲ့တယ်။"],
+  ["pay", "paid", "paid", "ပေးချေသည်", "I ___ for my lunch in cash yesterday.", "မနေ့က နေ့လယ်စာဖိုးကို ငွေသားနဲ့ ပေးခဲ့တယ်။", ["paied", "pay", "paying", "pays"]],
+  ["spend", "spent", "spent", "သုံးစွဲသည်", "She ___ all her money on books last week.", "ပြီးခဲ့တဲ့ပတ်က သူမ ပိုက်ဆံအကုန် စာအုပ်ဝယ်ဖို့ သုံးပစ်ခဲ့တယ်။"],
+  ["lend", "lent", "lent", "ချေးသည်", "Ko Aung ___ me his pen yesterday.", "မနေ့က ကိုအောင် သူ့ဘောပင်ကို ကျွန်တော့်ကို ချေးခဲ့တယ်။"],
+  ["win", "won", "won", "နိုင်သည်", "Our team ___ the match last Saturday.", "ပြီးခဲ့တဲ့ စနေနေ့က ကျွန်တော်တို့အသင်း ပွဲနိုင်ခဲ့တယ်။"],
+  ["teach", "taught", "taught", "သင်သည်", "Mr. Aung ___ us English last year.", "ပြီးခဲ့တဲ့နှစ်က ဆရာအောင်က ကျွန်တော်တို့ကို အင်္ဂလိပ်စာ သင်ပေးခဲ့တယ်။"],
+  ["catch", "caught", "caught", "ဖမ်းသည်", "Yesterday he ___ the ball with one hand.", "သူ ဘောလုံးကို လက်တစ်ဖက်နဲ့ ဖမ်းခဲ့တယ်။"],
+  ["put", "put", "put", "ထားသည်", "I ___ my bag on the chair five minutes ago.", "ငါးမိနစ်က အိတ်ကို ကုလားထိုင်ပေါ်မှာ ထားခဲ့တယ်။"],
+  ["cut", "cut", "cut", "ဖြတ်သည်", "Yesterday she ___ the cake into six pieces.", "သူမ ကိတ်ကို ခြောက်တုံး ဖြတ်ခဲ့တယ်။"]
+];
+const DBL = ["run", "swim", "sit", "get", "put", "cut", "win", "begin", "forget", "stop", "plan", "shop", "drop"];
+const ing = b => DBL.includes(b) ? b + b.slice(-1) + "ing" : /[^e]e$/.test(b) ? b.slice(0, -1) + "ing" : b + "ing";
+const ed = b => /e$/.test(b) ? b + "d" : b + "ed";
+
+// believable wrong forms for a verb (all of them are definitely not the past simple)
+function wrongs(v) {
+  const [b, p, pp, , , , custom] = v;
+  if (custom) return custom;
+  let c;
+  if (pp) {
+    c = [ed(b), pp, b, ing(b)];
+    if (["go", "buy", "think", "teach", "catch", "bring"].includes(b)) c.push(p + "ed");   // classic slips: wented, boughted
+    if (DBL.includes(b)) c.push(b + b.slice(-1) + "ed");
+  } else if (/[aeiou]y$/.test(b)) c = [b.slice(0, -1) + "ied", b + "d", b, ing(b)];
+  else if (/[^aeiou]y$/.test(b)) c = [b + "ed", b.slice(0, -1) + "ed", b, ing(b)];
+  else if (/e$/.test(b)) c = [b + "ed", b.slice(0, -1) + "d", b, ing(b)];
+  else if (DBL.includes(b)) c = [b + "ed", b + "d", b, ing(b)];
+  else c = [b + "d", b, ing(b), b + "s"];
+  return [...new Set(c)].filter(x => x !== p);
+}
+function rule(v) {
+  const [b, p, pp, my] = v;
+  let r;
+  if (pp) r = "ပုံမှန်မဟုတ်တဲ့ (irregular) ကြိယာ — " + b + " → " + p + (pp !== p ? " → " + pp : "") + " ကို မှတ်ထားပါ";
+  else if (/[^aeiou]y$/.test(b)) r = "ဗျည်း + y နဲ့ဆုံးရင် y ကို ied ပြောင်းပါ (" + b + " → " + p + ")";
+  else if (/e$/.test(b)) r = "e နဲ့ဆုံးရင် d ပဲ ထည့်ပါ (" + b + " + d)";
+  else if (DBL.includes(b)) r = "အသံတိုတိုနဲ့ ဆုံးရင် နောက်ဆုံးအက္ခရာ နှစ်လုံးထပ်ပြီး ed (" + b + " → " + p + ")";
+  else r = "ပုံမှန်ကြိယာ — ed ထည့်ပါ (" + b + " + ed)";
+  return b + " (" + my + ") → " + p + "။ " + r;
+}
+function build() {
+  return take(shuffle(VERBS), ROUNDS).map((v, n) => {
+    const [b, p, , my, s, smy] = v, sentence = s.replace("___", p);
+    const sty = Math.random() < 0.6;   // true: fill the sentence, false: "past of eat?"
+    const q = sty
+      ? { label: "🏴‍☠️ ကွင်းလပ်ကို အတိတ်ကာလ (past simple) နဲ့ ဖြည့်ပါ", text: s.replace("___", "____ (" + b + ")"), small: true, hint: smy, speak: sentence }
+      : { label: "🏴‍☠️ '" + b + "' ရဲ့ past simple က ဘာလဲ?", text: b, hint: my, speak: b };
+    return Object.assign(mcq({ answer: p, pool: wrongs(v), explain: (sty ? sentence + " — " + smy + "\n" : "") + rule(v) }), q);
+  });
+}
+
+let qs, i, correct, streak, score, answered, tick, tStart;
+function paintShip() {
+  $("#ship").style.left = (8 + 76 * (correct / ROUNDS)) + "%";
+  $("#gold").textContent = correct;
+}
+function play() {
+  clearInterval(tick);
+  qs = build(); i = 0; correct = 0; streak = 0; score = 0;
+  $("#qt").textContent = qs.length;
+  const t = $("#timer"); t.hidden = !LV.secs;
+  paintShip(); show();
+}
+function show() {
+  answered = false;
+  const q = qs[i];
+  $("#qn").textContent = i + 1; $("#streak").textContent = streak; $("#score").textContent = score;
+  $("#qlabel").textContent = q.label;
+  const qt = $("#qtext"); qt.textContent = q.text; qt.style.fontSize = q.small ? "clamp(1.3rem, 5.5vw, 1.8rem)" : "";
+  $("#qhint").textContent = q.hint;
+  $("#say").onclick = () => speak(q.speak);
+  const box = $("#opts"); box.innerHTML = "";
+  q.options.forEach(o => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = o; b.onclick = () => choose(b, o === q.answer);
+    box.appendChild(b);
+  });
+  $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
+  clearInterval(tick);
+  if (LV.secs) {
+    tStart = Date.now(); $("#tbar").style.transform = "scaleX(1)";
+    tick = setInterval(() => {
+      const left = Math.max(0, 1 - (Date.now() - tStart) / (LV.secs * 1000));
+      $("#tbar").style.transform = "scaleX(" + left + ")";
+      if (left === 0) choose(null, false);
+    }, 100);
+  }
+}
+function choose(btn, ok) {
+  if (answered) return;
+  answered = true; clearInterval(tick);
+  const q = qs[i], fb = $("#fb"), ship = $("#ship");
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === q.answer) b.classList.add("right"); });
+  fb.innerHTML = "";
+  if (ok) {
+    correct++; streak++;
+    const pts = 10 + Math.min(streak - 1, 5) * 2; score += pts; addPoints(pts); sfx.ok();
+    fb.className = "fb ok"; fb.appendChild(document.createTextNode("✓ မှန်ပါတယ်! ⛵ ရတနာကျွန်းနား ပိုနီးလာပြီ +" + pts));
+    speak(q.answer);
+  } else {
+    streak = 0; sfx.bad(); if (btn) btn.classList.add("wrong");
+    ship.classList.remove("hit"); void ship.offsetWidth; ship.classList.add("hit");
+    fb.className = "fb no"; fb.appendChild(document.createTextNode(btn ? "✗ 💥 မှားပါတယ်။" : "⏱ အချိန်ကုန်သွားပါပြီ။"));
+  }
+  q.explain.split("\n").forEach(line => { fb.appendChild(document.createElement("br")); fb.appendChild(document.createTextNode(line)); });
+  paintShip(); $("#streak").textContent = streak; $("#score").textContent = score;
+  const n = $("#next"); n.hidden = false; n.textContent = i === qs.length - 1 ? "Finish" : "Next →"; n.focus();
+}
+$("#next").onclick = () => {
+  if (i < qs.length - 1) { i++; show(); return; }
+  const r = correct / qs.length;
+  showResult({
+    title: r >= 0.9 ? "ရတနာကျွန်းရောက်ပါပြီ! 🏴‍☠️💰" : r >= 0.6 ? "ကောင်းပါတယ်၊ ကျွန်းနားနီးပြီ! ⛵" : "ထပ်ကြိုးစားကြည့်ပါ 💪",
+    stars: starsFor(r), text: correct + " / " + qs.length + " မှန်တယ် · " + score + " points", onAgain: play
+  });
+};
+play.gameId = "pasttense";
+play();
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confusing Words</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [sentence with ____, right word, the confusable words (the right one included), Burmese rule]
+// Every sentence takes exactly one of the listed words. Capitalise when the blank starts the sentence.
+const BANK = [
+  ["I left my bag over ____.", "there", "there|their|they're", "there = ဟိုမှာ။ their = သူတို့ရဲ့။ they're = they are။"],
+  ["____ dog is very friendly.", "Their", "There|Their|They're", "their = သူတို့ရဲ့ (ပိုင်ဆိုင်မှု)။ dog ရှေ့မှာ ပိုင်ဆိုင်မှုစာလုံး လိုတယ်။"],
+  ["I think ____ going to win the match.", "they're", "there|their|they're", "they're = they are။ \"they are going to win\" လို့ အစားထိုးကြည့်ပါ။"],
+  ["I don't want ____ go outside.", "to", "to|too|two", "to = ကြိယာရှေ့က to (to go)။ too = လွန်ကဲ/လည်း။ two = ၂။"],
+  ["She is ____ tired to drive.", "too", "to|too|two", "too = လွန်ကဲတယ် (too tired = ပင်ပန်းလွန်းတယ်)။"],
+  ["I have ____ brothers and one sister.", "two", "to|too|two", "two = နံပါတ် ၂။"],
+  ["The cat licked ____ paws.", "its", "its|it's", "its = သူ့ရဲ့ (ပိုင်ဆိုင်မှု၊ apostrophe မပါ)။ it's = it is / it has။"],
+  ["____ a beautiful day today.", "It's", "Its|It's", "it's = it is။ \"It is a beautiful day\" လို့ ဖတ်လို့ရတယ်။"],
+  ["Is this ____ umbrella?", "your", "your|you're", "your = မင်းရဲ့ (ပိုင်ဆိုင်မှု)။ you're = you are။"],
+  ["____ going to love this film.", "You're", "Your|You're", "you're = you are။ \"You are going to love\" လို့ အစားထိုးလို့ရတယ်။"],
+  ["She is taller ____ me.", "than", "than|then", "than = နှိုင်းယှဉ်ရင် သုံးတယ်။ then = အဲဒီနောက်/အဲဒီအခါ။"],
+  ["First we eat, ____ we play.", "then", "than|then", "then = အဲဒီနောက် (အစီအစဉ်)။ than = နှိုင်းယှဉ်ရန်။"],
+  ["____ bag is this?", "Whose", "Whose|Who's", "whose = ဘယ်သူ့ရဲ့။ who's = who is / who has။"],
+  ["____ coming to the party tonight?", "Who's", "Whose|Who's", "who's = who is။ \"Who is coming\" လို့ အစားထိုးလို့ရတယ်။"],
+  ["Don't ____ your keys again!", "lose", "lose|loose|loss", "lose = ပျောက်ဆုံးတယ် (ကြိယာ)။ loose = ချောင်တယ်။ loss = ဆုံးရှုံးမှု (နာမ်)။"],
+  ["These trousers are too ____.", "loose", "lose|loose|loss", "loose = ချောင်တယ်/မတင်းဘူး။ lose က ကြိယာ (o တစ်လုံးတည်း)။"],
+  ["Please be ____ in the library.", "quiet", "quite|quiet", "quiet = တိတ်ဆိတ်တယ်။ quite = အတော်လေး။"],
+  ["The film was ____ good.", "quite", "quite|quiet", "quite = အတော်လေး (quite good)။ quiet = တိတ်ဆိတ်။"],
+  ["Can you give me some ____?", "advice", "advice|advise", "advice = အကြံ (နာမ်၊ c)။ advise = အကြံပေးတယ် (ကြိယာ၊ s)။"],
+  ["I ____ you to see a doctor.", "advise", "advice|advise", "advise = အကြံပေးတယ် (ကြိယာ)။ I advise you to... လို့ သုံးတယ်။"],
+  ["Everyone ____ Tom came to the party.", "except", "accept|except", "except = ကလွဲပြီး။ accept = လက်ခံတယ်။"],
+  ["I will ____ your invitation with pleasure.", "accept", "accept|except", "accept = လက်ခံတယ်။ except = ကလွဲပြီး။"],
+  ["I don't know ____ it will rain tomorrow.", "whether", "weather|whether", "whether = ဟုတ်မဟုတ် (if)။ weather = ရာသီဥတု။"],
+  ["The ____ is lovely today.", "weather", "weather|whether", "weather = ရာသီဥတု။ whether = ဟုတ်မဟုတ်။"],
+  ["I want to ____ down for a while.", "lie", "lie|lay|laid", "lie = လှဲတယ် (အရာဝတ္ထု မလို)။ lay = တစ်ခုခုကို ချထားတယ် (အရာဝတ္ထု လိုတယ်)။"],
+  ["Please ____ the books on the table.", "lay", "lie|lay|laid", "lay + အရာဝတ္ထု = ချထားတယ်။ books ကို ချထားတာမို့ lay။"],
+  ["Yesterday I ____ in bed all day because of the fever.", "lay", "lie|lay|laid", "lie ရဲ့ အတိတ်ပုံစံက lay (lie – lay – lain)။ laid က lay (ချထားတယ်) ရဲ့ အတိတ်။"],
+  ["I'm so tired. I feel like ____ down.", "lying", "lying|laying|laid", "lie → lying (လှဲတာ)။ laying က အရာတစ်ခုကို ချထားတာ၊ ဒီမှာ အရာဝတ္ထု မရှိဘူး။"],
+  ["Do you know ____ the pharmacy is?", "where", "where|wear|were", "where = ဘယ်မှာ။ wear = ဝတ်တယ်။ were = was ရဲ့ အများကိန်း။"],
+  ["We ____ at the hospital yesterday.", "were", "where|wear|were", "were = (we/they/you) was ရဲ့ အတိတ်။ where = ဘယ်မှာ။"],
+  ["Please ____ a warm coat today.", "wear", "where|wear|were", "wear = ဝတ်တယ်။ where = ဘယ်မှာ။"],
+  ["The school ____ is very strict.", "principal", "principal|principle", "principal = ကျောင်းအုပ်ကြီး (al = pal ဖော်)။ principle = မူ/ဥပဒေသ။"],
+  ["I never lie. It is a matter of ____.", "principle", "principal|principle", "principle = မူ၊ စံနှုန်း။ principal = ကျောင်းအုပ်/အဓိက။"],
+  ["The medicine had a good ____ on me.", "effect", "affect|effect", "effect = ရလဒ်/သက်ရောက်မှု (နာမ်)။ affect = သက်ရောက်တယ် (ကြိယာ)။"],
+  ["Lack of sleep can ____ your health.", "affect", "affect|effect", "affect = သက်ရောက်တယ် (ကြိယာ)။ effect = ရလဒ် (နာမ်)။"],
+  ["Can I ____ your pen for a minute?", "borrow", "borrow|lend", "borrow = ချေးယူတယ်။ lend = ချေးပေးတယ်။"],
+  ["Can you ____ me your pen for a minute?", "lend", "borrow|lend", "lend = ချေးပေးတယ်။ borrow = ချေးယူတယ်။"],
+  ["He ____ me a funny story.", "told", "said|told|spoke", "tell + လူ + story = ပြောပြတယ်။ say နောက်မှာ လူ တိုက်ရိုက်မလိုက်ပါ။"],
+  ["She ____ that she was tired.", "said", "told|said|spoke", "said that... = ပြောတယ်။ told ရဲ့နောက်မှာ လူ လိုတယ် (told me that...)။"],
+  ["There are ____ people here today than yesterday.", "fewer", "fewer|less", "fewer = ရေတွက်လို့ရတဲ့ အရာ (people)။ less = ရေတွက်မရတဲ့ အရာ (money, time)။"],
+  ["I have ____ money than you.", "less", "fewer|less", "money က ရေတွက်မရဘူး (uncountable) ဒါကြောင့် less။"],
+  ["____ going to be late for the meeting.", "We're", "Were|We're|Where", "we're = we are။ were = ဖြစ်ခဲ့တယ်။ where = ဘယ်မှာ။"],
+  ["Come to my house and ____ your friends.", "bring", "bring|take", "bring = ဒီကိုယူလာတယ်။ \"Come ... and bring\" ဆိုတော့ ပြောသူဆီ လာတာ။"],
+  ["Please ____ at the board.", "look", "look|see|watch", "look at = ကြည့်တယ် (ဦးတည်ကြည့်)။ see = မြင်တယ်။ watch = စောင့်ကြည့်တယ်။"],
+  ["Let's ____ TV tonight.", "watch", "look|see|watch", "watch TV = တီဗီကြည့်တယ်။ watch က လှုပ်ရှားမှုကို ကြာကြာကြည့်တာ။"],
+  ["I like to ____ to music.", "listen", "hear|listen", "listen to = အာရုံစိုက်နားထောင်တယ်။ hear = အသံ ကြားတယ် (ရည်ရွယ်ချက်မရှိ)။"],
+  ["Can you ____ that noise outside?", "hear", "listen|hear", "hear = အသံကြားတယ်။ listen to ဆိုရင် to ပါရမယ်။"],
+  ["He ____ me how to swim.", "taught", "learned|taught", "teach – taught = သင်ပေးတယ်။ learn = လေ့လာတယ်၊ သင်ယူတယ်။"],
+  ["I walk to school ____.", "every day", "everyday|every day", "every day = နေ့တိုင်း (adverb)။ everyday = နေ့စဉ်သုံး (adjective, နာမ်ရှေ့)။"],
+  ["It is an ____ habit.", "everyday", "everyday|every day", "everyday = နေ့စဉ်ဖြစ်တဲ့ (နာမ်ကို ဖော်ပြတယ်)။ every day = နေ့တိုင်း။"],
+  ["____ it will rain tonight.", "Maybe", "Maybe|May be", "maybe = ဖြစ်နိုင်တယ် (adverb)။ may be = ကြိယာနှစ်လုံး (It may be true)။"],
+  ["It ____ true, but I'm not sure.", "may be", "maybe|may be", "may be = ကြိယာ (may + be)။ maybe = ဖြစ်ချင်ဖြစ်မယ် (adverb)။"],
+  ["Please sit ____ me.", "beside", "beside|besides", "beside = ဘေးမှာ။ besides = ထို့အပြင်။"],
+  ["I don't like it. ____, it's too expensive.", "Besides", "Beside|Besides", "besides = ထို့အပြင်။ beside = ဘေးမှာ။"],
+  ["The sun ____ in the east.", "rises", "raises|rises", "rise = ကိုယ်တိုင်ထွက်လာတယ် (အရာဝတ္ထု မလို)။ raise = တစ်ခုခုကို မြှင့်တင်တယ်။"],
+  ["Please ____ your hand if you know the answer.", "raise", "rise|raise", "raise + အရာဝတ္ထု (hand) = မြှောက်တယ်။ rise က အရာဝတ္ထု မလိုဘူး။"],
+  ["Would you like a ____ of cake?", "piece", "peace|piece", "piece = အတုံး/အပိုင်း။ peace = ငြိမ်းချမ်းရေး။"],
+  ["Everyone wants ____ in the world.", "peace", "peace|piece", "peace = ငြိမ်းချမ်းရေး။ piece = အပိုင်း။"],
+  ["I feel ____ after the fever.", "weak", "week|weak", "weak = အားနည်းတယ်။ week = ရက်သတ္တပတ်။"],
+  ["I have been ill for a ____.", "week", "week|weak", "week = ၇ ရက်။ weak = အားနည်း။"],
+  ["Don't ____ the window!", "break", "break|brake", "break = ကွဲတယ်/ချိုးတယ်။ brake = ဘရိတ်။"],
+  ["Press the ____ to stop the car.", "brake", "break|brake", "brake = ဘရိတ်။ break = ကွဲတယ်/နားချိန်။"],
+  ["Come ____, please.", "here", "hear|here", "here = ဒီမှာ။ hear = ကြားတယ်။"],
+  ["I can't ____ you; the line is bad.", "hear", "here|hear", "hear = အသံကြားတယ်။ here = ဒီမှာ။"],
+  ["Please ____ your name on the form.", "write", "right|write", "write = ရေးတယ်။ right = ညာ/မှန်တယ်။"],
+  ["Turn ____ at the pharmacy.", "right", "right|write", "right = ညာဘက်။ write = ရေးတယ်။"],
+  ["I want to ____ some medicine.", "buy", "buy|by|bye", "buy = ဝယ်တယ်။ by = အနား/ဖြင့်။ bye = နှုတ်ဆက်ခွဲ။"],
+  ["The pharmacy is ____ the station.", "by", "buy|by|bye", "by = အနားမှာ၊ ကပ်လျက်။ buy = ဝယ်တယ်။"]
+];
+runChoice({
+  gameId: "confusing", title: "Confusing Words",
+  build: () => take(BANK, 10).map(([sent, ans, set, note]) => {
+    const full = sent.replace("____", ans);
+    const all = set.split("|").map(x => (sent.startsWith("____") ? x[0].toUpperCase() + x.slice(1) : x));
+    return mcq({ label: "မှန်တဲ့ စာလုံးကို ရွေးပါ", text: sent, small: true, answer: ans, pool: all,
+      speak: full, explain: "✓ " + full + " — " + note });
+  })
+});
+</script>
+</body>
+</html>

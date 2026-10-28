@@ -27,6 +27,7 @@
 <script src="js/common.js"></script>
 <script>
 const topic = getTopic();
+if (!getLevel().hint) $("#hint").hidden = true; // no hints at Expert level
 renderBar("Spell It · " + topic.name);
 let list, i, score, right, hints, done;
 

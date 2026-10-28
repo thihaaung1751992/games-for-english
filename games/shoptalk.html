@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shop Talk</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.scene { text-align: center; font-weight: 800; color: var(--accent); font-size: .9rem; letter-spacing: .04em; margin-bottom: 8px; }
+.chat { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 6px; }
+.msg { display: flex; align-items: flex-end; gap: 8px; max-width: 100%; }
+.msg.me { flex-direction: row-reverse; }
+.who { font-size: 2rem; line-height: 1; flex: none; }
+.bub { position: relative; padding: 10px 14px; border-radius: 18px; border: 2px solid var(--line); background: var(--card); text-align: left; font-weight: 700; font-size: 1.1rem; line-height: 1.5; max-width: 82%; }
+.msg:not(.me) .bub { border-bottom-left-radius: 4px; }
+.msg.me .bub { border-bottom-right-radius: 4px; background: color-mix(in srgb, var(--accent) 14%, var(--card)); border-color: var(--accent); }
+.bub.note { font-weight: 600; color: var(--muted); border-style: dashed; max-width: 100%; text-align: center; }
+.bub.good { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--card)); }
+.bub.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--card)); }
+.msg { animation: msgin .3s ease-out; }
+.role { font-size: .85rem; color: var(--muted); margin: 8px 0 2px; }
+.panel .opts { text-align: left; }
+.panel .opt { text-align: left; font-size: 1rem; }
+.fb { white-space: pre-line; }
+@keyframes msgin { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .msg { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// who: "shop" = the shopkeeper speaks (you are the customer), "cust" = the customer speaks (you are the shopkeeper),
+// "ask" = a situation in Burmese: choose the best thing to say as the customer.
+// [scene, who, line, right, [3 wrong], explain]
+const BANK = [
+  ["🛒 Shop", "shop", "Can I help you?", "Yes, I'd like a bag, please.", ["Yes, it costs ten dollars.", "No, I do not like the weather.", "Thank you, you are welcome."], "Can I help you? လို့မေးရင် လိုချင်တာကို ပြောပါ။ I'd like ... = ... လိုချင်ပါတယ်။"],
+  ["🛒 Shop", "cust", "How much is this shirt?", "It's twelve dollars.", ["It's a very nice day.", "Yes, it is very big.", "I'd like a shirt, please."], "How much ...? = ဈေးဘယ်လောက်လဲ။ ဈေးနဲ့ပဲ ပြန်ဖြေရမယ်။"],
+  ["🛒 Shop", "ask", "ဒီဦးထုပ်ရဲ့ ဈေးကို မေးချင်တယ်။", "How much is this hat?", ["How many is this hat?", "How is much this hat?", "Where is this hat much?"], "ဈေးမေးရင် How much is ...? သုံးတယ်။ How many က ရေတွက်လို့ရတဲ့ အရေအတွက်အတွက်ပါ။"],
+  ["🛒 Shop", "ask", "ပေါင်မုန့် နှစ်ခု ဝယ်ချင်တယ်။", "Can I have two loaves of bread, please?", ["Can I has two loaves of bread, please?", "Can I having two bread, please?", "I can have two loaves of bread, you?"], "Can I have ..., please? = ... ရနိုင်မလား။ Can I နောက်မှာ have (has မဟုတ်)။"],
+  ["☕ Café", "shop", "What would you like to drink?", "I'd like a coffee, please.", ["I like drink coffee you.", "It's two dollars.", "I am fine, thank you."], "What would you like to drink? = ဘာသောက်မလဲ။ I'd like ... နဲ့ မှာပါ။"],
+  ["☕ Café", "shop", "Would you like anything to eat?", "Yes, a slice of cake, please.", ["Yes, I am from Myanmar.", "Thank you, goodbye.", "It is very cheap, please."], "Would you like ...? လို့မေးရင် Yes, ... please သို့ No, thank you လို့ ဖြေပါ။"],
+  ["☕ Café", "cust", "Can I get the bill, please?", "Sure, that's eight dollars.", ["Sure, I'd like the bill.", "Yes, I am very hungry.", "No, I do not drink coffee."], "the bill = ငွေရှင်းလွှာ။ ဈေးဆိုင်ကပြန်ပြောတာက ဘယ်လောက်ကျတယ်ဆိုတာပါ။"],
+  ["☕ Café", "ask", "ရေတစ်ခွက် ပေးဖို့ ယဉ်ကျေးစွာ တောင်းချင်တယ်။", "Could I have a glass of water, please?", ["Could I has water glass please?", "I have a glass of water, could?", "Can you water me a glass?"], "Could I have ..., please? က ယဉ်ကျေးတဲ့ တောင်းဆိုပုံ။ ဝါကျစီမံပုံ မှန်ရမယ်။"],
+  ["☕ Café", "shop", "Anything else?", "No, that's all, thank you.", ["Yes, that's all, thank you.", "No, anything else thank you.", "That's all, I am sorry for you."], "Anything else? = တခြားရော။ မလိုတော့ရင် No, that's all, thank you။"],
+  ["☕ Café", "cust", "Is this seat taken?", "No, please sit down.", ["Yes, it is a nice chair.", "Thank you, it is cold.", "No, I am hungry."], "Is this seat taken? = ဒီထိုင်ခုံ လူရှိပြီလား။ မရှိရင် No၊ please sit down။"],
+  ["🥭 Market", "shop", "Fresh mangoes! Do you want to try one?", "Yes, please. They look delicious!", ["Yes, I am twenty years old.", "Sorry, I do not have a pen.", "Please, you try one yesterday."], "Do you want to try one? = စမ်းစားကြည့်မလား။ Yes, please လို့ ဖြေနိုင်တယ်။"],
+  ["🥭 Market", "cust", "That is too expensive. Can you give me a discount?", "OK, I'll make it cheaper for you.", ["OK, it is more expensive for you.", "Sorry, I am cold today.", "OK, goodbye, see you yesterday."], "discount = လျှော့ဈေး။ ဈေးလျှော့ပေးမယ်ဆိုတာ cheaper ပါတဲ့ ပြန်စကား။"],
+  ["🥭 Market", "shop", "How many do you want?", "Five, please.", ["Five dollars, how many?", "Yes, I want.", "Thank you, I am fine."], "How many ...? = ဘယ်နှစ်ခုလဲ။ ဂဏန်းနဲ့ ဖြေပါ။"],
+  ["🥭 Market", "ask", "ဈေးကို လျှော့ပေးဖို့ တောင်းချင်တယ်။", "Can you give me a discount?", ["Can you giving me discount?", "You can discount give me?", "Do you discount me can?"], "Can you give me a discount? = လျှော့ပေးနိုင်မလား။"],
+  ["🥭 Market", "shop", "Would you like a bag?", "No, thanks. I have my own.", ["No, thanks. I am a bag.", "Yes, you are a bag.", "Bag is thank you."], "Would you like a bag? = အိတ်လိုလား။ No, thanks. I have my own. = ကိုယ့်အိတ်ပါတယ်။"],
+  ["🏦 Bank", "shop", "How can I help you today?", "I'd like to open a bank account.", ["I am helping you today.", "It is a sunny day.", "Yes, I open you account."], "How can I help you? = ဘာကူညီရမလဲ။ I'd like to ... နဲ့ လိုတာ ပြောပါ။"],
+  ["🏦 Bank", "cust", "I'd like to withdraw fifty dollars, please.", "Certainly. Can I see your ID card?", ["Certainly. I'd like to see the doctor.", "Certainly. Fifty dollars is my age.", "Sorry, I can not you."], "withdraw = ငွေထုတ်။ ဘဏ်ဝန်ထမ်းက မှတ်ပုံတင် ကြည့်ချင်ပါတယ်။"],
+  ["🏦 Bank", "ask", "ကတ်နဲ့ ပေးချေလို့ရလား မေးချင်တယ်။", "Do you accept cards?", ["Do you accepting card?", "Are you accept cards?", "Do cards accept you?"], "Do you accept cards? = ကတ်လက်ခံလား။ Do you + verb ပုံစံ။"],
+  ["🏦 Bank", "cust", "I'd like to deposit some money.", "Sure. Please fill in this form.", ["Sure. Please eat this form.", "Sure. Please form fill this in.", "Sure. I deposit the money, goodbye."], "deposit = ငွေသွင်း။ fill in a form = ပုံစံဖြည့်။"],
+  ["🏦 Bank", "shop", "Cash or card?", "Card, please.", ["Yes, it is cheap.", "Tomorrow, please.", "Fifteen dollars, thank you."], "Cash or card? = ငွေသားလား ကတ်လား။ တစ်ခုရွေးပြီး ဖြေပါ။"],
+  ["🛒 Shop", "cust", "Excuse me, do you have this in a bigger size?", "Let me check. I think we have a large.", ["I think we have a lovely weather.", "Yes, you are very tall, thank you.", "It is nine o'clock now."], "bigger size = ပိုကြီးတဲ့ အရွယ်။ Let me check. = စစ်ကြည့်မယ်။"],
+  ["🛒 Shop", "ask", "ဒီအင်္ကျီကို ဝတ်ကြည့်ချင်တယ်။", "Can I try this on?", ["Can I try on this to?", "Can I trying this on?", "May I trying it?"], "try on = ဝတ်ကြည့်။ Can I try this on? ကို မှတ်ထားပါ။"],
+  ["🛒 Shop", "shop", "That'll be twenty dollars.", "Here you are. Could I have a receipt?", ["Where are you? Could I have a receipt?", "Yes, I am twenty dollars.", "No, thank you, I am not hungry."], "That'll be ... = စုစုပေါင်း ... ။ Here you are. = ယူပါ။ receipt = ပြေစာ။"],
+  ["🛒 Shop", "cust", "Excuse me, I gave you fifty, not twenty.", "Oh, sorry! Here is your change.", ["Oh, sorry! You are welcome.", "Oh, sorry! See you tomorrow.", "Oh, thank you! I like your shirt."], "change = ပြန်အမ်းငွေ။ မှားရင် sorry ပြောပြီး ပြန်အမ်းပေးပါ။"],
+  ["🛒 Shop", "ask", "ပြန်အမ်းငွေ (refund) တောင်းချင်တယ်။", "Can I get a refund for this?", ["Can I get a refunded for it?", "Can I give a refund of this?", "Do I can get refund?"], "refund = ပြန်အမ်းငွေ။ Can I get a refund? = ငွေပြန်ရနိုင်မလား။"],
+  ["🛒 Shop", "cust", "I'd like to return this shirt. Can I get a refund?", "Do you have the receipt?", ["Do you have a fever?", "Do you like this shirt tomorrow?", "I am your receipt."], "ပစ္စည်းပြန်ပေးရင် receipt (ပြေစာ) မေးကြတယ်။"],
+  ["🛒 Shop", "shop", "Do you have any cheaper ones?", "Yes, these are on sale.", ["Yes, they are more expensive.", "Yes, those are very expensive ones.", "Sorry, I am a cheaper."], "on sale = လျှော့ဈေးနဲ့ ရောင်းနေတယ်။"],
+  ["🛒 Shop", "cust", "I'm just looking, thanks.", "No problem. Let me know if you need help.", ["No problem. Please pay now, thank you.", "Sorry, we are closed yesterday.", "No problem. Please look at yourself."], "just looking = ကြည့်ရုံပါ။ ဆိုင်ရှင်က Let me know if you need help လို့ ပြန်ပြောနိုင်တယ်။"],
+  ["🛒 Shop", "ask", "ဆိုင်ဘယ်နှစ်နာရီမှာ ပိတ်လဲ မေးချင်တယ်။", "What time do you close?", ["What time you closing do?", "When time do you close?", "Which time close you?"], "What time ...? = ဘယ်နှစ်နာရီ။ What time do you close? ကို မှတ်ထားပါ။"],
+  ["🛒 Shop", "ask", "ဒါကို ပိုသေးတာနဲ့ လဲချင်တယ်။", "Can I exchange this for a smaller one?", ["Can I exchanges this for small one more?", "Can I change smaller this one to?", "I can exchange for smaller, do I?"], "exchange = လဲလှယ်။ a smaller one = ပိုသေးတာတစ်ခု။"]
+];
+const topic = getTopic(), LV = getLevel();
+renderBar("Shop Talk · " + topic.name);
+const ROUNDS = 10, TIME = LV.secs ? Math.round(LV.secs * 1.5) : 0;
+$("#app").innerHTML =
+  '<div class="stats"><span>Question: <b id="qn">1</b>/' + ROUNDS + '</span><span>Streak: <b id="streak">0</b> 🔥</span><span>Score: <b id="score">0</b></span></div>' +
+  (TIME ? '<div class="timer"><i id="tbar"></i></div>' : '') +
+  '<div class="panel"><div class="scene" id="scene"></div><div class="chat" id="chat" aria-live="polite"></div>' +
+  '<div class="role" id="role"></div><div class="opts" id="opts"></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+let qs, i, right, score, streak, answered, tick, t0;
+function play() { qs = take(BANK, ROUNDS); i = 0; right = 0; score = 0; streak = 0; show(); }
+function bubble(who, text, cls, me) {
+  const m = document.createElement("div"); m.className = "msg" + (me ? " me" : "");
+  const w = document.createElement("span"); w.className = "who"; w.textContent = who; w.setAttribute("aria-hidden", "true");
+  const b = document.createElement("div"); b.className = "bub " + (cls || ""); b.textContent = text;
+  m.appendChild(w); m.appendChild(b); $("#chat").appendChild(m);
+  return b;
+}
+function show() {
+  clearInterval(tick); answered = false;
+  const it = qs[i], scene = it[0], who = it[1], line = it[2];
+  $("#qn").textContent = i + 1; $("#streak").textContent = streak; $("#score").textContent = score;
+  $("#scene").textContent = scene;
+  $("#chat").innerHTML = "";
+  if (who === "ask") {
+    const n = document.createElement("div"); n.className = "bub note"; n.textContent = "💭 " + line; $("#chat").appendChild(n);
+    $("#role").textContent = "သင်က ဖောက်သည် 🧑 — ဘာပြောမလဲ ရွေးပါ";
+  } else {
+    bubble(who === "shop" ? "👩‍🍳" : "🧑", line);
+    $("#role").textContent = who === "shop" ? "သင်က ဖောက်သည် 🧑 — ဘယ်လို ပြန်ပြောမလဲ" : "သင်က ဆိုင်ရှင် 👩‍🍳 — ဘယ်လို ပြန်ပြောမလဲ";
+    speak(line);
+  }
+  const opts = shuffle([it[3], ...shuffle(it[4]).slice(0, LV.opts - 1)]);
+  const box = $("#opts"); box.innerHTML = "";
+  opts.forEach(t => {
+    const b = document.createElement("button"); b.className = "opt"; b.textContent = t;
+    b.onclick = () => choose(b, t);
+    box.appendChild(b);
+  });
+  $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
+  if (TIME) {
+    t0 = Date.now(); $("#tbar").style.transform = "scaleX(1)";
+    tick = setInterval(() => {
+      const left = Math.max(0, 1 - (Date.now() - t0) / (TIME * 1000));
+      $("#tbar").style.transform = "scaleX(" + left + ")";
+      if (left === 0) choose(null, null);
+    }, 100);
+  }
+}
+function choose(btn, text) {
+  if (answered) return;
+  answered = true; clearInterval(tick);
+  const it = qs[i], who = it[1], ok = text === it[3], fb = $("#fb");
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === it[3]) b.classList.add("right"); });
+  if (ok) {
+    right++; streak++;
+    const pts = 10 + Math.min(streak - 1, 5) * 2; score += pts; addPoints(pts); sfx.ok();
+    bubble(who === "cust" ? "👩‍🍳" : "🧑", it[3], "good", true);
+    fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! +" + pts;
+    speak(it[3]);
+  } else {
+    streak = 0; sfx.bad();
+    if (btn) { bubble(who === "cust" ? "👩‍🍳" : "🧑", text, "bad", true); btn.classList.add("wrong"); }
+    fb.className = "fb no"; fb.textContent = btn ? "✗ မှားပါတယ်။" : "⏱ အချိန်ကုန်ပါပြီ။";
+    bubble(who === "cust" ? "👩‍🍳" : "🧑", it[3], "good", true);
+  }
+  fb.textContent += "\n" + it[5];
+  $("#streak").textContent = streak; $("#score").textContent = score;
+  const n = $("#next"); n.hidden = false; n.textContent = i === qs.length - 1 ? "Finish" : "Next →"; n.focus();
+}
+$("#next").onclick = () => {
+  if (i < qs.length - 1) { i++; show(); return; }
+  const r = right / qs.length;
+  showResult({ title: cheer(r), stars: starsFor(r), text: right + " / " + qs.length + " မှန်တယ် · " + score + " points", onAgain: play });
+};
+play.gameId = "shoptalk";
+play();
+</script>
+</body>
+</html>

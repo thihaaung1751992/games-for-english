@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memory Flash</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.fgrid { display: grid; grid-template-columns: repeat(var(--c, 3), 1fr); gap: 10px; margin: 12px 0; }
+.fcard { min-height: 84px; border-radius: 16px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 4px; cursor: pointer; }
+.fcard .e { font-size: 1.9rem; line-height: 1.1; }
+.fcard .t { font-weight: 800; font-size: clamp(.95rem, 4vw, 1.2rem); line-height: 1.3; overflow-wrap: anywhere; }
+.fcard.hid { background: var(--accent); border-color: var(--accent); color: #fff; cursor: default; }
+.fcard.hid .t { font-size: 1.4rem; }
+.fcard.gap { border-style: dashed; background: transparent; cursor: default; color: var(--muted); }
+.fcard.hit { border-color: var(--good); background: color-mix(in srgb, var(--good) 18%, var(--card)); }
+.fcard.focus { animation: glow 1s ease-in-out infinite alternate; box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 55%, transparent); border-color: var(--warn); }
+.tip { min-height: 2.2em; text-align: center; color: var(--muted); font-size: 1rem; }
+.tip b { color: var(--ink); }
+.fb { white-space: pre-line; }
+.panel .opts { margin-top: 10px; }
+@keyframes glow { from { transform: scale(1); } to { transform: scale(1.05); } }
+@media (prefers-reduced-motion: reduce) { .fcard.focus { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// everyday words with an emoji, mixed in with the lesson words
+const EMO = [
+  ["🍎", "apple", "ပန်းသီး"], ["🍌", "banana", "ငှက်ပျောသီး"], ["🐶", "dog", "ခွေး"], ["🐱", "cat", "ကြောင်"], ["🐟", "fish", "ငါး"],
+  ["🏠", "house", "အိမ်"], ["🚗", "car", "ကား"], ["🚌", "bus", "ဘတ်စ်ကား"], ["🌳", "tree", "သစ်ပင်"], ["🌸", "flower", "ပန်း"],
+  ["☀️", "sun", "နေ"], ["🌙", "moon", "လ"], ["⭐", "star", "ကြယ်"], ["📖", "book", "စာအုပ်"], ["✏️", "pencil", "ခဲတံ"],
+  ["⚽", "ball", "ဘောလုံး"], ["🎒", "bag", "အိတ်"], ["🔑", "key", "သော့"], ["🪑", "chair", "ထိုင်ခုံ"], ["🛏️", "bed", "ကုတင်"],
+  ["🚪", "door", "တံခါး"], ["🪟", "window", "ပြတင်းပေါက်"], ["⏰", "clock", "နာရီ"], ["📱", "phone", "ဖုန်း"], ["👟", "shoes", "ဖိနပ်"],
+  ["👕", "shirt", "ရှပ်အင်္ကျီ"], ["🎩", "hat", "ဦးထုပ်"], ["🥚", "egg", "ဥ"], ["🍞", "bread", "ပေါင်မုန့်"], ["🥛", "milk", "နို့"],
+  ["☕", "coffee", "ကော်ဖီ"], ["🍰", "cake", "ကိတ်မုန့်"], ["🐦", "bird", "ငှက်"], ["🐘", "elephant", "ဆင်"], ["🐵", "monkey", "မျောက်"],
+  ["🚲", "bicycle", "စက်ဘီး"], ["✈️", "plane", "လေယာဉ်"], ["🚂", "train", "ရထား"], ["🚢", "ship", "သင်္ဘော"], ["🌧️", "rain", "မိုး"],
+  ["🍊", "orange", "လိမ္မော်သီး"], ["🍚", "rice", "ထမင်း"]
+];
+const topic = getTopic(), LV = getLevel();
+renderBar("Memory Flash · " + topic.name);
+const ALL = [], seen = new Set();
+topic.words.forEach(w => { if (!seen.has(w.en)) { seen.add(w.en); ALL.push({ en: w.en, my: w.my, lesson: true }); } });
+EMO.forEach(e => { if (!seen.has(e[1])) { seen.add(e[1]); ALL.push({ en: e[1], my: e[2], e: e[0] }); } });
+const SIZES = [6, 6, 7, 7, 8, 8, 9, 9], ROUNDS = SIZES.length;
+const BASE = [0, 12, 9, 7, 5][topic.level];
+const KINDS = ["missing", "notthere", "position"];
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Round: <b id="rn">1</b>/' + ROUNDS + '</span><span>Streak: <b id="streak">0</b> 🔥</span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="timer"><i id="tbar"></i></div>' +
+  '<div class="panel"><div class="q-label" id="qlabel"></div><div class="q-text" id="qtext" style="font-size:clamp(1.2rem,5.5vw,1.7rem)"></div>' +
+  '<div class="fgrid" id="grid"></div><div class="tip" id="tip" aria-live="polite"></div>' +
+  '<div class="row"><button class="btn primary" id="ready">မှတ်ပြီ ✓ Ready</button></div>' +
+  '<div class="opts" id="opts"></div><div class="fb" id="fb" aria-live="polite"></div><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+let r, grid, kind, ans, missIdx, posIdx, right, streak, score, answered, tick, offset, timeLeft;
+
+function play() { clearInterval(tick); r = 0; right = 0; streak = 0; score = 0; offset = Math.floor(Math.random() * 3); round(); }
+function card(w, mode, n) {
+  const b = document.createElement("button"); b.className = "fcard"; b.type = "button";
+  if (mode === "hid") { b.classList.add("hid"); b.disabled = true; b.innerHTML = '<span class="t">' + (n + 1) + '</span>'; b.setAttribute("aria-label", "Card " + (n + 1)); }
+  else if (mode === "gap") { b.classList.add("gap"); b.disabled = true; b.innerHTML = '<span class="e">❔</span>'; b.setAttribute("aria-label", "Empty card " + (n + 1)); }
+  else {
+    if (w.e) { const e = document.createElement("span"); e.className = "e"; e.textContent = w.e; e.setAttribute("aria-hidden", "true"); b.appendChild(e); }
+    const t = document.createElement("span"); t.className = "t"; t.textContent = w.en; b.appendChild(t);
+  }
+  return b;
+}
+function paintGrid(mode) {
+  const g = $("#grid"); g.innerHTML = "";
+  g.style.setProperty("--c", grid.length === 7 || grid.length === 8 ? 4 : 3);
+  grid.forEach((w, n) => {
+    let m = "show";
+    if (mode === "hid") m = "hid";
+    if (mode === "missing" && n === missIdx) m = "gap";
+    const b = card(w, m, n);
+    if (mode === "show") b.onclick = () => { $("#tip").innerHTML = "<b></b> = <span></span>"; $("#tip b").textContent = w.en; $("#tip span").textContent = w.my; speak(w.en); };
+    else if (m === "show") b.disabled = true;
+    if (mode === "hid" && kind === "position" && n === posIdx) b.classList.add("focus");
+    if (mode === "missing" && n === missIdx) b.classList.add("focus");
+    g.appendChild(b);
+  });
+}
+function round() {
+  clearInterval(tick); answered = false;
+  const n = SIZES[r], lessonN = Math.min(Math.ceil(n / 2), ALL.filter(w => w.lesson).length);
+  const lesson = shuffle(ALL.filter(w => w.lesson)).slice(0, lessonN);
+  const rest = shuffle(ALL.filter(w => !w.lesson)).slice(0, n - lessonN);
+  grid = shuffle([...lesson, ...rest]);
+  kind = KINDS[(r + offset) % 3];
+  $("#rn").textContent = r + 1; $("#streak").textContent = streak; $("#score").textContent = score;
+  $("#qlabel").textContent = "မှတ်ထားပါ! Remember these words";
+  $("#qtext").textContent = "👁️ " + grid.length + " words";
+  $("#opts").innerHTML = ""; $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
+  $("#tip").textContent = "စာလုံးကို နှိပ်ရင် မြန်မာအဓိပ္ပါယ် ပေါ်မယ်";
+  $("#ready").hidden = false; $("#ready").disabled = false;
+  paintGrid("show");
+  const total = Math.max(4, Math.round(BASE * grid.length / 6)), t0 = Date.now();
+  timeLeft = total;
+  $("#tbar").style.transform = "scaleX(1)";
+  tick = setInterval(() => {
+    const left = Math.max(0, 1 - (Date.now() - t0) / (total * 1000));
+    $("#tbar").style.transform = "scaleX(" + left + ")";
+    if (left === 0) { clearInterval(tick); quiz(); }
+  }, 100);
+}
+function outsiders(like, k) {
+  const inGrid = new Set(grid.map(w => w.en));
+  const pool = ALL.filter(w => !inGrid.has(w.en));
+  if (!LV.similar) return shuffle(pool).slice(0, k);
+  return pool.map(w => ({ w, s: likeness(like.en, w.en) + Math.random() * 1.5 })).sort((a, b) => b.s - a.s).slice(0, k).map(o => o.w);
+}
+function quiz() {
+  clearInterval(tick);
+  $("#ready").hidden = true; $("#tip").textContent = ""; $("#tbar").style.transform = "scaleX(0)";
+  const k = LV.opts - 1;
+  let options;
+  if (kind === "missing") {
+    missIdx = Math.floor(Math.random() * grid.length); ans = grid[missIdx];
+    options = [ans, ...outsiders(ans, k)];
+    $("#qlabel").textContent = "ဘယ်စာလုံး ပျောက်သွားလဲ?";
+    $("#qtext").textContent = "❔ Which word is missing?";
+    paintGrid("missing");
+  } else if (kind === "notthere") {
+    const g3 = shuffle(grid).slice(0, k), out = outsiders(g3[0], 1)[0];
+    ans = out; options = [out, ...g3];
+    $("#qlabel").textContent = "ဘယ်စာလုံးက မပါခဲ့ဘူးလဲ?";
+    $("#qtext").textContent = "🚫 Which word was NOT there?";
+    paintGrid("hid");
+  } else {
+    posIdx = Math.floor(Math.random() * grid.length); ans = grid[posIdx];
+    options = [ans, ...shuffle(grid.filter((w, n) => n !== posIdx)).slice(0, k)];
+    $("#qlabel").textContent = "ဘယ်စာလုံးလဲ?";
+    $("#qtext").textContent = "📍 What was the word in position " + (posIdx + 1) + "?";
+    paintGrid("hid");
+  }
+  const box = $("#opts"); box.innerHTML = "";
+  shuffle(options).forEach(w => {
+    const b = document.createElement("button"); b.className = "opt"; b.textContent = w.en;
+    b.onclick = () => choose(b, w);
+    box.appendChild(b);
+  });
+}
+function choose(btn, w) {
+  if (answered) return;
+  answered = true;
+  const ok = w === ans, fb = $("#fb");
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === ans.en) b.classList.add("right"); });
+  if (ok) { right++; streak++; const p = 10 + Math.min(streak - 1, 5) * 2 + (grid.length - 6) * 2; score += p; addPoints(p); sfx.ok(); fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! +" + p; speak(ans.en); }
+  else { streak = 0; sfx.bad(); btn.classList.add("wrong"); fb.className = "fb no"; fb.textContent = "✗ မှားပါတယ်။"; }
+  fb.textContent += "\n" + (kind === "notthere" ? ans.en + " မပါခဲ့ဘူး။ " : "") + ans.en + " = " + ans.my;
+  // show the full original grid again, with the answer marked
+  paintGrid("show");
+  [...$("#grid").children].forEach((c, n) => { c.disabled = true; if (grid[n] === ans && kind !== "notthere") c.classList.add("hit"); });
+  $("#streak").textContent = streak; $("#score").textContent = score;
+  const nx = $("#next"); nx.hidden = false; nx.textContent = r === ROUNDS - 1 ? "Finish" : "Next →"; nx.focus();
+}
+$("#ready").onclick = () => { $("#ready").disabled = true; quiz(); };
+$("#next").onclick = () => {
+  if (r < ROUNDS - 1) { r++; round(); return; }
+  const q = right / ROUNDS;
+  showResult({ title: cheer(q), stars: starsFor(q), text: right + " / " + ROUNDS + " မှန်တယ် · " + score + " points", onAgain: play });
+};
+play.gameId = "flash";
+play();
+</script>
+</body>
+</html>

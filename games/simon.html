@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simon Words</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.sm-status { text-align: center; font-weight: 800; font-size: 1.15rem; min-height: 3.2em; margin: 4px 0 10px; line-height: 1.5; }
+.sm-status.watch { color: var(--warn); } .sm-status.go { color: var(--good); } .sm-status.bad { color: var(--bad); }
+.sm-dots { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 0 0 12px; min-height: 18px; }
+.sm-dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); }
+.sm-dots i.on { background: var(--good); border-color: var(--good); }
+.sm-dots i.now { border-color: var(--accent); }
+.sm-pads { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sm-pad { position: relative; font: inherit; font-weight: 900; font-size: clamp(1.15rem, 5.4vw, 1.6rem); min-height: 112px; border-radius: 22px; border: 4px solid transparent; cursor: pointer; padding: 6px;
+  color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.65); background: var(--c); opacity: .5; filter: saturate(.8); transition: opacity .08s, transform .08s, filter .08s; }
+.sm-pad.dark { color: #2b2100; text-shadow: none; }
+.sm-pad .k { position: absolute; top: 6px; left: 10px; font-size: .8rem; font-weight: 700; opacity: .85; }
+.sm-pads.five .sm-pad:last-child { grid-column: 1 / -1; }
+.sm-pads.ready .sm-pad { opacity: .8; }
+.sm-pad.lit { opacity: 1; filter: saturate(1.3) brightness(1.15); transform: scale(1.05); border-color: var(--ink); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 40%, transparent), 0 0 26px var(--c); }
+.sm-pad:disabled { cursor: default; }
+@media (prefers-reduced-motion: reduce) { .sm-pad { transition: none; } .sm-pad.lit { transform: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Memory game: watch the pads light up (each says its word), then repeat the sequence. It grows by one each round.
+const topic = getTopic(), LV = getLevel(), lvl = topic.level;
+renderBar("Simon Words · " + topic.name);
+const COLORS = [
+  { c: "#e5484d", n: "red" }, { c: "#2f6fed", n: "blue" }, { c: "#2f9e44", n: "green" },
+  { c: "#f5b301", n: "yellow", dark: true }, { c: "#8b5cf6", n: "purple" }, { c: "#e8590c", n: "orange" }
+];
+const FREQ = [262, 330, 392, 523, 440, 294];
+const PADS = [4, 4, 5, 6][lvl - 1];
+const STEP = Math.round(760 * LV.pace);      // ms per light
+const MAXLEN = 12, START = 2;
+const GOAL = [6, 6, 7, 8][lvl - 1];          // length that earns 3 stars
+const LIVES = 3;
+let pads, seq, pos, lives, best, phase, timers, runId = 0;
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Length: <b id="len">2</b></span><span class="hearts" id="lives"></span><span>Best: <b id="best">0</b></span></div>' +
+  '<div class="sm-status" id="status" aria-live="polite"></div><div class="sm-dots" id="dots" aria-hidden="true"></div>' +
+  '<div class="sm-pads" id="pads"></div>' +
+  '<p class="muted" style="text-align:center;font-size:.9rem">မျက်စိ မမှိတ်ပါနဲ့။ အလင်းပေးတဲ့ အစီအစဉ်အတိုင်း စာလုံးတွေကို နှိပ်ပါ။ (keys 1–' + PADS + ')</p>';
+
+function later(fn, ms) { const id = runId; const t = setTimeout(() => { if (id === runId) fn(); }, ms); timers.push(t); }
+function clearAll() { (timers || []).forEach(clearTimeout); timers = []; runId++; }
+function status(t, cls) { const s = $("#status"); s.textContent = t; s.className = "sm-status " + (cls || ""); }
+function paint() {
+  $("#len").textContent = seq.length; $("#best").textContent = best; $("#lives").textContent = hearts(lives, LIVES);
+  const d = $("#dots"); d.innerHTML = "";
+  seq.forEach((_, n) => { const i = document.createElement("i"); if (n < pos) i.className = "on"; else if (n === pos && phase === "input") i.className = "now"; d.appendChild(i); });
+}
+function setPads(on) { const box = $("#pads"); box.classList.toggle("ready", on); [...box.children].forEach(b => { b.disabled = !on; }); }
+function light(k, ms) {
+  const b = $("#pads").children[k]; b.classList.add("lit");
+  beep([FREQ[k]], Math.min(0.35, ms / 1000));
+  speak(pads[k].en);
+  later(() => b.classList.remove("lit"), ms);
+}
+
+function play() {
+  clearAll();
+  pads = shuffle(topic.words).slice(0, PADS).map((w, n) => Object.assign({}, w, COLORS[n]));
+  const box = $("#pads"); box.innerHTML = ""; box.classList.toggle("five", PADS === 5);
+  pads.forEach((p, k) => {
+    const b = document.createElement("button");
+    b.className = "sm-pad" + (p.dark ? " dark" : ""); b.style.setProperty("--c", p.c);
+    b.innerHTML = '<span class="k">' + (k + 1) + '</span><span class="w"></span>';
+    $(".w", b).textContent = p.en; b.setAttribute("aria-label", p.en + " (" + (k + 1) + ")");
+    b.onclick = () => press(k);
+    box.appendChild(b);
+  });
+  seq = []; for (let i = 0; i < START; i++) seq.push(randPad());
+  lives = LIVES; best = 0; pos = 0; phase = "show";
+  setPads(false); paint();
+  status("ကြည့်ပါ... 👀", "watch");
+  later(showSeq, 900);
+}
+function randPad() { return Math.floor(Math.random() * PADS); }
+function showSeq() {
+  phase = "show"; pos = 0; setPads(false); paint();
+  status("ကြည့်ပါ... 👀", "watch");
+  seq.forEach((k, n) => later(() => light(k, STEP * 0.7), n * STEP + 300));
+  later(() => { phase = "input"; pos = 0; setPads(true); status("သင့်အလှည့်! 👆 (" + seq.length + " ခု)", "go"); paint(); }, seq.length * STEP + 400);
+}
+function press(k) {
+  if (phase !== "input") return;
+  const b = $("#pads").children[k];
+  b.classList.add("lit"); beep([FREQ[k]], 0.2); speak(pads[k].en); later(() => b.classList.remove("lit"), 220);
+  if (k === seq[pos]) {
+    pos++; addPoints(1); paint();
+    if (pos === seq.length) done();
+  } else wrongPress(k);
+}
+function done() {
+  phase = "wait"; setPads(false); sfx.ok();
+  best = Math.max(best, seq.length); addPoints(seq.length * 2);
+  paint();
+  if (seq.length >= MAXLEN) { status("အကုန်မှန်တယ်! 🏆", "go"); return later(finish, 900); }
+  status("မှန်တယ်! ✓ နောက်တစ်ခု ထပ်တိုးပါမယ်", "go");
+  later(() => { seq.push(randPad()); paint(); showSeq(); }, 1100);
+}
+function wrongPress(k) {
+  phase = "wait"; setPads(false); sfx.bad(); lives--;
+  const exp = pads[seq[pos]];
+  paint();
+  if (lives <= 0) { status("မှားသွားပါပြီ ✗ (ဖြစ်သင့်တာက " + exp.en + ")", "bad"); return later(finish, 1500); }
+  status("မှားသွားပါပြီ ✗ ဖြစ်သင့်တာက “" + exp.en + "” (" + exp.my + ") — ပြန်ကြည့်ပါ", "bad");
+  later(showSeq, 1900);
+}
+function finish() {
+  clearAll(); phase = "over"; setPads(false);
+  const stars = best >= GOAL ? 3 : best >= GOAL - 2 ? 2 : 1;
+  showResult({
+    title: best >= MAXLEN ? "အကုန်မှန်တယ်! 🏆" : stars === 3 ? "မှတ်ဉာဏ်ကောင်းတယ်! 🎉" : stars === 2 ? "ကောင်းပါတယ်! 👍" : "ထပ်ကြိုးစားကြည့်ပါ 💪",
+    stars, text: "အရှည်ဆုံး " + best + " ခု မှန်အောင် မှတ်မိတယ်", onAgain: play
+  });
+}
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= PADS) press(n - 1);
+});
+play.gameId = "simon";
+play();
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listening Challenge</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.lq-head { display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 800; }
+.lq-head .ic { font-size: 2rem; line-height: 1; }
+.lq-play { width: 100%; min-height: 64px; margin: 12px 0 6px; font-size: 1.2rem; }
+.lq-wave { display: flex; justify-content: center; align-items: flex-end; gap: 4px; height: 26px; margin: 6px 0; }
+.lq-wave i { width: 6px; height: 6px; border-radius: 3px; background: var(--accent); opacity: .35; }
+.lq-wave.on i { opacity: 1; animation: lqw .8s ease-in-out infinite; }
+.lq-wave.on i:nth-child(2) { animation-delay: .1s; } .lq-wave.on i:nth-child(3) { animation-delay: .2s; }
+.lq-wave.on i:nth-child(4) { animation-delay: .3s; } .lq-wave.on i:nth-child(5) { animation-delay: .4s; }
+@keyframes lqw { 0%, 100% { height: 6px; } 50% { height: 24px; } }
+@media (prefers-reduced-motion: reduce) { .lq-wave.on i { animation: none; height: 16px; } }
+.lq-note { font-size: .9rem; color: var(--muted); min-height: 1.6em; }
+.lq-note.warn { color: var(--warn); font-weight: 700; }
+.lq-text { text-align: left; border: 2px dashed var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 12px; line-height: 1.8; background: var(--bg); }
+.lq-text mark { background: color-mix(in srgb, var(--star) 45%, transparent); color: inherit; border-radius: 4px; padding: 0 2px; }
+.lq-link { background: none; border: 0; color: var(--muted); font: inherit; font-size: .9rem; text-decoration: underline; cursor: pointer; min-height: 44px; }
+.lq-q { margin-top: 16px; border-top: 2px solid var(--line); padding-top: 14px; }
+.lq-qt { font-size: clamp(1.1rem, 4.6vw, 1.4rem); font-weight: 800; line-height: 1.5; margin-bottom: 4px; }
+.lq-q .opts { grid-template-columns: 1fr; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Each passage: kind, icon, text, 3 questions {q, a, w:[3 wrong], ev (evidence quoted from text), e (Burmese explanation)}
+const PASSAGES = [
+  { icon: "📢", kind: "Station announcement", my: "ဘူတာ ကြေညာချက်",
+    text: "Attention, passengers. The 9:40 train to Mandalay has been delayed by thirty minutes because of heavy rain near the river. It will now leave from platform five instead of platform two. Passengers who have already bought tickets can wait in the café, where hot drinks are half price this morning. We apologise for any inconvenience.",
+    qs: [
+      { q: "What time will the train leave now?", a: "At 10:10", w: ["At 9:10", "At 10:40", "At 9:40"], ev: "delayed by thirty minutes", e: "9:40 ကနေ ၃၀ မိနစ် နောက်ကျတာမို့ 10:10 ထွက်မယ်။" },
+      { q: "Which platform will the train use?", a: "Platform five", w: ["Platform two", "Platform three", "Platform nine"], ev: "platform five instead of platform two", e: "platform two အစား platform five ကို ပြောင်းထားတယ်။" },
+      { q: "What is cheaper than usual this morning?", a: "Hot drinks", w: ["Train tickets", "Newspapers", "Sandwiches"], ev: "hot drinks are half price", e: "café မှာ hot drinks တွေက တစ်ဝက်ဈေးပါ။" }
+    ] },
+  { icon: "📱", kind: "Voicemail", my: "အသံမက်ဆေ့ခ်ျ",
+    text: "Hi Daniel, it's Laura from the dental clinic. I'm calling about your appointment on Thursday. Unfortunately, the dentist is ill, so we need to move it to Friday at 2 p.m. If that doesn't suit you, please call us back before five o'clock today. Otherwise, we'll see you on Friday. Thanks, and have a nice day!",
+    qs: [
+      { q: "Why is Laura calling Daniel?", a: "To move his appointment to another day", w: ["To remind him about Thursday's appointment", "To ask him to pay a bill", "To offer him a free check-up"], ev: "we need to move it to Friday at 2 p.m.", e: "ဒန်တစ်ဆရာဝန် နေမကောင်းလို့ ချိန်းဆိုမှုကို ရွှေ့ဖို့ ဖုန်းဆက်တာပါ။" },
+      { q: "When is the new appointment?", a: "Friday at 2 p.m.", w: ["Thursday at 2 p.m.", "Friday at 5 p.m.", "Thursday at 5 p.m."], ev: "Friday at 2 p.m.", e: "အသစ်က Friday ညနေ ၂ နာရီ။ ၅ နာရီက ပြန်ဆက်ရမယ့် နောက်ဆုံးအချိန်ပါ။" },
+      { q: "What should Daniel do if Friday does not suit him?", a: "Call the clinic before five o'clock today", w: ["Come on Thursday anyway", "Send an email tomorrow", "Wait for another message"], ev: "please call us back before five o'clock today", e: "မအဆင်ပြေရင် ဒီနေ့ ၅ နာရီမတိုင်ခင် ပြန်ဖုန်းဆက်ရမယ်။" }
+    ] },
+  { icon: "📰", kind: "Mini news", my: "သတင်းတို",
+    text: "A small town in the north of England has banned plastic bags in all its shops. The mayor says the change will protect the river, which is full of rubbish. Shoppers must now bring their own bags or buy paper ones for ten pence. Some shop owners are worried about losing customers, but most residents support the idea.",
+    qs: [
+      { q: "What has the town done?", a: "It has banned plastic bags in shops", w: ["It has made all shopping bags free", "It has banned paper bags", "It has closed some shops near the river"], ev: "banned plastic bags in all its shops", e: "ဆိုင်အားလုံးမှာ plastic bag တွေကို ပိတ်ပင်လိုက်တာပါ။" },
+      { q: "Why does the mayor support the ban?", a: "To protect the river", w: ["To get more tourists", "To help shops earn more money", "To make paper cheaper"], ev: "will protect the river", e: "မြစ်ထဲမှာ အမှိုက်ပြည့်နေလို့ မြစ်ကို ကာကွယ်ချင်တာပါ။" },
+      { q: "How do most residents feel about the ban?", a: "They support it", w: ["They are worried about losing customers", "They are angry about paper bags", "They have not heard about it"], ev: "most residents support the idea", e: "ဆိုင်ရှင်အချို့ပဲ စိုးရိမ်တယ်၊ ပြည်သူအများစုက ထောက်ခံတယ်။" }
+    ] },
+  { icon: "🛜", kind: "Instructions", my: "အသုံးပြုနည်း",
+    text: "To set up your new router, first plug it into the wall and wait for the green light. Next, connect your laptop to the network named on the back of the box. Open a web browser and enter the password printed under the name. Finally, change the password to something personal. Do not restart the router until the light stops flashing.",
+    qs: [
+      { q: "What should you do first?", a: "Plug it in and wait for the green light", w: ["Connect your laptop to the network", "Change the password", "Open a web browser"], ev: "first plug it into the wall and wait for the green light", e: "ပထမဆုံး ဓာတ်အားထိုးပြီး အစိမ်းရောင်မီးကို စောင့်ရမယ်။" },
+      { q: "Where can you find the first password?", a: "Printed under the network name on the box", w: ["In an email from the shop", "On a sticker inside the wall socket", "In the browser's settings"], ev: "the password printed under the name", e: "box ပေါ်က network အမည်အောက်မှာ ပရင့်ထုတ်ထားတယ်။" },
+      { q: "When may you restart the router?", a: "Only after the light stops flashing", w: ["As soon as it is plugged in", "Right after you change the password", "Before you connect the laptop"], ev: "until the light stops flashing", e: "မီးလင်းလင်းမှိတ်မှိတ် မဖြစ်တော့မှ restart လုပ်ရမယ်။" }
+    ] },
+  { icon: "🏰", kind: "Tour guide", my: "ခရီးသွား လမ်းညွှန်",
+    text: "Welcome to the old castle. Please stay with the group at all times and don't touch the paintings. The tour takes about ninety minutes, and there will be a ten-minute break in the garden. Photos are allowed in the main hall, but not in the library because the books are very old. The gift shop closes at four o'clock, so please buy any souvenirs before then.",
+    qs: [
+      { q: "Where are photos not allowed?", a: "In the library", w: ["In the main hall", "In the garden", "In the gift shop"], ev: "but not in the library", e: "main hall မှာ ရိုက်လို့ရတယ်၊ library မှာ မရဘူး (စာအုပ်တွေ အရမ်းဟောင်းလို့)။" },
+      { q: "How long is the break?", a: "Ten minutes", w: ["Ninety minutes", "Five minutes", "Half an hour"], ev: "a ten-minute break in the garden", e: "ဥယျာဉ်မှာ ၁၀ မိနစ် နားမယ်၊ ၉၀ မိနစ်က tour တစ်ခုလုံးပါ။" },
+      { q: "Why should visitors buy souvenirs before four o'clock?", a: "Because the gift shop closes then", w: ["Because the garden closes then", "Because souvenirs are half price after four", "Because the guide leaves at four"], ev: "The gift shop closes at four o'clock", e: "လက်ဆောင်ဆိုင်က ၄ နာရီမှာ ပိတ်လို့ပါ။" }
+    ] },
+  { icon: "🏫", kind: "School notice", my: "ကျောင်း အသိပေးချက်",
+    text: "This is a message for all students. Because of the sports festival on Saturday, there will be no classes on Friday afternoon. Students who want to take part must give their names to Mr Brown by Wednesday. Remember to bring a water bottle and wear comfortable shoes. Parents are welcome to watch, and refreshments will be sold by the student council.",
+    qs: [
+      { q: "When will there be no classes?", a: "On Friday afternoon", w: ["On Saturday morning", "On Wednesday", "On Friday morning"], ev: "no classes on Friday afternoon", e: "စနေနေ့ပွဲတော်ကြောင့် ကြာသပတေးမဟုတ်ဘဲ သောကြာနေ့ နေ့လည်ပိုင်း အတန်းမရှိဘူး။" },
+      { q: "Who should students give their names to?", a: "Mr Brown", w: ["The student council", "Their parents", "The school nurse"], ev: "give their names to Mr Brown by Wednesday", e: "ပါဝင်မယ့်သူတွေက Mr Brown ကို ဗုဒ္ဓဟူးနေ့မတိုင်ခင် နာမည်ပေးရမယ်။" },
+      { q: "What will the student council do?", a: "Sell refreshments", w: ["Collect the students' names", "Bring water bottles for everyone", "Take photos of the event"], ev: "refreshments will be sold by the student council", e: "စားသောက်ဖွယ်တွေကို student council က ရောင်းမယ်။" }
+    ] },
+  { icon: "🌦️", kind: "Weather forecast", my: "မိုးလေဝသ ခန့်မှန်းချက်",
+    text: "Good evening. Tomorrow will start cold and foggy in most areas, with temperatures around two degrees. By midday, the fog will clear and the sun will come out, though it will stay chilly. In the evening, strong winds are expected along the coast, and there is a chance of rain late at night. If you are driving in the morning, please take extra care.",
+    qs: [
+      { q: "What will the morning be like?", a: "Cold and foggy", w: ["Warm and sunny", "Windy and rainy", "Cold and snowy"], ev: "start cold and foggy", e: "မနက်ပိုင်း အေးပြီး မြူတွေ ဆိုင်းမယ်။" },
+      { q: "What will the weather be like at midday?", a: "Sunny but chilly", w: ["Foggy and cold", "Warm and dry", "Rainy and windy"], ev: "the fog will clear and the sun will come out, though it will stay chilly", e: "နေ့လည်မှာ မြူကွယ်ပြီး နေထွက်မယ်၊ ဒါပေမဲ့ အေးနေဦးမယ်။" },
+      { q: "Where will it be windy in the evening?", a: "Along the coast", w: ["In the mountains", "In all areas", "In the city centres"], ev: "strong winds are expected along the coast", e: "ညနေမှာ ကမ်းခြေတစ်လျှောက် လေပြင်းမယ်။" }
+    ] },
+  { icon: "🥖", kind: "Personal story", my: "ကိုယ်တွေ့ ပြောပြချက်",
+    text: "I used to work in a bank, but last year I decided to change my life. I saved some money, left my job, and opened a small bakery with my sister. At first it was very hard because we only sold ten loaves a day. Now we sell over two hundred, and people come from other towns. I miss the salary, but I don't miss the stress.",
+    qs: [
+      { q: "What did the speaker do before opening the bakery?", a: "Worked in a bank", w: ["Studied cooking abroad", "Worked in a hospital", "Taught at a school"], ev: "I used to work in a bank", e: "ဘဏ်မှာ အလုပ်လုပ်ခဲ့ဖူးတယ် (used to work)။" },
+      { q: "How does the speaker feel about the change?", a: "Happier, although they miss the salary", w: ["Sorry they left the bank", "They miss the stress of the bank", "They plan to go back to the bank next year"], ev: "I miss the salary, but I don't miss the stress", e: "လစာကို လွမ်းပေမဲ့ စိတ်ဖိစီးမှုကိုတော့ မလွမ်းဘူး၊ အလုပ်ပြောင်းတာ ကျေနပ်တယ်။" },
+      { q: "How many loaves does the bakery sell now?", a: "More than two hundred a day", w: ["Ten a day", "About twenty a day", "Two thousand a day"], ev: "Now we sell over two hundred", e: "အစပိုင်း ၁၀ ခုပဲ ရောင်းခဲ့တာ၊ အခု ၂၀၀ ကျော်ရောင်းတယ်။" }
+    ] }
+];
+const LV = getLevel(), topic = getTopic();
+const REPLAYS = { 1: 5, 2: 4, 3: 3, 4: 2 }[topic.level] || 2;   // replays after the first listen
+const PER_RUN = 2;
+renderBar("Listening Challenge · " + topic.name);
+$("#app").innerHTML =
+  '<div class="stats"><span>Passage: <b id="pn">1</b>/' + PER_RUN + '</span><span>Question: <b id="qn">0</b>/<span id="qt">3</span></span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="panel"><div class="lq-head"><span class="ic" id="ic"></span><span id="kind"></span></div>' +
+  '<button class="btn primary lq-play" id="play"></button>' +
+  '<div class="lq-wave" id="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>' +
+  '<div class="lq-note" id="note" aria-live="polite"></div>' +
+  '<button class="lq-link" id="peek" hidden>🙈 အသံ မကြားရရင် စာသားကြည့်မယ် (အမှတ် ထက်ဝက်)</button>' +
+  '<div class="lq-text" id="text" hidden></div>' +
+  '<div class="lq-q" id="qbox" hidden><div class="lq-qt" id="qtext"></div><div class="opts" id="opts"></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div>' +
+  '<div class="row"><button class="btn" id="tbtn" hidden>📄 Transcript</button><button class="btn primary" id="next" hidden>Next →</button></div></div></div>';
+
+let token = 0, half = false, run, pi, qi, left, score, correct, total, playing, textShown, answered, qs, started, estTimer, failTimer, heard;
+
+function voiceOK() { return "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined" && !Store.get("mute", false); }
+function stopSpeech() { token++; clearTimeout(estTimer); clearTimeout(failTimer); try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch (e) {} }
+function setWave(on) { $("#wave").classList.toggle("on", !!on); }
+
+function newGame() {
+  stopSpeech();
+  run = shuffle(PASSAGES).slice(0, PER_RUN); pi = 0; score = 0; correct = 0; total = 0;
+  startPassage();
+}
+function startPassage() {
+  stopSpeech();
+  const p = run[pi];
+  qs = shuffle(p.qs); qi = -1; left = REPLAYS; playing = false; textShown = false; half = false; heard = false; answered = false;
+  $("#pn").textContent = pi + 1; $("#qn").textContent = 0; $("#qt").textContent = qs.length; $("#score").textContent = score;
+  $("#ic").textContent = p.icon; $("#kind").textContent = p.kind + " · " + p.my;
+  $("#text").hidden = true; $("#text").textContent = "";
+  $("#qbox").hidden = true; $("#tbtn").hidden = true; $("#next").hidden = true;
+  $("#note").className = "lq-note"; setWave(false);
+  $("#peek").hidden = false;
+  paintPlay();
+  if (!voiceOK()) { revealText("sound"); return; }
+  $("#note").textContent = "အသံကို နားထောင်ပြီး မေးခွန်းတွေ ဖြေပါ။ စာသားကို ဖျောက်ထားပါတယ်။";
+}
+function paintPlay() {
+  const b = $("#play"), v = voiceOK();
+  b.hidden = textShown && !v;
+  if (playing) { b.disabled = true; b.textContent = "🔊 ဖတ်နေပါတယ်..."; return; }
+  if (textShown) { b.disabled = false; b.textContent = "🔊 ဖတ်ပြမယ်"; return; }
+  b.disabled = heard && left <= 0;
+  b.textContent = !heard ? "▶ နားထောင်မယ်" : left > 0 ? "🔁 ထပ်နားထောင်မယ် (ကျန် " + left + ")" : "ထပ်နားထောင်ခွင့် ကုန်ပါပြီ";
+}
+// Fallback: no usable speech (or the player asked), so the text is shown; the questions still work.
+function revealText(why) {
+  if (textShown) return;
+  stopSpeech(); playing = false; setWave(false); textShown = true; half = why === "manual"; heard = true;
+  $("#text").textContent = run[pi].text; $("#text").hidden = false;
+  $("#peek").hidden = true;
+  const n = $("#note"); n.className = "lq-note warn";
+  n.textContent = why === "manual" ? "စာသားကို ပြထားပါတယ်။ ဒီအပိုင်းမှာ မေးခွန်းတစ်ခုကို အမှတ်ထက်ဝက်ပဲ ရပါမယ်။"
+    : "⚠ ဒီစက်မှာ အသံ မဖွင့်နိုင်လို့ (သို့) အသံပိတ်ထားလို့ စာသားကို ပြထားပါတယ်။ ဖတ်ပြီး ဖြေပါ။";
+  paintPlay(); showQuestions();
+}
+function sentences(t) { return (t.match(/[^.!?]+[.!?]+/g) || [t]).map(s => s.trim()); }
+function playAudio() {
+  if (playing) return;
+  if (!voiceOK()) { revealText("sound"); return; }
+  if (!textShown && heard) { if (left <= 0) return; left--; }
+  const my = ++token, parts = sentences(run[pi].text);
+  playing = true; started = false; setWave(true); paintPlay();
+  try { speechSynthesis.cancel(); } catch (e) {}
+  parts.forEach((s, k) => {
+    const u = new SpeechSynthesisUtterance(s);
+    u.lang = "en-US"; u.rate = 0.9;
+    if (k === 0) u.onstart = () => { if (my === token) { started = true; clearTimeout(failTimer); } };
+    u.onerror = e => { if (my === token && !started && e && e.error !== "interrupted" && e.error !== "canceled") revealText("sound"); };
+    if (k === parts.length - 1) u.onend = () => done(my);
+    speechSynthesis.speak(u);
+  });
+  const words = run[pi].text.split(/\s+/).length;
+  clearTimeout(failTimer); clearTimeout(estTimer);
+  failTimer = setTimeout(() => { if (my === token && !started) revealText("sound"); }, 3500);
+  estTimer = setTimeout(() => done(my), (words / 2.0) * 1000 + 6000);   // safety net if onend never fires
+}
+function done(my) {
+  if (my !== token || !playing) return;
+  clearTimeout(estTimer); clearTimeout(failTimer);
+  playing = false; heard = true; setWave(false); paintPlay();
+  $("#peek").hidden = true;
+  if (!textShown) $("#note").textContent = left > 0 ? "မေးခွန်းတွေ ဖြေပါ။ လိုရင် ထပ်နားထောင်လို့ ရပါတယ်။" : "ထပ်နားထောင်ခွင့် မကျန်တော့ပါဘူး။ မေးခွန်းတွေ ဖြေပါ။";
+  showQuestions();
+}
+function showQuestions() {
+  if (qi >= 0) return;
+  $("#qbox").hidden = false; nextQ();
+}
+function nextQ() {
+  qi++; answered = false;
+  $("#qn").textContent = qi + 1;
+  const q = qs[qi];
+  $("#qtext").textContent = q.q;
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#next").hidden = true; $("#tbtn").hidden = true;
+  if (!textShown) { $("#text").hidden = true; $("#text").textContent = ""; }
+  const n = Math.min(4, LV.opts);
+  const opts = shuffle([q.a, ...shuffle(q.w).slice(0, n - 1)]);
+  const box = $("#opts"); box.innerHTML = "";
+  opts.forEach(t => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = t; b.onclick = () => choose(b, t === q.a);
+    box.appendChild(b);
+  });
+}
+function choose(btn, ok) {
+  if (answered) return;
+  answered = true;
+  const q = qs[qi], fb = $("#fb"), full = half ? 5 : 10;
+  total++;
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === q.a) b.classList.add("right"); });
+  if (ok) { correct++; score += full; addPoints(full); sfx.ok(); fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! +" + full; }
+  else { sfx.bad(); btn.classList.add("wrong"); fb.className = "fb no"; fb.textContent = "✗ မှားပါတယ်။"; }
+  fb.appendChild(document.createElement("br")); fb.appendChild(document.createTextNode(q.e));
+  $("#score").textContent = score;
+  $("#tbtn").hidden = false; $("#tbtn").textContent = "📄 Transcript";
+  $("#tbtn").onclick = () => showTranscript(q);
+  const nx = $("#next"); nx.hidden = false;
+  nx.textContent = qi < qs.length - 1 ? "Next →" : pi < run.length - 1 ? "နောက်ထပ် passage →" : "Finish";
+  nx.focus();
+}
+function showTranscript(q) {
+  const t = $("#text"), p = run[pi].text, i = p.indexOf(q.ev);
+  t.textContent = "";
+  if (i < 0) t.textContent = p;
+  else {
+    t.appendChild(document.createTextNode(p.slice(0, i)));
+    const m = document.createElement("mark"); m.textContent = q.ev; t.appendChild(m);
+    t.appendChild(document.createTextNode(p.slice(i + q.ev.length)));
+  }
+  t.hidden = false;
+}
+$("#play").onclick = playAudio;
+$("#peek").onclick = () => revealText("manual");
+$("#next").onclick = () => {
+  if (qi < qs.length - 1) { nextQ(); return; }
+  if (pi < run.length - 1) { pi++; startPassage(); return; }
+  stopSpeech();
+  const r = correct / Math.max(1, total);
+  showResult({
+    title: r >= 0.8 ? "နားထောင်ကောင်းတယ်! 🎧" : r >= 0.5 ? "ကောင်းပါတယ်! 👍" : "ထပ်ကြိုးစားကြည့်ပါ 💪",
+    stars: r >= 0.8 ? 3 : r >= 0.5 ? 2 : 1,
+    text: correct + " / " + total + " မှန်တယ် · " + score + " points",
+    onAgain: newGame
+  });
+};
+window.addEventListener("pagehide", stopSpeech);
+newGame.gameId = "listenq";
+newGame();
+</script>
+</body>
+</html>

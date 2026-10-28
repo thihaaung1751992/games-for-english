@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email Etiquette</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.em-card { background: var(--card); border: 2px solid var(--line); border-radius: 16px; overflow: hidden; text-align: left; }
+.em-head { padding: 10px 14px; border-bottom: 2px solid var(--line); background: color-mix(in srgb, var(--accent) 8%, var(--card)); font-size: .92rem; line-height: 1.6; }
+.em-head div { display: flex; gap: 8px; }
+.em-head b { min-width: 3.4em; color: var(--muted); font-weight: 700; }
+.em-head span { word-break: break-word; }
+.em-body { padding: 14px; font-size: 1rem; line-height: 2; white-space: pre-wrap; word-break: break-word; }
+.em-slot { font: inherit; display: inline-block; max-width: 100%; white-space: normal; min-height: 44px; padding: 4px 10px; margin: 2px 0; border-radius: 10px; border: 2px dashed var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--card)); color: var(--ink); cursor: pointer; text-align: left; line-height: 1.6; }
+.em-slot.cur { border-style: solid; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.em-slot.ok { border: 2px solid var(--good); background: color-mix(in srgb, var(--good) 15%, var(--card)); }
+.em-slot.no { border: 2px solid var(--warn); background: color-mix(in srgb, var(--warn) 18%, var(--card)); }
+.em-tag { font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); margin-right: 6px; }
+.em-sheet { position: sticky; bottom: 8px; margin-top: 12px; background: var(--card); border: 2px solid var(--accent); border-radius: 16px; padding: 12px; max-height: 58vh; overflow: auto; box-shadow: 0 6px 24px rgba(0,0,0,.25); z-index: 3; }
+.em-sheet h3 { margin: 0 0 4px; font-size: .95rem; }
+.em-sheet .opts { margin-top: 8px; }
+.em-sheet .opt { text-align: left; font-weight: 600; font-size: 1rem; line-height: 1.5; }
+.em-sheet .fb { min-height: 0; }
+.em-final { margin-top: 12px; border: 2px solid var(--good); border-radius: 16px; padding: 14px; background: color-mix(in srgb, var(--good) 8%, var(--card)); text-align: left; white-space: pre-wrap; line-height: 1.8; word-break: break-word; }
+.em-final h3 { margin: 0 0 6px; font-size: 1rem; white-space: normal; }
+.em-hint { color: var(--muted); font-size: .9rem; margin: 0 0 10px; }
+@media (prefers-reduced-motion: no-preference) { .em-sheet { animation: emup .25s ease-out; } }
+@keyframes emup { from { transform: translateY(14px); opacity: 0; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Each slot: k = kind, o = options (o[0] is the best phrase, the rest are wrong), why = Burmese reason.
+const MAILS = [
+  { title: "Job application", from: "Su Su Hlaing <susu@mail.com>", to: "Mr Daniel Brooks <hr@brightco.com>", subject: "Application for Marketing Assistant",
+    my: "အလုပ်လျှောက်တဲ့ အီးမေးလ် — တရားဝင်၊ ယဉ်ကျေး၊ အတိုချုပ်",
+    body: "{0}\n\n{1} I have three years of experience in digital marketing and I believe my skills match your requirements.\n\n{2}\n\n{3}\n\n{4}\nSu Su Hlaing",
+    slots: [
+      { k: "Greeting · နှုတ်ဆက်", o: ["Dear Mr Brooks,", "Hey Daniel!", "Yo hiring people,", "Hi, it's me again,"], why: "နာမည်သိရင် Dear Mr + surname နဲ့ စတာ အကောင်းဆုံး။ Hey / Yo က မိတ်ဆွေချင်း သုံးတာ။" },
+      { k: "Opening · ဖွင့်စာကြောင်း", o: ["I am writing to apply for the position of Marketing Assistant advertised on your website.", "So, I saw your job thing online and thought I'd try.", "I want your Marketing Assistant job.", "Just a quick note about that job, hope it's still open."], why: "I am writing to apply for ... = ရည်ရွယ်ချက်ကို ရှင်းရှင်းလင်းလင်း ယဉ်ကျေးစွာ ပြောတာ။ ကျန်တာတွေက ပေါ့ပေါ့ပါးပါး သို့မဟုတ် ရိုင်းတယ်။" },
+      { k: "Request · တောင်းဆိုချက်", o: ["I have attached my CV and would welcome the opportunity to discuss my application in an interview.", "Check my CV and tell me when to come.", "My CV is attached, so call me whenever, ok?", "I attached my CV, hope you like it!"], why: "would welcome the opportunity to ... = ဆက်သွယ်ချင်တဲ့ဆန္ဒကို တရားဝင်ယဉ်ကျေးစွာ ဖော်ပြတာ။" },
+      { k: "Closing · အဆုံးသတ်", o: ["Thank you for taking the time to consider my application.", "Thanks a lot, you're awesome!", "Please reply fast, I really need a job.", "Anyway, that's all from me."], why: "အချိန်ပေးစဉ်းစားပေးတဲ့အတွက် ကျေးဇူးတင်စကားက ရုံးသုံးအတွက် သင့်တော်ဆုံး။" },
+      { k: "Sign-off · ပိတ်စာ", o: ["Yours sincerely,", "Cheers,", "Bye for now!", "See ya,"], why: "Dear Mr Brooks လို့ နာမည်နဲ့ စရင် Yours sincerely နဲ့ ပိတ်တာ စံနှုန်း။" }
+    ] },
+  { title: "Reschedule a meeting", from: "Min Thu <minthu@company.com>", to: "Ms Claire Evans <claire@company.com>", subject: "Request to reschedule Thursday's meeting",
+    my: "အစည်းအဝေးရက်ပြောင်းဖို့ တောင်းဆိုတဲ့ အီးမေးလ်",
+    body: "{0}\n\n{1} I have an urgent client call at the same time and cannot attend.\n\n{2}\n\n{3}\n\n{4}\nMin Thu",
+    slots: [
+      { k: "Greeting · နှုတ်ဆက်", o: ["Dear Ms Evans,", "Hiya,", "Hey Claire!!", "Morning all,"], why: "တစ်ဦးတည်းကို တရားဝင်ရေးတာမို့ Dear Ms Evans က သင့်တော်တယ်။ Morning all က လူအများကို ခေါ်တာ။" },
+      { k: "Opening · ဖွင့်စာကြောင်း", o: ["I am afraid I will need to move our meeting on Thursday at 10 a.m.", "Bad news, I can't do Thursday.", "Sorry, but your meeting time is awful for me.", "I'm cancelling Thursday, deal with it."], why: "I am afraid ... = မကောင်းတဲ့သတင်းကို ယဉ်ကျေးစွာ စပြောတာ။ မလိုလားတဲ့ လေသံ မပါစေနဲ့။" },
+      { k: "Request · တောင်းဆိုချက်", o: ["Would it be possible to meet on Friday morning instead?", "Make it Friday.", "Friday works better, so be there.", "How about we just skip it?"], why: "Would it be possible to ...? = အမိန့်မပေးဘဲ ယဉ်ကျေးစွာ တောင်းဆိုတာ။" },
+      { k: "Apology · တောင်းပန်", o: ["I apologise for any inconvenience this may cause.", "Sorry, my bad, hope that's cool.", "It's not my fault, the client called.", "Don't be upset about it."], why: "I apologise for any inconvenience = ရုံးသုံးအတွက် စံတောင်းပန်စကား။" },
+      { k: "Sign-off · ပိတ်စာ", o: ["Kind regards,", "Laters,", "Thx,", "Take care xoxo"], why: "Kind regards က ရုံးသုံးအီးမေးလ်တွေမှာ လုံခြုံပြီး ယဉ်ကျေးတဲ့ ပိတ်စာ။" }
+    ] },
+  { title: "Complaint", from: "Aye Chan <ayechan@mail.com>", to: "Customer Service <support@homeshop.com>", subject: "Complaint about faulty blender (order 48213)",
+    my: "ပစ္စည်းပျက်စီးတာကို တိုင်ကြားတဲ့ အီးမေးလ် — စိတ်ဆိုးလည်း ယဉ်ကျေးရမယ်",
+    body: "{0}\n\n{1} It stopped working after only two days.\n\n{2}\n\n{3}\n\n{4}\nAye Chan",
+    slots: [
+      { k: "Greeting · နှုတ်ဆက်", o: ["Dear Sir or Madam,", "Hello mates,", "Oi, HomeShop!", "Hey there,"], why: "လက်ခံမယ့်သူရဲ့ နာမည်မသိရင် Dear Sir or Madam လို့ ရေးတာ စံ။" },
+      { k: "Opening · ဖွင့်စာကြောင်း", o: ["I am writing to complain about the blender I bought from your website on 3 March.", "Your blender is rubbish and I'm furious.", "Hey, so about that blender thing I got from you...", "I'd like to tell you how terrible your company is."], why: "ဘာအကြောင်း တိုင်တာလဲ ရှင်းရှင်းပြောပြီး၊ ဆဲတာ/စော်ကားတာ မလုပ်ဘဲ အချက်အလက်ပဲ ပြောပါ။" },
+      { k: "Request · တောင်းဆိုချက်", o: ["I would therefore like a full refund or a replacement.", "Give me my money back right now!", "You'd better fix this, or else.", "Just send me something new, whatever."], why: "would like ... = တောင်းဆိုချက်ကို ယဉ်ကျေးပေမယ့် ပြတ်ပြတ်သားသား ပြောတာ။ အမိန့်ပေးတာ၊ ခြိမ်းခြောက်တာ မလုပ်ပါနဲ့။" },
+      { k: "Deadline · အချိန်သတ်မှတ်", o: ["I would appreciate a reply within seven days.", "Reply immediately or I'll tell everyone online.", "Write back whenever you feel like it.", "I don't expect you to answer, but whatever."], why: "would appreciate a reply within ... = တိကျတဲ့အချိန်ကို ယဉ်ကျေးစွာ တောင်းတာ။ ခြိမ်းခြောက်ရင် ပြဿနာပိုကြီးတယ်။" },
+      { k: "Sign-off · ပိတ်စာ", o: ["Kind regards,", "Whatever,", "Bye.", "Hope you fix it, or else."], why: "စိတ်မကျေနပ်ရင်တောင် Kind regards လို ယဉ်ကျေးတဲ့ ပိတ်စာနဲ့ အဆုံးသတ်ပါ။" }
+    ] },
+  { title: "Thank-you after an interview", from: "Thandar <thandar@mail.com>", to: "Ms Helen Ward <helen.ward@northstar.com>", subject: "Thank you for the interview",
+    my: "အင်တာဗျူးပြီးနောက် ကျေးဇူးတင်စာ",
+    body: "{0}\n\n{1}\n\n{2}\n\n{3}\n\n{4}\nThandar",
+    slots: [
+      { k: "Greeting · နှုတ်ဆက်", o: ["Dear Ms Ward,", "Hi Helen!!!", "Hey boss,", "Heya,"], why: "အင်တာဗျူးလုပ်သူကို Dear Ms Ward လို့ ခေါ်တာ ရိုသေပြီး သင့်တော်တယ်။" },
+      { k: "Thanks · ကျေးဇူးတင်", o: ["Thank you very much for meeting me yesterday to discuss the Project Coordinator role.", "Thanks for the chat yesterday, it was fun.", "Cheers for yesterday, loved the free coffee.", "I just wanted to say thanks, I guess."], why: "ဘာအတွက်၊ ဘယ်အလုပ်နေရာအတွက် ကျေးဇူးတင်တာလဲ တိတိကျကျ ပြောတဲ့စာကြောင်းက အကောင်းဆုံး။" },
+      { k: "Interest · စိတ်ဝင်စားမှု", o: ["I was particularly interested to learn about your plans to expand the team, and I am confident that I could contribute to them.", "Your office is cool and I would love to hang out there.", "I really, really want this job so please pick me.", "Honestly, I'm not sure the job is for me but thanks."], why: "အလုပ်နဲ့ဆိုင်တဲ့ အကြောင်းအရာကို ဖော်ပြပြီး ကိုယ့်ကိုယ်ကိုယုံကြည်တာ ပြတာက သင့်တော်တယ်။" },
+      { k: "Closing · အဆုံးသတ်", o: ["Please let me know if you need any further information.", "Ping me if you want more stuff.", "Tell me ASAP if I got it.", "Anyway, you know where to find me."], why: "Please let me know if you need ... = အကူအညီပေးဖို့ အဆင်သင့်ဖြစ်ကြောင်း ယဉ်ကျေးစွာ ပြောတာ။" },
+      { k: "Sign-off · ပိတ်စာ", o: ["Best regards,", "Cheers!!", "Ta-ta,", "TTYL"], why: "Best regards က တရားဝင်လည်း၊ နွေးထွေးလည်း ဖြစ်တဲ့ ပိတ်စာ။" }
+    ] },
+  { title: "Following up a quotation", from: "Kyaw Zin <kyawzin@mail.com>", to: "Mr Paul Hughes <paul@printworks.com>", subject: "Following up: quotation request",
+    my: "ပြန်စာမရသေးတဲ့ ကိစ္စကို ပြန်မေးတဲ့ အီးမေးလ်",
+    body: "{0}\n\n{1}\n\n{2}\n\n{3}\n\n{4}\nKyaw Zin",
+    slots: [
+      { k: "Greeting · နှုတ်ဆက်", o: ["Dear Mr Hughes,", "Hello again!!", "Hey Paul, remember me?", "Paul,"], why: "ကုန်သည်/ထောက်ပံ့သူကို Dear Mr + surname နဲ့ စတာ သင့်တော်တယ်။ နာမည်ချည်းပဲ ခေါ်ရင် ရိုင်းတယ်။" },
+      { k: "Opening · ဖွင့်စာကြောင်း", o: ["I am writing to follow up on my email of 12 May regarding a quotation for 500 brochures.", "Did you get my last email? You never replied.", "Just chasing you again about that price thing.", "Why haven't you answered me yet?"], why: "follow up on my email of ... = ယခင်စာကို ကိုးကားပြီး ယဉ်ကျေးစွာ ပြန်မေးတာ။ အပြစ်တင်လေသံ မပါစေနဲ့။" },
+      { k: "Request · တောင်းဆိုချက်", o: ["Could you please let me know when I can expect your quotation?", "Send the price now.", "Hit me back when you're free, no rush, lol.", "I'll find another printer if you can't be bothered."], why: "Could you please let me know when ...? = အချိန်ကို ယဉ်ကျေးစွာမေးတာ။ ခြိမ်းခြောက်တာ၊ lol လိုစကားတွေ မသုံးပါနဲ့။" },
+      { k: "Offer · ကူညီဖို့", o: ["If you need any further details from me, please do not hesitate to ask.", "If you're too busy, just say so.", "Tell me what you need, I don't have all day.", "Not sure why this is so hard, to be honest."], why: "please do not hesitate to ask = လိုအပ်ရင် မေးနိုင်ကြောင်း ယဉ်ကျေးစွာ ဖိတ်ခေါ်တာ။" },
+      { k: "Sign-off · ပိတ်စာ", o: ["Kind regards,", "Cheerio,", "Thanks, bye", "Peace out,"], why: "Kind regards က အလုပ်ကိစ္စအီးမေးလ်အတွက် စံ ပိတ်စာ။" }
+    ] },
+  { title: "Resignation", from: "Hnin Wai <hninwai@mail.com>", to: "Mr Andrew Clarke <andrew.clarke@sunrise.com>", subject: "Resignation – Hnin Wai",
+    my: "အလုပ်ထွက်ကြောင်း အကြောင်းကြားတဲ့ အီးမေးလ် — ဆက်ဆံရေးကောင်းအောင် ထိန်းပါ",
+    body: "{0}\n\n{1}\n\n{2}\n\n{3}\n\n{4}\n\n{5}\nHnin Wai",
+    slots: [
+      { k: "Greeting · နှုတ်ဆက်", o: ["Dear Mr Clarke,", "Hey Andy,", "Hi boss man,", "Andrew!!"], why: "အထက်လူကြီးကို Dear Mr Clarke လို့ ရေးတာ သင့်တော်တယ်။" },
+      { k: "Opening · ဖွင့်စာကြောင်း", o: ["Please accept this letter as formal notice of my resignation from the position of Sales Executive.", "I quit.", "So, I've decided this job isn't for me anymore.", "Just letting you know I'm out of here."], why: "formal notice of my resignation = အလုပ်ထွက်ကြောင်း တရားဝင် အကြောင်းကြားစာ ပုံစံ။" },
+      { k: "Notice · နောက်ဆုံးရက်", o: ["My last working day will be 30 June, in line with my one-month notice period.", "I'll leave when I feel like it.", "You can find someone else, it's not my problem.", "My last day is whenever, I haven't decided."], why: "notice period အတိုင်း ရက်စွဲတိတိကျကျ ပြောတာက တာဝန်ယူတတ်ကြောင်း ပြတယ်။" },
+      { k: "Thanks · ကျေးဇူးတင်", o: ["I would like to thank you for the opportunities and support I have received during my time here.", "Thanks for nothing, it was a long four years.", "It was OK, I guess, but I have a better offer.", "Thanks for everything, you guys were awesome, love you all!"], why: "စိတ်မကျေနပ်ရင်တောင် ကျေးဇူးတင်စကား ယဉ်ကျေးစွာ ပြောပါ။ နောင်ကိုးကားစာ (reference) လိုနိုင်တယ်။" },
+      { k: "Offer · လွှဲပြောင်းမှု", o: ["I will do everything I can to ensure a smooth handover of my duties.", "Good luck replacing me, lol.", "Don't call me about work after my last day.", "Handover? Not my job."], why: "smooth handover = တာဝန်တွေကို အဆင်ပြေပြေ လွှဲပေးမယ်လို့ ကတိပေးတာ။" },
+      { k: "Sign-off · ပိတ်စာ", o: ["Yours sincerely,", "See ya,", "Peace,", "Later,"], why: "Dear Mr Clarke နဲ့ စထားရင် Yours sincerely နဲ့ ပိတ်တာ စံ။" }
+    ] }
+];
+
+let M, state, lists, cur, right;
+renderBar("Email Etiquette · " + getTopic().name);
+$("#app").innerHTML =
+  '<div class="stats"><span>Slots: <b id="done">0</b>/<span id="total"></span></span><span>Correct: <b id="ok">0</b></span></div>' +
+  '<p class="em-hint" id="mymsg"></p><div class="em-card"><div class="em-head" id="head"></div><div class="em-body" id="body"></div></div>' +
+  '<div id="below"></div>';
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function play() {
+  const last = Store.get("em_last", -1);
+  let k; do { k = Math.floor(Math.random() * MAILS.length); } while (k === last && MAILS.length > 1);
+  Store.set("em_last", k);
+  M = MAILS[k]; state = M.slots.map(() => null); lists = M.slots.map(() => null); cur = null; right = 0;
+  $("#total").textContent = M.slots.length;
+  $("#mymsg").textContent = "📧 " + M.my + " — အဝါရောင်ကွက်တွေကို နှိပ်ပြီး အသင့်တော်ဆုံး စကားစုကို ရွေးပါ";
+  $("#head").innerHTML = "<div><b>From</b><span>" + esc(M.from) + "</span></div><div><b>To</b><span>" + esc(M.to) + "</span></div><div><b>Subject</b><span><strong>" + esc(M.subject) + "</strong></span></div>";
+  $("#below").innerHTML = "";
+  draw();
+  openSlot(0);
+}
+function draw() {
+  const body = $("#body"); body.innerHTML = "";
+  M.body.split(/(\{\d+\})/).forEach(part => {
+    const m = /^\{(\d+)\}$/.exec(part);
+    if (!m) { body.appendChild(document.createTextNode(part)); return; }
+    const n = +m[1], s = M.slots[n], st = state[n];
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "em-slot" + (st ? (st.ok ? " ok" : " no") : "") + (cur === n ? " cur" : "");
+    b.innerHTML = '<span class="em-tag">' + esc(s.k.split(" · ")[0]) + "</span>" + (st ? esc(s.o[0]) : "▾ ရွေးရန်");
+    b.setAttribute("aria-label", s.k + (st ? "" : " – tap to choose"));
+    b.onclick = () => openSlot(n);
+    body.appendChild(b);
+  });
+  const nd = state.filter(Boolean).length;
+  $("#done").textContent = nd; $("#ok").textContent = right;
+}
+function nextOpen(from) {
+  for (let i = 1; i <= M.slots.length; i++) { const n = (from + i) % M.slots.length; if (!state[n]) return n; }
+  return -1;
+}
+function openSlot(n) {
+  cur = n; draw();
+  const s = M.slots[n], st = state[n], below = $("#below");
+  below.innerHTML = "";
+  const sh = document.createElement("div");
+  sh.className = "em-sheet"; sh.setAttribute("role", "group"); sh.setAttribute("aria-label", "Choose a phrase");
+  sh.innerHTML = '<h3></h3><div class="opts"></div><div class="fb" aria-live="polite"></div>';
+  $("h3", sh).textContent = (n + 1) + "/" + M.slots.length + " · " + s.k + " — အသင့်တော်ဆုံးကို ရွေးပါ";
+  const box = $(".opts", sh);
+  if (!lists[n]) lists[n] = shuffle([s.o[0]].concat(shuffle(s.o.slice(1)).slice(0, Math.max(1, getLevel().opts - 1))));
+  const list = lists[n];
+  list.forEach(t => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "opt"; b.textContent = t;
+    if (st) { b.disabled = true; if (t === s.o[0]) b.classList.add("right"); if (st.pick === t && !st.ok) b.classList.add("wrong"); }
+    b.onclick = () => pick(n, t, sh);
+    box.appendChild(b);
+  });
+  if (st) explain(sh, n);
+  below.appendChild(sh);
+  const first = $(".opt:not(:disabled)", sh); if (first) first.focus({ preventScroll: true });
+}
+function explain(sh, n) {
+  const s = M.slots[n], st = state[n], fb = $(".fb", sh);
+  fb.className = "fb " + (st.ok ? "ok" : "no");
+  fb.textContent = (st.ok ? "✓ မှန်ပါတယ်! " : "✗ အသင့်တော်ဆုံးက: “" + s.o[0] + "” — ") + s.why;
+  const nx = nextOpen(n), btn = document.createElement("button");
+  btn.type = "button"; btn.className = "btn primary"; btn.style.marginTop = "10px";
+  if (nx >= 0) { btn.textContent = "Next slot →"; btn.onclick = () => { openSlot(nx); scrollToSlot(nx); }; }
+  else { btn.textContent = "✨ ပြီးပြည့်စုံတဲ့ email ကြည့်မယ်"; btn.onclick = finalMail; }
+  sh.appendChild(btn); btn.focus({ preventScroll: true });
+}
+function scrollToSlot(n) {
+  const el = document.querySelectorAll(".em-slot")[n];
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: "center", behavior: "smooth" });
+}
+function pick(n, t, sh) {
+  if (state[n]) return;
+  const ok = t === M.slots[n].o[0];
+  state[n] = { ok, pick: t };
+  if (ok) { right++; addPoints(10); sfx.ok(); } else sfx.bad();
+  [...$(".opts", sh).children].forEach(b => { b.disabled = true; if (b.textContent === M.slots[n].o[0]) b.classList.add("right"); if (b.textContent === t && !ok) b.classList.add("wrong"); });
+  draw(); explain(sh, n);
+}
+function finalMail() {
+  const below = $("#below"); below.innerHTML = "";
+  let txt = M.body;
+  M.slots.forEach((s, i) => { txt = txt.replace("{" + i + "}", s.o[0]); });
+  const box = document.createElement("div");
+  box.className = "em-final";
+  box.innerHTML = "<h3>✨ Polished email — " + right + "/" + M.slots.length + " slots</h3>";
+  box.appendChild(document.createTextNode("Subject: " + M.subject + "\n\n" + txt));
+  const row = document.createElement("div"); row.className = "row";
+  const say = document.createElement("button"); say.type = "button"; say.className = "btn"; say.textContent = "🔊 Listen";
+  say.onclick = () => speak(txt.replace(/\n+/g, ". "));
+  const send = document.createElement("button"); send.type = "button"; send.className = "btn primary"; send.textContent = "📨 Send";
+  send.onclick = () => {
+    const r = right / M.slots.length;
+    showResult({ title: cheer(r), stars: starsFor(r), text: right + " / " + M.slots.length + " slots မှန်တယ် · " + M.title, onAgain: play });
+  };
+  row.appendChild(say); row.appendChild(send); box.appendChild(row);
+  below.appendChild(box); send.focus({ preventScroll: true });
+  if (box.scrollIntoView) box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+play.gameId = "emailfix";
+play();
+</script>
+</body>
+</html>

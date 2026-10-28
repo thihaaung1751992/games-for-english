@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phrasal Verbs</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.opt { line-height: 1.5; }
+.q-text { word-break: break-word; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [phrasal verb, particle(s) to fill, formal verb (or ""), meaning, Burmese, example with ____ for the particle(s), group of similar meanings]
+const PV = [
+  ["give up", "up", "quit", "stop trying or stop doing something", "လက်လျှော့တယ်/ရပ်လိုက်တယ်", "Don't give ____ — you are almost there!", "quit"],
+  ["take off", "off", "remove", "remove clothes or shoes", "ချွတ်တယ်", "Please take ____ your shoes before you come in."],
+  ["turn down", "down", "reject", "refuse an offer or request", "ငြင်းပယ်တယ်", "She turned ____ the job because the salary was too low."],
+  ["carry on", "on", "continue", "continue doing something", "ဆက်လုပ်တယ်", "Please carry ____ with your work while I am away."],
+  ["run out of", "out of", "", "have no more of something left", "ကုန်သွားတယ်", "We have run ____ milk, so I'll go to the shop.", "finish"],
+  ["get along with", "along with", "", "have a good relationship with someone", "တည့်တယ်၊ အဆင်ပြေတယ်", "I get ____ all my colleagues."],
+  ["set up", "up", "establish", "start a business or an organisation", "တည်ထောင်တယ်", "They set ____ a small online shop last year."],
+  ["bring up", "up", "raise", "look after a child until he or she grows up", "ကျွေးမွေးပြုစုပျိုးထောင်တယ်", "She was brought ____ by her grandparents.", "care"],
+  ["look forward to", "forward to", "anticipate", "feel happy about something that will happen", "စောင့်မျှော်တယ်", "I'm looking ____ meeting you next week."],
+  ["put up with", "up with", "tolerate", "accept something annoying without complaining", "သည်းခံတယ်", "I can't put ____ this noise any longer."],
+  ["look after", "after", "care for", "take care of someone or something", "ဂရုစိုက်ကြည့်ရှုတယ်", "Can you look ____ my cat while I'm away?", "care"],
+  ["find out", "out", "discover", "learn a fact or piece of information", "စုံစမ်းသိရှိတယ်", "I'll call the school to find ____ what time it starts.", "inquiry"],
+  ["come up with", "up with", "devise", "think of an idea or a plan", "စဉ်းစားပြီး ထွက်ပေါ်လာအောင် လုပ်တယ်", "She came ____ a brilliant idea for the party.", "idea"],
+  ["break down", "down", "malfunction", "stop working (a machine or vehicle)", "ပျက်သွားတယ်", "Our car broke ____ on the motorway."],
+  ["call off", "off", "cancel", "cancel an event or plan", "ဖျက်သိမ်းတယ်", "They called ____ the match because of the storm."],
+  ["put off", "off", "postpone", "delay something until a later time", "ရွှေ့ဆိုင်းတယ်", "Don't put ____ until tomorrow what you can do today."],
+  ["turn up", "up", "arrive", "arrive or appear, often without warning", "ရောက်လာတယ်", "Half of the guests didn't turn ____ at the party."],
+  ["figure out", "out", "solve", "understand or solve something by thinking", "စဉ်းစားပြီး နားလည်/ဖြေရှင်းတယ်", "I can't figure ____ how to open this file.", "inquiry"],
+  ["point out", "out", "indicate", "show or mention a fact", "ထောက်ပြတယ်", "He pointed ____ that the report had two mistakes."],
+  ["fill in", "in", "complete", "write the answers or details on a form", "ဖောင်ဖြည့်တယ်", "Please fill ____ this form in capital letters."],
+  ["hand in", "in", "submit", "give work to a teacher or a boss", "ပေးအပ်တယ်", "You must hand ____ your essay by Friday."],
+  ["look into", "into", "investigate", "try to find out the facts about something", "စုံစမ်းစစ်ဆေးတယ်", "The police are looking ____ the robbery.", "inquiry"],
+  ["deal with", "with", "handle", "take action to solve a problem", "ကိုင်တွယ်ဖြေရှင်းတယ်", "How do you deal ____ stress at work?", "inquiry"],
+  ["cut down on", "down on", "reduce", "use or do less of something", "လျှော့တယ်", "The doctor told him to cut ____ sugar."],
+  ["get over", "over", "recover from", "become well or happy again after an illness or a shock", "ပြန်လည်ကောင်းမွန်တယ်", "It took her months to get ____ the flu."],
+  ["look up to", "up to", "admire", "respect and admire someone", "လေးစားချီးကျူးတယ်", "Children often look ____ their parents.", "attitude"],
+  ["look down on", "down on", "despise", "think that you are better than someone", "အထင်သေးတယ်", "She never looks ____ people who earn less than her.", "attitude"],
+  ["make up", "up", "invent", "invent a story or an excuse", "ဖန်တီးပြီး ပြောတယ်", "He made ____ an excuse for being late.", "idea"],
+  ["pick up", "up", "collect", "go and get someone or something", "သွားခေါ်တယ်/သွားယူတယ်", "I'll pick you ____ from the airport at six."],
+  ["run into", "into", "encounter", "meet someone by chance", "မမျှော်လင့်ဘဲ တွေ့တယ်", "I ran ____ my old teacher at the supermarket."],
+  ["show off", "off", "boast", "try to impress people with what you have or can do", "ကြွားတယ်", "He likes to show ____ his new phone."],
+  ["stand for", "for", "represent", "be the short form of something", "အတိုကောက်ဖြစ်တယ်၊ ကိုယ်စားပြုတယ်", "What does UNESCO stand ____?"],
+  ["take part in", "part in", "participate", "join an activity or event", "ပါဝင်တယ်", "She decided to take ____ the singing competition."],
+  ["turn into", "into", "transform", "change and become something else", "ပြောင်းလဲသွားတယ်", "The caterpillar turned ____ a butterfly."],
+  ["use up", "up", "consume", "use all of something so that none is left", "အကုန်သုံးလိုက်တယ်", "Who used ____ all the milk?", "finish"],
+  ["sum up", "up", "summarise", "give the main points in a short way", "အကျဉ်းချုပ်တယ်", "To sum ____, the project was a success."],
+  ["bring about", "about", "cause", "make something happen", "ဖြစ်ပေါ်စေတယ်", "New technology has brought ____ big changes."],
+  ["carry out", "out", "conduct", "do or complete a task or an experiment", "ဆောင်ရွက်တယ်/ပြုလုပ်တယ်", "Scientists carried ____ an experiment on the new drug.", "inquiry"],
+  ["give in", "in", "surrender", "stop resisting and agree", "လက်ခံအညံ့ခံတယ်", "The boy finally gave ____ and let her have the toy.", "quit"],
+  ["drop out", "out", "withdraw", "leave school or a course before finishing it", "ကျောင်း/သင်တန်း ထွက်တယ်", "He dropped ____ of university after one year.", "quit"],
+  ["go through", "through", "undergo", "experience something difficult", "ဒုက္ခကြုံတွေ့ခံစားတယ်", "She has gone ____ a lot since her accident."],
+  ["hold on", "on", "wait", "wait for a short time", "ခဏစောင့်တယ်", "Hold ____ a moment, I'll check the schedule."],
+  ["let down", "down", "disappoint", "fail to do what someone hoped you would do", "စိတ်ပျက်စေတယ်", "I promised to help, so I can't let her ____."],
+  ["sort out", "out", "resolve", "solve a problem or arrange something", "ဖြေရှင်းစီစဉ်တယ်", "We need to sort ____ this misunderstanding.", "inquiry"],
+  ["break up", "up", "", "end a relationship", "ကွဲကွာတယ်", "They broke ____ after three years together."],
+  ["get away with", "away with", "", "escape punishment for doing something wrong", "အပြစ်ဒဏ်ကနေ လွတ်မြောက်တယ်", "You can't cheat in the exam and get ____ it."],
+  ["end up", "up", "", "finally be in a place or situation", "နောက်ဆုံးမှာ ရောက်သွားတယ်", "If you don't study, you'll end ____ without a job."],
+  ["catch up with", "up with", "", "reach the same level or position as others", "မီအောင် လိုက်တယ်", "I missed a week of class, so I must catch ____ the others."]
+].map(a => ({ pv: a[0], p: a[1], f: a[2], m: a[3], my: a[4], ex: a[5], g: a[6] || a[0], v: a[0].split(" ")[0] }));
+
+// Particles that already make a real phrasal verb with the verb, so they are never used as wrong options.
+const VALID = {
+  give: "up in away out back off over", take: "off on up out in over down back after away apart", turn: "down up off on out in over into away around back about",
+  carry: "on out off over through away forward", run: "out into up over down away off through across", look: "up down after into out over through forward around back on in away about",
+  get: "along over away up on off out in down back through around by across about", put: "off up on out down in away back through over across around",
+  find: "out", come: "up out in on down off over back across through around about", break: "down up out in off away through",
+  call: "off up out on in back down over", figure: "out", point: "out", fill: "in up out", hand: "in out over down on around", deal: "with in",
+  cut: "down off out up in back", make: "up out off for", pick: "up out on off", show: "off up", stand: "for out up by down on in over back around away",
+  use: "up", sum: "up", bring: "about up back out down in on off", hold: "on up off out back over down", let: "down in out off on go up back through",
+  sort: "out", end: "up in", catch: "up on out", drop: "out off in by over around away back down", go: "through on off out up down over back around away in about", set: "up off out about down in aside"
+};
+const ONE = ["up", "down", "off", "on", "out", "in", "over", "away", "back", "through", "around", "into", "after", "across", "with", "about"];
+// Two-word particles that already make a real phrasal verb with the verb.
+const VALID2 = { look: ["forward to", "up to", "down on"], get: ["along with", "away with", "over to", "off with", "up to"], come: ["up with", "down on"],
+  catch: ["up with"], put: ["up with"], run: ["out of", "up to", "into"], cut: ["down on"], go: ["along with", "in for", "away with", "over to", "up to"],
+  stand: ["up to"], take: ["part in", "up with"], keep: ["up with"], bring: ["down on"], turn: ["over to"], drop: ["in for"] };
+const TWO = ["up with", "out of", "forward to", "along with", "down on", "up to", "in for", "away with", "off with", "over to", "part in"];
+
+// Questions are untimed-ish: stretch the level timer a little on this page only.
+const LV0 = getLevel();
+if (LV0.secs) LV0.secs = Math.max(LV0.secs, 12);
+
+const same = (a, b) => a === b || a.g === b.g;
+const full = e => e.ex.replace("____", e.p);
+
+function particleQ(e) {
+  const multi = e.p.includes(" ");
+  const ok = (VALID[e.v] || "").split(" ");
+  const wrong = multi ? TWO.filter(x => x !== e.p && !(VALID2[e.v] || []).includes(x))
+    : ONE.filter(x => x !== e.p && !ok.includes(x));
+  return mcq({ label: "🧳 Particle ကို ဖြည့်ပါ", text: e.ex + "  (= " + e.m + ")", small: true,
+    answer: e.p, pool: wrong, explain: full(e) + " — " + e.pv + " = " + e.m + " (" + e.my + ")" });
+}
+function meaningQ(e) {
+  return mcq({ label: "🧳 Phrasal verb ရဲ့ အဓိပ္ပါယ်က ဘာလဲ", text: e.pv, small: true, speak: e.pv,
+    answer: e.m, pool: PV.filter(x => !same(x, e)).map(x => x.m),
+    explain: e.pv + " = " + e.m + " (" + e.my + ") — “" + full(e) + "”" });
+}
+function formalQ(e) {
+  return mcq({ label: "🧳 Phrasal verb နဲ့ အစားထိုးပါ", text: "“" + e.f + "”  (= " + e.m + ")", small: true,
+    answer: e.pv, pool: PV.filter(x => !same(x, e)).map(x => x.pv),
+    explain: e.f + " = " + e.pv + " (" + e.my + ") — “" + full(e) + "”" });
+}
+
+function build() {
+  const kinds = shuffle(["p", "p", "p", "p", "m", "m", "m", "f", "f", "f"]);
+  const items = take(PV, 10);
+  // formal-verb questions need a formal verb; swap the kind to "meaning" for entries without one
+  return items.map((e, n) => {
+    let k = kinds[n];
+    if (k === "f" && !e.f) k = "m";
+    return k === "p" ? particleQ(e) : k === "m" ? meaningQ(e) : formalQ(e);
+  });
+}
+
+runChoice({ gameId: "phrasal", title: "Phrasal Verbs", build });
+</script>
+</body>
+</html>

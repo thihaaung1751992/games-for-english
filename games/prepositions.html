@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preposition Park</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [emoji, sentence with ____, answer, three wrong prepositions, Burmese meaning of the sentence, Burmese rule]
+// The Burmese meaning (shown above the sentence) and the clue in the sentence settle which preposition fits.
+const BANK = [
+  ["🍎", "The apples are ____ the basket.", "in", ["at", "from", "to"], "ပန်းသီးတွေက ခြင်းထဲမှာ ရှိတယ်။", "in = အတွင်းထဲမှာ (in the basket, in the box)"],
+  ["📖", "The book is ____ the table.", "on", ["in", "to", "from"], "စာအုပ်က စားပွဲပေါ်မှာ ရှိတယ်။", "on = မျက်နှာပြင်ပေါ်မှာ ထိထားတယ် (on the table, on the wall)"],
+  ["🐱", "The cat is sleeping ____ the bed, on the floor.", "under", ["on", "in", "between"], "ကြောင်က ခုတင်အောက် ကြမ်းပြင်ပေါ်မှာ အိပ်နေတယ်။", "under = အောက်မှာ (under the bed, under the tree)"],
+  ["🏠", "My house is ____ the school, so I walk there in two minutes.", "next to", ["under", "from", "for"], "ကျွန်တော့်အိမ်က ကျောင်းဘေးမှာ ဖြစ်လို့ နှစ်မိနစ်နဲ့ လမ်းလျှောက်ရောက်တယ်။", "next to = ဘေးမှာကပ်လျက် (next to the school)"],
+  ["🏪", "The shop is ____ the bank and the post office.", "between", ["with", "to", "for"], "ဈေးဆိုင်က ဘဏ်နဲ့ စာတိုက်ကြားမှာ ရှိတယ်။", "between = နှစ်ခုကြားမှာ (between A and B)"],
+  ["🥷", "The thief is hiding ____ the door, so nobody can see him.", "behind", ["in front of", "on", "from"], "သူခိုးက တံခါးနောက်မှာ ပုန်းနေလို့ ဘယ်သူမှ မမြင်ဘူး။", "behind = နောက်မှာ (behind the door)"],
+  ["👩‍🏫", "The teacher stands ____ the class and faces the students.", "in front of", ["behind", "under", "with"], "ဆရာမက ကျောင်းသားတွေကို မျက်နှာမူပြီး အတန်းရှေ့မှာ ရပ်နေတယ်။", "in front of = ရှေ့မှာ (in front of the class)"],
+  ["🚗", "The car is parked ____ the house, next to the front door.", "in front of", ["behind", "between", "from"], "ကားက အိမ်ရှေ့တံခါးဘေးမှာ ရပ်ထားတယ်။", "in front of = အရှေ့မှာ (in front of the house)"],
+  ["🌳", "The children are playing ____ the tree, in the shade.", "under", ["on", "to", "from"], "ကလေးတွေက သစ်ပင်အောက် အရိပ်မှာ ကစားနေတယ်။", "under = အောက်မှာ (in the shade under a tree)"],
+  ["🐦", "A bird is sitting ____ the roof.", "on", ["between", "with", "from"], "ငှက်တစ်ကောင်က ခေါင်မိုးပေါ်မှာ နားနေတယ်။", "on = ပေါ်မှာ (on the roof, on the table)"],
+  ["🧒", "Ko Aung sits ____ Mya and Su.", "between", ["at", "from", "for"], "ကိုအောင်က မြနဲ့ စုကြားမှာ ထိုင်တယ်။", "between = နှစ်ယောက်ကြား (between A and B)"],
+  ["🪑", "Mya sits ____ me in class. Her chair touches mine.", "next to", ["from", "for", "under"], "မြက စာသင်ခန်းမှာ ကျွန်တော့်ဘေးမှာ ထိုင်တယ်၊ ကုလားထိုင်ချင်း ကပ်နေတယ်။", "next to = ဘေးမှာကပ်လျက်"],
+  ["⏰", "School starts ____ eight o'clock.", "at", ["on", "in", "for"], "ကျောင်းက ရှစ်နာရီမှာ စတယ်။", "at + အချိန်အတိအကျ (at 8 o'clock, at noon)"],
+  ["📅", "My birthday is ____ Friday.", "on", ["in", "at", "to"], "ကျွန်တော့်မွေးနေ့က သောကြာနေ့မှာပါ။", "on + နေ့ (on Friday, on my birthday, on 5 May)"],
+  ["🌧️", "It rains a lot ____ July.", "in", ["on", "at", "to"], "ဇူလိုင်လမှာ မိုးအများကြီးရွာတယ်။", "in + လ / ရာသီ / နှစ် (in July, in summer, in 2020)"],
+  ["🌅", "I drink tea ____ the morning.", "in", ["on", "at", "from"], "မနက်ခင်းမှာ လက်ဖက်ရည်သောက်တယ်။", "in the morning / afternoon / evening (ဒါပေမဲ့ at night)"],
+  ["🌙", "The stars come out ____ night.", "at", ["in", "on", "to"], "ညမှာ ကြယ်တွေ ထွက်လာတယ်။", "at night (in the morning နဲ့ မတူဘူး)"],
+  ["🎆", "We watch fireworks ____ New Year's Day.", "on", ["in", "at", "to"], "နှစ်သစ်ကူးနေ့မှာ မီးရှူးမီးပန်း ကြည့်ကြတယ်။", "on + တစ်နေ့တည်း (on New Year's Day, on Monday)"],
+  ["👶", "I was born ____ 2010.", "in", ["on", "at", "to"], "ကျွန်တော် ၂၀၁၀ ခုနှစ်မှာ မွေးတယ်။", "in + နှစ် (in 2010, in 1999)"],
+  ["🏫", "I go ____ school by bus.", "to", ["in", "at", "on"], "ကျောင်းကို ဘတ်စ်ကားနဲ့ သွားတယ်။", "to = ဦးတည်ရာ (go to school, come to my house)"],
+  ["🏡", "Su is ____ home today because she is sick.", "at", ["in", "on", "to"], "စုက နေမကောင်းလို့ ဒီနေ့ အိမ်မှာ ရှိတယ်။", "at home (in home မဟုတ်ဘူး)၊ at school, at work"],
+  ["🇲🇲", "Aung comes ____ Myanmar.", "from", ["at", "with", "in"], "အောင်က မြန်မာပြည်က လာတာပါ။", "from = ဘယ်ကလာတာ (from Myanmar, from Yangon)"],
+  ["✏️", "She writes ____ a blue pen.", "with", ["for", "from", "at"], "သူမ အပြာရောင် ဘောပင်နဲ့ ရေးတယ်။", "with = ကိရိယာနဲ့ / အတူ (with a pen, with a friend)"],
+  ["🎁", "This present is ____ you. Happy birthday!", "for", ["at", "in", "under"], "ဒီလက်ဆောင်က မင်းအတွက်ပါ။ ပျော်ရွှင်ဖွယ် မွေးနေ့ပါ!", "for = အတွက် (a present for you)"],
+  ["🚌", "I am waiting ____ the bus.", "for", ["to", "at", "from"], "ကားကို စောင့်နေတယ်။", "wait for = စောင့်တယ် (wait for the bus)"],
+  ["🎧", "Please listen ____ the teacher.", "to", ["at", "in", "with"], "ဆရာမပြောတာကို နားထောင်ပါ။", "listen to = နားထောင်တယ်"],
+  ["👀", "Look ____ this picture!", "at", ["to", "with", "from"], "ဒီပုံကို ကြည့်ပါ!", "look at = စိုက်ကြည့်တယ်"],
+  ["👵", "She lives ____ her grandmother.", "with", ["at", "on", "to"], "သူမ အဖွားနဲ့အတူ နေတယ်။", "live with = ဘယ်သူနဲ့အတူနေတယ်"],
+  ["🏙️", "My uncle lives ____ Mandalay.", "in", ["on", "with", "to"], "ကျွန်တော့်ဦးလေး မန္တလေးမှာ နေတယ်။", "in + မြို့ / နိုင်ငံ (in Mandalay, in Myanmar)"],
+  ["🏢", "My room is ____ the second floor.", "on", ["to", "from", "with"], "ကျွန်တော့်အခန်းက ဒုတိယထပ်မှာ။", "on the first / second floor = ဘယ်ထပ်မှာ"],
+  ["🛬", "The plane arrives ____ the airport at six.", "at", ["on", "under", "with"], "လေယာဉ်က ခြောက်နာရီမှာ လေဆိပ်ကို ရောက်တယ်။", "arrive at + နေရာငယ် (airport, station)၊ arrive in + မြို့ (in Yangon)"],
+  ["💵", "Please pay ____ the book at the counter.", "for", ["to", "at", "on"], "ကောင်တာမှာ စာအုပ်အတွက် ငွေပေးပါ။", "pay for = ဝယ်တဲ့ဟာအတွက် ငွေပေးတယ်"],
+  ["💰", "I borrowed some money ____ my brother.", "from", ["to", "at", "in"], "အစ်ကိုဆီက ပိုက်ဆံနည်းနည်း ချေးယူခဲ့တယ်။", "borrow from = ဆီကချေးယူတယ်"],
+  ["🪙", "He lent ten dollars ____ me.", "to", ["from", "at", "in"], "သူ ကျွန်တော့်ကို ဒေါ်လာ ၁၀ ချေးခဲ့တယ်။", "lend ... to = ကိုချေးပေးတယ်"],
+  ["☕", "I like coffee ____ milk.", "with", ["for", "at", "from"], "နို့ထည့်တဲ့ ကော်ဖီကို ကြိုက်တယ်။", "with = ပါလာတာ / ထည့်ထားတာ (with milk, with sugar)"],
+  ["🎤", "She is very good ____ singing.", "at", ["on", "to", "from"], "သူမ သီချင်းဆိုတာ အရမ်းတော်တယ်။", "good at = ဘာမှာတော်တယ် (good at English)"],
+  ["🐕", "The little girl is afraid ____ big dogs.", "of", ["from", "at", "on"], "ကောင်မလေးက ခွေးကြီးတွေကို ကြောက်တယ်။", "afraid of = ကို ကြောက်တယ်"],
+  ["🐟", "The fish are swimming ____ the river.", "in", ["on", "with", "for"], "ငါးတွေ မြစ်ထဲမှာ ရေကူးနေတယ်။", "in = အတွင်းမှာ (in the water, in the river)"],
+  ["🔑", "The key is ____ my pocket.", "in", ["at", "to", "from"], "သော့က ကျွန်တော့်အိတ်ကပ်ထဲမှာ ရှိတယ်။", "in = အတွင်းမှာ (in my pocket, in my bag)"],
+  ["🍽️", "The food is ____ the plate.", "on", ["at", "to", "from"], "အစားအစာက ပန်းကန်ပေါ်မှာ ရှိတယ်။", "on = ပေါ်မှာ (on the plate)"],
+  ["🪑", "There is a small gap ____ the two chairs.", "between", ["with", "to", "for"], "ကုလားထိုင်နှစ်လုံးကြားမှာ နေရာလေးတစ်ခု ရှိတယ်။", "between = နှစ်ခုကြား"],
+  ["🌉", "The boat is going ____ the bridge, not over it.", "under", ["on", "in", "at"], "လှေက တံတားအပေါ်က မဟုတ်ဘဲ တံတားအောက်ကနေ ဖြတ်သွားတယ်။", "under = အောက်ကနေ (under the bridge)"],
+  ["🎓", "Hla comes ____ a big family.", "from", ["at", "on", "under"], "လှက မိသားစုကြီးကနေ လာတာပါ။", "come from = ဘယ်ကလာတာ / ဘယ်လိုမိသားစုကလာတာ"],
+  ["🍰", "Thank you ____ the cake!", "for", ["to", "at", "from"], "ကိတ်အတွက် ကျေးဇူးတင်ပါတယ်။", "thank you for = ... အတွက် ကျေးဇူးတင်တယ်"],
+  ["📞", "I am talking ____ my teacher on the phone.", "to", ["in", "from", "under"], "ဖုန်းနဲ့ ဆရာနဲ့ စကားပြောနေတယ်။", "talk to = ဘယ်သူ့ကိုပြောတယ်"],
+  ["🌞", "We swim a lot ____ summer.", "in", ["on", "at", "to"], "နွေရာသီမှာ ရေအများကြီးကူးတယ်။", "in + ရာသီ (in summer, in winter)"],
+  ["🚏", "Please wait ____ the bus stop.", "at", ["on", "under", "to"], "ကားမှတ်တိုင်မှာ စောင့်နေပါ။", "at + နေရာတစ်ခု (at the bus stop, at the door)"],
+  ["☕", "This coffee comes ____ Thailand.", "from", ["at", "on", "with"], "ဒီကော်ဖီက ထိုင်းနိုင်ငံက လာတာပါ။", "from = မူလဇစ်မြစ် (from Thailand)"]
+];
+
+runChoice({
+  gameId: "prepositions", title: "Preposition Park",
+  build: () => take(BANK, 10).map(([em, s, ans, bad, my, rule]) =>
+    mcq({
+      label: "📍 " + my, text: em + " " + s, small: true, speak: s.replace("____", ans), answer: ans, pool: bad,
+      explain: s.replace("____", ans) + " — " + rule
+    }))
+});
+</script>
+</body>
+</html>

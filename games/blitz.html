@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blitz 45</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .timer { height: 12px; }
+  .timer > i { transition: none; background: var(--bad); }
+  .tip { text-align: center; color: var(--muted); font-size: .9rem; margin: 0 0 8px; }
+  #fb { min-height: 3em; white-space: pre-line; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Quick grammar picks. [sentence with ___, [options], right option, Burmese rule]
+// A word starting with a vowel SOUND takes "an"; a consonant sound takes "a".
+const AAN = [
+  ["apple", "an"], ["book", "a"], ["umbrella", "an"], ["egg", "an"], ["banana", "a"], ["idea", "an"], ["orange", "an"], ["car", "a"],
+  ["elephant", "an"], ["injury", "an"], ["headache", "a"], ["fever", "a"], ["ambulance", "an"], ["X-ray", "an"], ["unusual idea", "an"],
+  ["useful tool", "a"], ["hospital", "a"], ["hotel", "a"], ["old man", "an"], ["small town", "a"]
+].map(([n, a]) => ["I saw ___ " + n + " today.", ["a", "an"], a, "'" + n + "' က " + (a === "an" ? "သရအသံ" : "ဗျည်းအသံ") + "နဲ့ စတယ် → " + a]);
+AAN.push(
+  ["She waited for ___ hour.", ["a", "an"], "an", "hour ရဲ့ h မထွက်ဘူး၊ 'အာဝါ' လို့ သရအသံနဲ့ စတယ် → an"],
+  ["He studies at ___ university.", ["a", "an"], "a", "university က 'ယူ' (ဗျည်းအသံ y) နဲ့ စတယ် → a"],
+  ["It is ___ honest answer.", ["a", "an"], "an", "honest ရဲ့ h မထွက်ဘူး၊ သရအသံနဲ့ စတယ် → an"]
+);
+const BE = [
+  ["My brother and I ___ at home now.", "are", "is", "'brother and I' = လူနှစ်ယောက် (အများကိန်း) → are"],
+  ["The weather ___ cold today.", "is", "are", "weather တစ်ခုတည်း (ကိန်းတစ်) → is"],
+  ["There ___ three hospitals in this town.", "are", "is", "three hospitals = အများကိန်း → there are"],
+  ["Everybody ___ ready.", "is", "are", "everybody = ကိန်းတစ်အဖြစ် သုံးတယ် → is"],
+  ["The children ___ playing outside.", "are", "is", "children = အများကိန်း → are"],
+  ["She ___ a nurse.", "is", "are", "she → is"],
+  ["Where ___ my keys?", "are", "is", "keys = အများကိန်း → are"],
+  ["The news ___ good.", "is", "are", "news ကို ကိန်းတစ်အဖြစ် သုံးတယ် → is"],
+  ["These medicines ___ for the fever.", "are", "is", "these medicines = အများကိန်း → are"],
+  ["There ___ a pharmacy near here.", "is", "are", "a pharmacy တစ်ခု → there is"],
+  ["Tom and Ann ___ friends.", "are", "is", "Tom and Ann = နှစ်ယောက် → are"],
+  ["My glasses ___ on the table.", "are", "is", "glasses (မျက်မှန်) = အများကိန်း → are"],
+  ["Money ___ not everything.", "is", "are", "money ရေတွက်မရ → is"],
+  ["How ___ you today?", "are", "is", "you နဲ့ → are"],
+  ["It ___ raining outside.", "is", "are", "it → is"]
+];
+const WW = [
+  ["Yesterday I ___ at the clinic.", "was", "were", "I + အတိတ် → was"],
+  ["We ___ very tired last night.", "were", "was", "we + အတိတ် → were"],
+  ["They ___ in Mandalay last week.", "were", "was", "they + အတိတ် → were"],
+  ["The film ___ boring, so we left.", "was", "were", "the film (ကိန်းတစ်) → was"],
+  ["Where ___ you yesterday?", "were", "was", "you + အတိတ် → were"],
+  ["She ___ ill last week, but now she is fine.", "was", "were", "she + အတိတ် → was"],
+  ["The shops ___ closed on Sunday.", "were", "was", "the shops (အများကိန်း) → were"],
+  ["I ___ born in a small village.", "was", "were", "I + အတိတ် → was"],
+  ["There ___ many people at the hospital yesterday.", "were", "was", "many people = အများကိန်း → were"],
+  ["He ___ not at home when I called.", "was", "were", "he + အတိတ် → was"],
+  ["The injured men ___ taken to hospital.", "were", "was", "the men (အများကိန်း) → were"]
+];
+const DH = [
+  ["She ___ not like coffee.", "does", "do", "she + မျက်နှာစာ ငြင်းဆို → does not"],
+  ["___ you speak English?", "Do", "Does", "you → Do"],
+  ["He ___ a fever.", "has", "have", "he → has"],
+  ["They ___ two children.", "have", "has", "they → have"],
+  ["My sister ___ her homework every night.", "does", "do", "my sister (ကိန်းတစ်) → does"],
+  ["I ___ a headache.", "have", "has", "I → have"],
+  ["What time ___ the pharmacy open?", "does", "do", "the pharmacy (ကိန်းတစ်) → does"],
+  ["We ___ not know the answer.", "do", "does", "we → do not"],
+  ["The hospital ___ two hundred beds.", "has", "have", "the hospital (ကိန်းတစ်) → has"]
+];
+const TT = [
+  ["___ is a fly in my soup.", "there", "'ဟိုမှာ/ရှိတယ်' → there"],
+  ["The students forgot ___ books.", "their", "'သူတို့ရဲ့' (ပိုင်ဆိုင်မှု) → their"],
+  ["I think ___ going to be late.", "they're", "they're = they are"],
+  ["Put the bag over ___.", "there", "'ဟိုနားမှာ' နေရာ → there"],
+  ["Doctors are busy; ___ working all night.", "they're", "they're = they are working"],
+  ["Is ___ a pharmacy near here?", "there", "Is there ...? = ရှိလား"],
+  ["The family sold ___ old house.", "their", "'သူတို့ရဲ့' → their"],
+  ["I know ___ going to win.", "they're", "they're = they are"]
+];
+
+function bank() {
+  const out = [];
+  AAN.forEach(([s, o, a, why]) => out.push({ label: "a / an", text: s, small: true, options: shuffle(o), answer: a, explain: why }));
+  BE.forEach(([s, a, b, why]) => out.push({ label: "is / are", text: s, small: true, options: shuffle([a, b]), answer: a, explain: why }));
+  WW.forEach(([s, a, b, why]) => out.push({ label: "was / were", text: s, small: true, options: shuffle([a, b]), answer: a, explain: why }));
+  DH.forEach(([s, a, b, why]) => out.push({ label: "do / does / has / have", text: s, small: true, options: shuffle([a, b]), answer: a, explain: why }));
+  TT.forEach(([s, a, why]) => {
+    const cap = /^___/.test(s), f = x => cap ? x[0].toUpperCase() + x.slice(1) : x;
+    out.push({ label: "there / their / they're", text: s, small: true, options: shuffle(["there", "their", "they're"].map(f)), answer: f(a.toLowerCase()), explain: why });
+  });
+  return out.map(q => Object.assign(q, { explain: q.explain + "\n" + q.text.replace("___", q.answer) }));
+}
+// 30 questions per call: about 60% vocabulary (lesson + review words, both directions), 40% grammar picks.
+function build(topic) {
+  const vocab = take(topic.words, 18).map((w, k) => [Q.enMy, Q.myEn][k % 2](topic, w));
+  const grammar = shuffle(bank()).slice(0, 12);
+  const qs = shuffle([...vocab, ...grammar]);
+  // never the same question twice in a row
+  return qs.map(q => Object.assign(q, { label: q.label.indexOf("→") >= 0 ? q.label : q.label + " ⚡" }));
+}
+runChoice({ gameId: "blitz", title: "Blitz 45", clock: 45, build });
+
+// Speed round: a right answer moves on by itself, so the clock is spent answering, not tapping "Next".
+// A wrong answer waits so the explanation can be read.
+$("#opts").addEventListener("click", e => {
+  const b = e.target.closest(".opt");
+  if (!b || !b.classList.contains("right")) return;
+  const at = $("#qn").textContent;
+  setTimeout(() => {
+    const n = $("#next");
+    if ($("#qn").textContent === at && !n.hidden && !document.querySelector(".overlay")) n.click();
+  }, 450);
+});
+</script>
+</body>
+</html>

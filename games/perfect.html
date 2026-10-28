@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfect Tenses</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Rules (Burmese + short English), keyed by the item's last field.
+const R = {
+  since: "since + စတင်ခဲ့တဲ့ အချိန်ကို ပြရင် present perfect (have/has + V3) သုံးပါတယ်။ အခုထိ ဆက်ဖြစ်နေတယ်။",
+  for: "for + ကြာချိန် (အခုထိ) ပြရင် present perfect (have/has + V3) သုံးပါတယ်။",
+  past: "အတိတ်အချိန် အတိအကျ (in 2019, last week, yesterday, ago) ရှိရင် past simple သုံးပါတယ်၊ present perfect မသုံးရပါ။",
+  exp: "ever / never / just / already / yet / so far နဲ့ အတွေ့အကြုံ၊ ရလဒ်ကို present perfect (have/has + V3) နဲ့ ပြောပါတယ်။",
+  ppc: "present perfect continuous (have/has been + V-ing) = အတိတ်က စပြီး အခုထိ ဆက်လုပ်နေတာ၊ ဒါမှမဟုတ် အခုမြင်နေရတဲ့ ရလဒ်ရဲ့ အကြောင်းရင်း။",
+  pps: "ရေတွက်လို့ရတဲ့ ပမာဏ/အကြိမ် (twice, three times) ကို present perfect simple နဲ့ ပြောပါတယ်။",
+  pp: "past perfect (had + V3) = အတိတ်က အဖြစ်အပျက်တစ်ခုထက် ပိုစောပြီး ဖြစ်ပြီးသွားတာ။",
+  ppcont: "past perfect continuous (had been + V-ing) = အတိတ်က တစ်ချိန်မတိုင်ခင် ကာလတစ်ခု ဆက်ဖြစ်နေခဲ့တာ။",
+  fp: "future perfect (will have + V3) = အနာဂတ်က အချိန်တစ်ခု (by ...) မတိုင်ခင် ပြီးစီးပြီး ဖြစ်နေမယ့်အရာ။",
+  fpc: "future perfect continuous (will have been + V-ing) = အနာဂတ်က အချိန်တစ်ခုအထိ ဆက်လုပ်နေခဲ့မယ့် ကာလ။",
+  idiom: "စကားပြောပုံ ပုံသေ: No sooner ... than / Hardly ... when နဲ့ past perfect (had + V3) ကို inversion လုပ်ပါတယ်။",
+  wish: "wish + past perfect (had + V3) = အတိတ်က မဖြစ်ခဲ့တာကို နှမျောတာ။",
+  count: "It's the first/second/best ... နောက်က clause ကို present perfect (have/has + V3) နဲ့ ဆက်ပါတယ်။",
+  q: "How long / How many times ... + have/has + subject + V3 = present perfect မေးခွန်း။"
+};
+// [sentence with ___, answer, [wrong options], rule key]
+const BANK = [
+  ["I ___ in this city since 2015.", "have lived", ["lived", "live", "am living"], "since"],
+  ["Tom ___ to Japan in 2019.", "went", ["has been", "has gone", "has been going"], "past"],
+  ["Have you ever ___ sushi?", "eaten", ["ate", "eat", "eating"], "exp"],
+  ["She has ___ finished her homework. Now she is watching TV.", "already", ["yet", "ago", "last"], "exp"],
+  ["Have you finished the report ___?", "yet", ["ago", "still", "yesterday"], "exp"],
+  ["I haven't seen him ___ last Monday.", "since", ["for", "ago", "from"], "since"],
+  ["We've been friends ___ ten years.", "for", ["since", "ago", "from"], "for"],
+  ["Wait! I've ___ finished my coffee. I'm coming.", "just", ["ago", "yesterday", "yet"], "exp"],
+  ["It's the best film I ___ ever seen.", "have", ["had", "was", "did"], "count"],
+  ["This is the first time I ___ a horse.", "have ridden", ["ride", "am riding", "has ridden"], "count"],
+  ["Your eyes are red. ___ you been crying?", "Have", ["Did", "Are", "Were"], "ppc"],
+  ["It ___ for two hours now, so take an umbrella.", "has been raining", ["rained", "was raining", "rains"], "ppc"],
+  ["I'm so tired. I ___ since six this morning.", "have been working", ["worked", "am working", "was working"], "ppc"],
+  ["She ___ the piano since she was five, so she plays very well.", "has been playing", ["played", "plays", "was playing"], "ppc"],
+  ["You look wet! How long ___ you been waiting?", "have", ["did", "do", "will"], "ppc"],
+  ["I ___ the book twice. It's really good.", "have read", ["have been reading", "am reading", "was reading"], "pps"],
+  ["When I arrived at the station, the train ___ already left.", "had", ["has", "was", "have"], "pp"],
+  ["By the time we got to the cinema, the film ___.", "had already started", ["has already started", "would already start", "already starts"], "pp"],
+  ["He ___ never seen snow before he moved to Canada.", "had", ["has", "was", "did"], "pp"],
+  ["By the time the police came, the thief ___.", "had escaped", ["has escaped", "was escaping", "will escape"], "pp"],
+  ["We ___ for an hour when the bus finally came.", "had been waiting", ["have been waiting", "waited", "are waiting"], "ppcont"],
+  ["The ground was wet because it ___ heavily all night.", "had been raining", ["has been raining", "is raining", "rains"], "ppcont"],
+  ["I couldn't get in because I ___ my key at home.", "had left", ["have left", "leave", "am leaving"], "pp"],
+  ["By next June, I ___ my degree.", "will have finished", ["have finished", "finished", "had finished"], "fp"],
+  ["By the time you get home, I ___ dinner.", "will have cooked", ["have cooked", "cooked", "am cooking"], "fp"],
+  ["Next month we ___ in this house for ten years.", "will have lived", ["have lived", "lived", "had lived"], "fp"],
+  ["I'll call you at eight. The meeting ___ by then.", "will have ended", ["has ended", "ended", "had ended"], "fp"],
+  ["By 5 pm, I ___ for twelve hours!", "will have been working", ["have been working", "had been working", "was working"], "fpc"],
+  ["I've known her ___ we were children.", "since", ["for", "ago", "while"], "since"],
+  ["She has lived in London ___ three years.", "for", ["since", "ago", "from"], "for"],
+  ["I've been to Paris, but I have ___ been to Rome.", "never", ["ever", "yet", "ago"], "exp"],
+  ["He hasn't called me ___.", "yet", ["already", "just", "still"], "exp"],
+  ["I can't find my phone. I think I ___ it on the bus.", "have left", ["had left", "was leaving", "leave"], "exp"],
+  ["Mr Green ___ for the company since 1999.", "has worked", ["worked", "works", "is working"], "since"],
+  ["We ___ the new software, so we can't say if it works.", "haven't tried", ["hasn't tried", "hadn't tried", "didn't tried"], "exp"],
+  ["Last week I ___ my cousin for the first time.", "met", ["have met", "had met", "have been meeting"], "past"],
+  ["She ___ her job last month.", "lost", ["has lost", "had lost", "has been losing"], "past"],
+  ["Since I started this job, I ___ a lot.", "have learned", ["learned", "was learning", "had learned"], "since"],
+  ["Scientists ___ a new species this week.", "have discovered", ["had discovered", "were discovering", "would discover"], "exp"],
+  ["How long have you ___ this car?", "had", ["have", "been", "having"], "q"],
+  ["He is a doctor now. He ___ medicine for six years before he qualified.", "had studied", ["has studied", "studies", "would study"], "pp"],
+  ["The house ___ empty since 2010.", "has been", ["was", "is", "would be"], "since"],
+  ["By the time I was 18, I ___ three countries.", "had visited", ["have visited", "visit", "will have visited"], "pp"],
+  ["It's the third time he ___ late this week.", "has been", ["had been", "will be", "is"], "count"],
+  ["No sooner had she sat down ___ the phone rang.", "than", ["when", "then", "that"], "idiom"],
+  ["Hardly had we left ___ it started to rain.", "when", ["than", "then", "as"], "idiom"],
+  ["I wish I ___ harder when I was at school.", "had studied", ["studied", "have studied", "would study"], "wish"],
+  ["Nobody ___ the answer so far.", "has found", ["found", "had found", "finds"], "exp"],
+  ["How many times ___ you seen this film?", "have", ["did", "do", "were"], "q"],
+  ["He ___ the marathon three times, and now he is training for a fourth.", "has run", ["had run", "is running", "was run"], "pps"]
+];
+// Level 4 has an 8 second clock per question; give a little extra reading time here.
+const LV0 = getLevel();
+if (LV0.secs) LV0.secs += 5;
+runChoice({
+  gameId: "perfect", title: "Perfect Tenses",
+  build: () => take(BANK, 10).map(([s, a, wrong, r]) => mcq({
+    label: "မှန်တဲ့ tense / စကားလုံးကို ရွေးပါ",
+    text: s, small: true, answer: a, pool: wrong,
+    explain: "“" + s.replace("___", a) + "” — " + R[r]
+  }))
+});
+</script>
+</body>
+</html>

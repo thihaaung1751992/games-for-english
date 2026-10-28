@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading Quest</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .doc { text-align: left; background: var(--card); border: 2px solid var(--line); border-radius: 20px; padding: 16px 18px; margin-bottom: 14px; }
+  .doc .kind { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .doc .kind b { font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+  .doc h2 { margin: 0 0 6px; font-size: 1.2rem; line-height: 1.4; }
+  .doc .ln { font-size: 1.1rem; line-height: 1.9; min-height: 1.9em; }
+  .doc button.w { font: inherit; color: inherit; background: none; border: 0; border-bottom: 2px dotted var(--accent); padding: 0; margin: 0; cursor: pointer; line-height: inherit; }
+  .doc button.w:hover, .doc button.w.on { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+  .doc mark { background: color-mix(in srgb, var(--star) 45%, transparent); color: inherit; border-radius: 4px; padding: 1px 0; }
+  .gloss { min-height: 2.8em; margin-top: 8px; padding: 6px 12px; border-radius: 12px; background: var(--bg); border: 2px dashed var(--line); font-size: 1rem; color: var(--muted); }
+  .gloss b { color: var(--ink); }
+  .tip { font-size: .9rem; color: var(--muted); margin: 0 0 8px; }
+  .qpanel .opts { text-align: left; }
+  .qpanel .opt { text-align: left; }
+  .qpanel .q-text { font-size: clamp(1.15rem, 5vw, 1.5rem); }
+  .row .btn { min-height: 48px; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Each passage: kind, title, text ("\n" starts a new line), gloss {word: Burmese}, qs [{q, a (right), d (wrong x3), ev (evidence in the text), why}]
+const PASSAGES = [
+  { kind: "✉️ Letter", title: "A letter from Hla",
+    text: "Dear Mya,\nHow are you? I am writing from my new school in Mandalay. I arrived last Monday, and everything is different here. The classes are bigger, and the teachers give us a lot of homework. But I have already made two friends, Ko Aung and Su Su. We eat lunch together every day. On Saturday we are going to visit the old palace. Please write back soon and tell me about your holiday.\nYour friend,\nHla",
+    gloss: { arrived: "ရောက်လာသည်", different: "ကွဲပြားသည်", homework: "အိမ်စာ", already: "ပြီးခဲ့ပြီ", palace: "နန်းတော်", holiday: "အားလပ်ရက်" },
+    qs: [
+      { q: "Where is Hla now?", a: "At a new school in Mandalay", d: ["At the old palace", "At Mya's house", "On holiday with Ko Aung"], ev: "I am writing from my new school in Mandalay", why: "ဟလ ကျောင်းသစ်ကနေ ရေးနေတာပါ။" },
+      { q: "What does Hla say about the teachers?", a: "They give a lot of homework.", d: ["They are very young.", "They never give homework.", "They visit the palace."], ev: "the teachers give us a lot of homework", why: "'give us a lot of homework' = အိမ်စာအများကြီး ပေးတယ်။" },
+      { q: "What is Hla going to do on Saturday?", a: "Visit the old palace", d: ["Write to Mya", "Meet Mya at the station", "Start a new school"], ev: "On Saturday we are going to visit the old palace", why: "စနေနေ့မှာ နန်းတော်ဟောင်း သွားကြည့်မယ်။" }
+    ] },
+  { kind: "📋 Notice", title: "Green Valley Health Centre",
+    text: "NOTICE\nFrom next Monday, the health centre will open at 8 a.m. instead of 9 a.m. It will close at 5 p.m. on weekdays and at noon on Saturdays. It will be closed on Sundays. Patients with an appointment must arrive ten minutes early. If you cannot come, please telephone us at least one day before. Children under five do not need an appointment. In an emergency, go to the hospital in town.",
+    gloss: { notice: "ကြေညာချက်", instead: "အစား", weekdays: "အလုပ်ရက်များ", appointment: "ရက်ချိန်း", patients: "လူနာများ", emergency: "အရေးပေါ်" },
+    qs: [
+      { q: "What time will the centre open from next Monday?", a: "8 a.m.", d: ["9 a.m.", "10 a.m.", "At noon"], ev: "will open at 8 a.m. instead of 9 a.m.", why: "'instead of 9' = ၉ နာရီအစား ၈ နာရီ ဖွင့်မယ်။" },
+      { q: "What must a patient with an appointment do?", a: "Arrive ten minutes early", d: ["Telephone one hour before", "Come on Sunday", "Go to the hospital"], ev: "Patients with an appointment must arrive ten minutes early", why: "ရက်ချိန်းရှိသူ ၁၀ မိနစ်စောရောက်ရမယ်။" },
+      { q: "What does the notice say about children under five?", a: "They do not need an appointment.", d: ["They must arrive ten minutes early.", "They must telephone one day before.", "They can only come on Saturdays."], ev: "Children under five do not need an appointment", why: "ငါးနှစ်အောက်ကလေးတွေ ရက်ချိန်း မလိုပါ။" }
+    ] },
+  { kind: "📖 Story", title: "The lost wallet",
+    text: "Min Thu was walking home from work when he saw a brown wallet on the ground. He picked it up. Inside there was some money and a card with a name and a phone number. He was tired and hungry, but he knew the owner would be worried. He called the number, and an old woman answered. She cried with happiness. Twenty minutes later, she met him at the bus stop and thanked him many times. She wanted to give him some money, but Min Thu smiled and said no.",
+    gloss: { wallet: "ပိုက်ဆံအိတ်", ground: "မြေပြင်", owner: "ပိုင်ရှင်", worried: "စိတ်ပူသည်", answered: "ဖုန်းကိုင်သည်/ဖြေသည်", happiness: "ပျော်ရွှင်မှု" },
+    qs: [
+      { q: "Where did Min Thu find the wallet?", a: "On the ground, on his way home", d: ["At the bus stop", "At his office", "In the old woman's house"], ev: "walking home from work when he saw a brown wallet on the ground", why: "အလုပ်ကအပြန် မြေပေါ်မှာ တွေ့တာပါ။" },
+      { q: "How did he find the owner?", a: "He called the phone number on the card.", d: ["He asked people at the bus stop.", "He took it to the police.", "He waited for her at work."], ev: "He called the number", why: "ကတ်ပေါ်က ဖုန်းနံပါတ်ကို ခေါ်လိုက်တယ်။" },
+      { q: "What did Min Thu do when the woman wanted to give him money?", a: "He said no.", d: ["He took a little.", "He gave it to the bus driver.", "He asked for more."], ev: "Min Thu smiled and said no", why: "မင်းသူက ပြုံးပြီး မယူဘူးလို့ ပြောတယ်။" }
+    ] },
+  { kind: "📰 News", title: "A new bus service",
+    text: "Yangon will have a new bus service next month. The city council says the buses will run every ten minutes from 6 a.m. to 10 p.m. A ticket will cost only 300 kyats, and students can travel for half price. The council hopes the new buses will reduce traffic and help people get to work on time. Some drivers are worried about the new timetable, but the council says it will talk to them this week. Passengers can use a phone app to see where the bus is.",
+    gloss: { council: "မြို့တော်ကောင်စီ", service: "ဝန်ဆောင်မှု", reduce: "လျှော့သည်", traffic: "ယာဉ်ကြောပိတ်ဆို့မှု", timetable: "အချိန်ဇယား", passengers: "ခရီးသည်များ" },
+    qs: [
+      { q: "How often will the buses run?", a: "Every ten minutes", d: ["Every hour", "Every 30 minutes", "Only at 6 a.m. and 10 p.m."], ev: "the buses will run every ten minutes", why: "'every ten minutes' = ၁၀ မိနစ်တစ်ခါ။" },
+      { q: "Who can travel for half price?", a: "Students", d: ["Drivers", "Old people", "Everyone after 10 p.m."], ev: "students can travel for half price", why: "ကျောင်းသားတွေ တစ်ဝက်ဈေးနဲ့ စီးနိုင်တယ်။" },
+      { q: "What does the council hope the new buses will do?", a: "Reduce traffic and help people get to work on time", d: ["Bring more tourists to the city", "Make tickets free for drivers", "Close the old bus lines"], ev: "reduce traffic and help people get to work on time", why: "ယာဉ်ကြောပိတ်ဆို့မှု လျှော့ပြီး အလုပ်ချိန်မှီစေဖို့ မျှော်လင့်တယ်။" }
+    ] },
+  { kind: "🍽️ Menu", title: "Sunrise Café",
+    text: "SUNRISE CAFÉ – TODAY'S MENU\nBreakfast (until 11 a.m.): egg and toast 2,500 kyats; fruit bowl 2,000 kyats.\nLunch (from 11 a.m.): fried rice 4,500 kyats; chicken noodle soup 4,000 kyats.\nDrinks: tea 800 kyats; coffee 1,200 kyats; orange juice 1,800 kyats.\nEvery lunch dish comes with a free tea.\nCash only. We do not accept cards.\nOpen every day from 7 a.m. to 9 p.m.",
+    gloss: { breakfast: "နံနက်စာ", lunch: "နေ့လည်စာ", toast: "ပေါင်မုန့်ကင်", dish: "ဟင်းပွဲ", accept: "လက်ခံသည်", cash: "ငွေသား" },
+    qs: [
+      { q: "Su Su orders a fruit bowl and a coffee. How much does she pay?", a: "3,200 kyats", d: ["2,800 kyats", "3,800 kyats", "4,200 kyats"], ev: "fruit bowl 2,000 kyats", why: "2,000 + 1,200 = 3,200 ကျပ်။" },
+      { q: "What can you order at 2 p.m.?", a: "Chicken noodle soup", d: ["Egg and toast", "A fruit bowl", "Breakfast of any kind"], ev: "Lunch (from 11 a.m.)", why: "၁၁ နာရီကျော်ရင် နေ့လည်စာပဲ မှာလို့ရတယ်။" },
+      { q: "How can customers pay?", a: "Only with cash", d: ["Only with a card", "With cash or a card", "They can pay tomorrow"], ev: "Cash only. We do not accept cards.", why: "ငွေသားပဲ လက်ခံတယ်၊ ကတ် မရပါ။" }
+    ] },
+  { kind: "📧 Email", title: "A change of plan",
+    text: "Subject: Change of plan\nHi Daw Khin,\nI'm sorry, but I cannot come to your party on Friday. My brother is getting married on Saturday, so I have to travel to Pathein on Friday morning. I booked a bus ticket yesterday, and I will be away for the whole weekend. I bought a small present for you, and I will give it to you when I come back on Monday. I hope you have a wonderful evening!\nBest wishes,\nThura",
+    gloss: { cannot: "မလုပ်နိုင်ပါ", married: "အိမ်ထောင်ကျသည်", travel: "ခရီးသွားသည်", booked: "ကြိုတင်ဝယ်သည်/မှာသည်", present: "လက်ဆောင်", wonderful: "အရမ်းကောင်းသော" },
+    qs: [
+      { q: "Why can't Thura come to the party?", a: "He must travel for his brother's wedding.", d: ["He is ill.", "He has to work on Friday evening.", "He does not like parties."], ev: "My brother is getting married on Saturday, so I have to travel to Pathein", why: "အစ်ကို/မောင်လက်ထပ်မယ့်ပွဲအတွက် ခရီးသွားရမယ်။" },
+      { q: "How is Thura going to Pathein?", a: "By bus", d: ["By train", "By plane", "By car with Daw Khin"], ev: "I booked a bus ticket yesterday", why: "ဘတ်စ်ကားလက်မှတ် ကြိုဝယ်ထားတယ်။" },
+      { q: "When will Thura give Daw Khin the present?", a: "On Monday", d: ["On Friday", "On Saturday", "Yesterday"], ev: "I will give it to you when I come back on Monday", why: "တနင်္လာနေ့ ပြန်လာမှ ပေးမယ်။" }
+    ] },
+  { kind: "📖 Story", title: "A rainy day",
+    text: "It was raining heavily, and Nan Nan had no umbrella. She waited under a tree, but the rain did not stop. Then a small boy came along the road with a big yellow umbrella. \"Would you like to share it?\" he asked. Nan Nan was surprised, but she said yes. They walked together to the bus stop. The boy told her that his grandmother had given him the umbrella for his birthday. When the bus came, Nan Nan thanked him and promised to buy him an ice cream one day.",
+    gloss: { heavily: "ပြင်းပြင်းထန်ထန်", umbrella: "ထီး", share: "မျှဝေသည်", surprised: "အံ့ဩသည်", grandmother: "အဖွား", promised: "ကတိပေးသည်" },
+    qs: [
+      { q: "Why did Nan Nan wait under a tree?", a: "She had no umbrella.", d: ["She was waiting for her grandmother.", "She liked the rain.", "She was tired."], ev: "Nan Nan had no umbrella. She waited under a tree", why: "ထီးမပါလို့ သစ်ပင်အောက် ခိုနေတာပါ။" },
+      { q: "Who gave the boy the umbrella?", a: "His grandmother", d: ["Nan Nan", "His teacher", "The bus driver"], ev: "his grandmother had given him the umbrella for his birthday", why: "မွေးနေ့မှာ အဖွားက ထီးပေးခဲ့တယ်။" },
+      { q: "What did Nan Nan promise to do?", a: "Buy the boy an ice cream", d: ["Give him her umbrella", "Visit his grandmother", "Take him to school"], ev: "promised to buy him an ice cream one day", why: "'promised to buy him an ice cream' = ရေခဲမုန့်ဝယ်ကျွေးမယ်လို့ ကတိပေးတယ်။" }
+    ] },
+  { kind: "📰 Article", title: "Sleep and health",
+    text: "Many doctors say that teenagers need about nine hours of sleep every night, but most of them sleep for only six or seven. Lack of sleep can make it hard to learn, and it can also make people angry or sad. To sleep better, doctors suggest turning off phones one hour before bed, avoiding coffee in the evening, and going to bed at the same time every day. A short walk after dinner can help too. If you still have problems, talk to a doctor.",
+    gloss: { teenagers: "ဆယ်ကျော်သက်များ", lack: "မလုံလောက်ခြင်း", suggest: "အကြံပြုသည်", avoiding: "ရှောင်ခြင်း", evening: "ညနေ", problems: "ပြဿနာများ" },
+    qs: [
+      { q: "How much sleep do teenagers need?", a: "About nine hours a night", d: ["About six hours a night", "About seven hours a night", "About twelve hours a night"], ev: "teenagers need about nine hours of sleep every night", why: "ဆယ်ကျော်သက်တွေ တစ်ညကို ၉ နာရီခန့် အိပ်သင့်တယ်။" },
+      { q: "What can lack of sleep do?", a: "Make it hard to learn", d: ["Make people taller", "Make people hungry all day", "Make coffee taste better"], ev: "Lack of sleep can make it hard to learn", why: "အိပ်ရေးပျက်ရင် သင်ယူရခက်တယ်။" },
+      { q: "Which advice do doctors give?", a: "Turn off phones one hour before bed", d: ["Drink coffee in the evening", "Go to bed at different times", "Take a long walk before breakfast"], ev: "turning off phones one hour before bed", why: "အိပ်ရာမဝင်မီ တစ်နာရီ ဖုန်းပိတ်ပါ။" }
+    ] }
+];
+
+const topic = getTopic(), LV = getLevel();
+renderBar("Reading Quest · " + topic.name);
+$("#app").innerHTML =
+  '<div class="stats"><span>Question: <b id="qn">1</b>/3</span><span>Score: <b id="score">0</b></span></div>' +
+  '<article class="doc" aria-label="Passage"><div class="kind"><b id="kind"></b><button class="btn" id="read" style="min-height:44px">🔊 Read it to me</button></div>' +
+  '<h2 id="title"></h2><div id="passage"></div><div class="gloss" id="gloss" aria-live="polite">👆 မျဉ်းစက်ခြစ်ထားတဲ့ စာလုံးကို နှိပ်ရင် မြန်မာအဓိပ္ပါယ် ပေါ်လာမယ်။</div></article>' +
+  '<div class="panel qpanel"><div class="q-label">Question</div><div class="q-text" id="qtext"></div><div class="opts" id="opts"></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div><div class="row"><button class="btn" id="hint">💡 Hint (−3)</button><button class="btn primary" id="next" hidden>Next →</button></div></div>';
+if (!LV.hint) $("#hint").hidden = true;
+if (!("speechSynthesis" in window)) $("#read").hidden = true;
+
+let P, qs, qi, right, score, answered, hinted, evRange, lastIdx = -1;
+
+// Draw the passage; words with a gloss become buttons, the evidence sentence is highlighted.
+function drawPassage() {
+  const box = $("#passage"); box.innerHTML = "";
+  let off = 0;
+  P.text.split("\n").forEach(line => {
+    const div = document.createElement("div"); div.className = "ln";
+    const re = /([A-Za-z']+)|([^A-Za-z']+)/g; let m, cur = null;
+    const put = (node, a, b) => {
+      const inEv = evRange && a < evRange[1] && b > evRange[0];
+      if (inEv) { if (!cur) { cur = document.createElement("mark"); div.appendChild(cur); } cur.appendChild(node); }
+      else { cur = null; div.appendChild(node); }
+    };
+    while ((m = re.exec(line))) {
+      const a = off + m.index, b = a + m[0].length;
+      if (m[1] && P.gloss[m[1].toLowerCase()]) {
+        const w = document.createElement("button"); w.className = "w"; w.textContent = m[1]; w.type = "button";
+        const key = m[1].toLowerCase();
+        w.onclick = () => showGloss(w, key);
+        put(w, a, b);
+      } else put(document.createTextNode(m[0]), a, b);
+    }
+    box.appendChild(div);
+    off += line.length + 1;
+  });
+}
+function showGloss(btn, word) {
+  document.querySelectorAll(".doc button.w.on").forEach(x => x.classList.remove("on"));
+  btn.classList.add("on");
+  const g = $("#gloss"); g.innerHTML = ""; g.style.color = "var(--ink)";
+  const b = document.createElement("b"); b.textContent = word; g.appendChild(b);
+  g.appendChild(document.createTextNode(" = " + P.gloss[word]));
+  speak(word);
+}
+function play() {
+  let idx; do { idx = Math.floor(Math.random() * PASSAGES.length); } while (idx === lastIdx && PASSAGES.length > 1);
+  lastIdx = idx; P = PASSAGES[idx];
+  qs = P.qs.map(q => {
+    const wrong = shuffle(q.d).slice(0, LV.opts - 1);
+    return Object.assign({}, q, { options: shuffle([q.a, ...wrong]) });
+  });
+  qi = 0; right = 0; score = 0; evRange = null;
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  $("#kind").textContent = P.kind; $("#title").textContent = P.title;
+  const g = $("#gloss"); g.textContent = "👆 မျဉ်းစက်ခြစ်ထားတဲ့ စာလုံးကို နှိပ်ရင် မြန်မာအဓိပ္ပါယ် ပေါ်လာမယ်။"; g.style.color = "";
+  drawPassage(); showQ();
+}
+function setEv(on) {
+  const q = qs[qi], i = P.text.indexOf(q.ev);
+  evRange = on && i >= 0 ? [i, i + q.ev.length] : null;
+  drawPassage();
+}
+function showQ() {
+  const q = qs[qi]; answered = false; hinted = false; setEv(false);
+  $("#qn").textContent = qi + 1; $("#score").textContent = score;
+  $("#qtext").textContent = q.q;
+  const box = $("#opts"); box.innerHTML = "";
+  q.options.forEach(o => {
+    const b = document.createElement("button"); b.className = "opt"; b.textContent = o;
+    b.onclick = () => choose(b, o === q.a); box.appendChild(b);
+  });
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#next").hidden = true; $("#hint").disabled = false;
+}
+function choose(btn, ok) {
+  if (answered) return;
+  answered = true;
+  const q = qs[qi], fb = $("#fb");
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === q.a) b.classList.add("right"); });
+  $("#hint").disabled = true;
+  if (ok) { right++; const pts = hinted ? 7 : 10; score += pts; addPoints(pts); sfx.ok(); fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! "; }
+  else { sfx.bad(); btn.classList.add("wrong"); fb.className = "fb no"; fb.textContent = "✗ မှားပါတယ်။ "; }
+  fb.appendChild(document.createTextNode(q.why + " (အဖြေ ထောက်ပြချက်ကို စာထဲမှာ အဝါရောင်နဲ့ ပြထားတယ်)"));
+  setEv(true);
+  $("#score").textContent = score;
+  const n = $("#next"); n.hidden = false; n.textContent = qi === qs.length - 1 ? "Finish" : "Next →"; n.focus();
+}
+$("#hint").onclick = () => { if (answered) return; hinted = true; setEv(true); $("#hint").disabled = true; };
+$("#next").onclick = () => {
+  if (qi < qs.length - 1) { qi++; showQ(); return; }
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  const stars = right >= 3 ? 3 : right === 2 ? 2 : 1;
+  showResult({ title: cheer(right / 3), stars, text: right + " / 3 မှန်တယ် · " + score + " points", onAgain: play });
+};
+$("#read").onclick = () => {
+  if (!("speechSynthesis" in window)) return;
+  if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
+  speak(P.text.replace(/\n/g, ". ").replace(/\.\./g, ".").replace(/a\.m\./g, "A M").replace(/p\.m\./g, "P M"));
+};
+play.gameId = "reading";
+play();
+</script>
+</body>
+</html>

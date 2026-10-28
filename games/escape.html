@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escape Room</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.scene { text-align: center; padding: 14px; }
+.scene .door { font-size: 3.6rem; line-height: 1.2; transition: transform .6s; }
+.scene .door.open { transform: scale(1.15); }
+.scene .keys { font-size: 1.5rem; letter-spacing: 4px; margin: 4px 0; }
+.scene .story { margin: 6px 0 0; color: var(--ink); font-size: 1rem; line-height: 1.8; }
+.locks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+@media (min-width: 560px) { .locks { grid-template-columns: repeat(3, 1fr); } }
+.lockcard { font: inherit; background: var(--card); color: var(--ink); border: 2px solid var(--line); border-radius: 16px; min-height: 96px; padding: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; line-height: 1.4; }
+.lockcard:hover:not(:disabled) { border-color: var(--accent); }
+.lockcard .ic { font-size: 1.8rem; }
+.lockcard .nm { font-weight: 800; font-size: .95rem; }
+.lockcard .en { font-size: .8rem; color: var(--muted); }
+.lockcard:disabled { opacity: 1; cursor: default; border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--card)); }
+.dialog.esc { max-width: 520px; max-height: 92vh; overflow: auto; }
+.dialog.esc .tm { font-weight: 800; color: var(--warn); }
+.dialog.esc .tiles, .dialog.esc .slots { margin: 10px 0; }
+.dialog.esc .opts { margin-top: 10px; }
+.tm.pen, .stats .pen { color: var(--bad); }
+.timer.low > i { background: var(--bad); }
+.shake { animation: shake .3s; }
+@media (prefers-reduced-motion: reduce) { .scene .door { transition: none; } .shake { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const topic = getTopic(), LV = getLevel();
+renderBar("Escape Room · " + topic.name);
+const SECS = [360, 330, 300, 240][topic.level - 1], WRONG = 15, HINT = 10;
+const KINDS = [
+  { id: "translate", ic: "🔤", mm: "ဘာသာပြန်", en: "Translate" },
+  { id: "fill", ic: "✏️", mm: "ကွက်လပ်ဖြည့်", en: "Fill the gap" },
+  { id: "scramble", ic: "🔀", mm: "စာလုံးစီ", en: "Unscramble" },
+  { id: "listen", ic: "🎧", mm: "နားထောင်ပြီးရိုက်", en: "Listen & type" },
+  { id: "order", ic: "🧩", mm: "စကားစီပါ", en: "Word order" },
+  { id: "odd", ic: "🕵️", mm: "မတူတာရှာ", en: "Odd one out" }
+];
+const STORY = [
+  "သော့ ၁ ခု ပွင့်သွားပြီ! 🔑 စားပွဲအံဆွဲထဲမှာ လက်နှိပ်ဓာတ်မီးတစ်လက် တွေ့တယ်။",
+  "သော့ ၂ ခု ပွင့်ပြီ။ စာအုပ်စင်နောက်က လျှို့ဝှက်ကပ်ပစ္စည်းတစ်ခုကို သတိထားမိတယ်။",
+  "သော့ ၃ ခု ပွင့်ပြီ။ တံခါးက တစ်ဝက်လောက် တုန်သွားတယ်။ ဆက်သွား!",
+  "သော့ ၄ ခု ပွင့်ပြီ။ အပြင်က လေတိုက်သံ ကြားရတယ်။ နီးပြီ!",
+  "သော့ ၅ ခု ပွင့်ပြီ။ နောက်ဆုံးသော့တစ်ခုပဲ ကျန်တော့တယ်။ 🔥"
+];
+// odd one out: groups of clearly separate topics (pick 3 of one group + 1 from another)
+const GROUPS = [
+  ["တိရစ္ဆာန်", ["dog", "cat", "horse", "rabbit", "tiger", "monkey"]],
+  ["သစ်သီး", ["apple", "banana", "mango", "grape", "pear", "melon"]],
+  ["ခန္ဓာကိုယ်အစိတ်အပိုင်း", ["head", "hand", "knee", "shoulder", "elbow", "finger"]],
+  ["အဝတ်အစား", ["shirt", "jacket", "trousers", "dress", "scarf", "socks"]],
+  ["အလုပ်အကိုင်", ["doctor", "nurse", "teacher", "pilot", "farmer", "driver"]],
+  ["ယာဉ်", ["bus", "train", "taxi", "plane", "bicycle", "ship"]],
+  ["ပရိဘောဂ", ["table", "chair", "sofa", "bed", "desk", "shelf"]],
+  ["ရာသီဥတု", ["rain", "wind", "snow", "cloud", "storm", "fog"]],
+  ["သောက်စရာ", ["tea", "coffee", "juice", "milk", "water", "soda"]],
+  ["နေရာ", ["school", "bank", "market", "hospital", "park", "airport"]],
+  ["မိသားစုဝင်", ["mother", "father", "sister", "brother", "uncle", "aunt"]],
+  ["မီးဖိုချောင်သုံး ပစ္စည်းငယ်", ["spoon", "knife", "plate", "pot", "cup", "fork"]],
+  ["အရောင်", ["red", "blue", "green", "yellow", "purple", "pink"]]
+];
+function oddQ() {
+  const [a, b] = shuffle(GROUPS), three = shuffle(a[1]).slice(0, 3), odd = shuffle(b[1])[0];
+  return { label: "တခြားတွေနဲ့ မတူတဲ့ စာလုံးကို ရွေးပါ", text: "Odd one out 🕵️", options: shuffle([...three, odd]), answer: odd,
+    explain: three.join(", ") + " = " + a[0] + "။ " + odd + " က " + b[0] + " ဖြစ်လို့ မတူပါဘူး။" };
+}
+
+let locks, keys, score, deadline, state, tick, timers = [], modal = null;
+$("#app").innerHTML =
+  '<div class="stats"><span>⏳ <b class="tm" id="clock">5:00</b></span><span>🔑 <b id="keys">0</b>/6</span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="timer" id="tbox"><i id="tbar"></i></div>' +
+  '<div id="stage"></div>';
+const stage = $("#stage");
+
+function fmt(ms) { const s = Math.ceil(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+
+function intro() {
+  state = "intro"; clearInterval(tick);
+  $("#clock").textContent = fmt(SECS * 1000); $("#tbar").style.transform = "scaleX(1)";
+  stage.innerHTML = '<div class="panel scene"><div class="door">🚪</div><p class="story">ညဘက်မှာ ပညာရှင်ကြီးရဲ့ လျှို့ဝှက်စာကြည့်ခန်းထဲ ဝင်လာမိတာ၊ နောက်က တံခါးက <b>ဂလိုင်!</b> ဆိုပြီး ပိတ်သွားတယ်။ ' +
+    'တံခါးမှာ သော့ <b>၆ ခု</b> ရှိတယ်၊ တစ်ခုချင်းစီက English ပဟေဠိတစ်မျိုးစီနဲ့ ပိတ်ထားတာ။ ' +
+    '<b>' + fmt(SECS * 1000) + ' မိနစ်</b> မကုန်ခင် အားလုံးဖွင့်ပြီး ထွက်ပြေးပါ!<br><span class="muted">မှားရင် −' + WRONG + ' စက္ကန့်၊ Hint ယူရင် −' + HINT + ' စက္ကန့်။</span></p>' +
+    '<button class="btn primary" id="start">🗝️ စတင်မယ်</button></div>';
+  $("#start").onclick = play;
+}
+function play() {
+  timers.forEach(clearTimeout); timers = []; clearInterval(tick); closeModal();
+  const ws = take(topic.words, 6);
+  locks = KINDS.map((k, i) => {
+    const w = ws[i];
+    const q = k.id === "translate" ? (Math.random() < 0.5 ? Q.myEn(topic, w) : Q.enMy(topic, w)) : k.id === "fill" ? Q.blank(topic, w) : k.id === "odd" ? oddQ() : null;
+    return { k, w, q, done: false };
+  });
+  keys = 0; score = 0; state = "play"; deadline = Date.now() + SECS * 1000;
+  room("ညှို့ဝှက်အခန်းထဲမှာ သော့ ၆ ခု ရှိတယ်။ သော့တစ်ခုကို ရွေးပြီး ပဟေဠိဖြေပါ! 🕯️", "🚪🔒");
+  tick = setInterval(update, 250); update();
+}
+function room(story, door) {
+  stage.innerHTML = '<div class="panel scene"><div class="door" id="door"></div><div class="keys" id="keyrow" aria-label="Keys"></div><p class="story" id="story"></p></div><div class="locks" id="locks"></div>';
+  $("#door").textContent = door; $("#story").textContent = story;
+  const box = $("#locks");
+  locks.forEach((L, i) => {
+    const b = document.createElement("button");
+    b.className = "lockcard"; b.disabled = L.done;
+    b.innerHTML = '<span class="ic"></span><span class="nm"></span><span class="en"></span>';
+    $(".ic", b).textContent = L.done ? "🔓" : "🔒"; $(".nm", b).textContent = L.k.mm; $(".en", b).textContent = L.k.ic + " " + L.k.en;
+    b.setAttribute("aria-label", "Lock " + (i + 1) + ": " + L.k.en + (L.done ? " (open)" : ""));
+    b.onclick = () => openLock(i);
+    box.appendChild(b);
+  });
+  hud();
+}
+function hud() {
+  $("#keys").textContent = keys; $("#score").textContent = score;
+  const kr = $("#keyrow"); if (kr) kr.textContent = "🔑".repeat(keys) + "▫️".repeat(6 - keys);
+}
+function update() {
+  const left = Math.max(0, deadline - Date.now());
+  document.querySelectorAll(".tm").forEach(e => { e.textContent = fmt(left); });
+  $("#tbar").style.transform = "scaleX(" + Math.min(1, left / (SECS * 1000)) + ")";
+  $("#tbox").classList.toggle("low", left < 30000);
+  if (left <= 0 && state === "play") lose();
+}
+function penalty(sec) {
+  deadline -= sec * 1000; sfx.bad(); update();
+  document.querySelectorAll(".tm").forEach(e => { e.classList.add("pen"); });
+  later(() => document.querySelectorAll(".tm").forEach(e => e.classList.remove("pen")), 600);
+}
+function closeModal() { if (modal) { modal.remove(); modal = null; } }
+
+// ---------- a lock puzzle ----------
+function openLock(i) {
+  if (state !== "play" || modal) return;
+  const L = locks[i];
+  if (L.done) return;
+  const o = document.createElement("div");
+  o.className = "overlay esc";
+  o.innerHTML = '<div class="dialog esc" role="dialog" aria-modal="true"><div class="q-label"></div><div class="q-text" id="eprompt"></div><div id="ebody"></div>' +
+    '<div class="fb" id="efb" aria-live="polite"></div><div class="row"><button class="btn" id="ehint">💡 Hint (−' + HINT + 's)</button><button class="btn" id="eback">← အခန်းထဲပြန်</button><button class="btn primary" id="ego" hidden>Continue →</button></div></div>';
+  $(".q-label", o).innerHTML = L.k.ic + " " + L.k.mm + " · " + L.k.en + " &nbsp;⏳ <span class=\"tm\"></span>";
+  document.body.appendChild(o); modal = o; update();
+  const fb = $("#efb", o), body = $("#ebody", o), prompt = $("#eprompt", o);
+  let hintFn = () => {}, solved = false;
+  const api = {
+    prompt(t, my, small) { prompt.textContent = t; prompt.className = "q-text" + (my ? " my" : ""); prompt.style.fontSize = small ? "clamp(1.2rem,5vw,1.6rem)" : "clamp(1.5rem,6.5vw,2rem)"; },
+    say(msg, cls) { fb.className = "fb " + (cls || ""); fb.textContent = msg; },
+    wrong(sec, msg) { penalty(sec); api.say("✗ " + msg + " (−" + sec + "s)", "no"); },
+    solve(msg) {
+      if (solved) return;
+      solved = true; L.done = true; keys++; score += 20; addPoints(20); sfx.ok(); hud();
+      api.say("🔓 " + msg, "ok"); $("#ehint", o).hidden = true; $("#eback", o).hidden = true;
+      const g = $("#ego", o); g.hidden = false; g.focus();
+      g.onclick = () => {
+        closeModal();
+        if (keys >= 6) return finale();
+        room(STORY[keys - 1], "🚪🔒");
+      };
+    }
+  };
+  $("#ehint", o).onclick = () => { if (!solved) hintFn(); };
+  $("#eback", o).onclick = closeModal;
+  const t = L.k.id;
+  if (t === "scramble") hintFn = uiScramble(body, L, api);
+  else if (t === "listen") hintFn = uiListen(body, L, api);
+  else if (t === "order") hintFn = uiOrder(body, L, api);
+  else hintFn = uiChoice(body, L, api);
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape" && modal) { const g = $("#ego", modal); if (g.hidden) closeModal(); else g.click(); } });
+
+function uiChoice(body, L, api) {
+  const q = L.q;
+  api.prompt(q.text, q.my, q.small);
+  const box = document.createElement("div"); box.className = "opts"; body.appendChild(box);
+  if (q.speak) speak(q.speak);
+  const btns = q.options.map(t => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = t;
+    b.onclick = () => {
+      if (t === q.answer) { btns.forEach(x => { x.disabled = true; }); b.classList.add("right"); api.solve(q.explain); }
+      else { b.disabled = true; b.classList.add("wrong"); api.wrong(WRONG, "မမှန်ဘူး"); }
+    };
+    box.appendChild(b);
+    return b;
+  });
+  api.say(q.label, "");
+  return () => {
+    const live = btns.filter(b => !b.disabled && b.textContent !== q.answer);
+    if (!live.length) return;
+    shuffle(live).slice(0, 2).forEach(b => { b.disabled = true; });
+    penalty(HINT); api.say("💡 မမှန်တဲ့ အဖြေ ဖယ်လိုက်ပြီ (−" + HINT + "s)", "");
+  };
+}
+
+function uiScramble(body, L, api) {
+  const a = L.w.en.toLowerCase(), n = a.length;
+  api.prompt(L.w.my, true); api.say("စာလုံးတွေကို အစီအစဉ်မှန်အောင် နှိပ်ပါ (" + n + " လုံး)", "");
+  let letters = a.split("").map((ch, id) => ({ ch, id })), tiles = letters;
+  for (let k = 0; k < 12 && tiles.map(x => x.ch).join("") === a; k++) tiles = shuffle(letters);
+  let placed = [], lock = false, hintN = 0;
+  body.innerHTML = '<div class="slots"></div><div class="tiles"></div>';
+  const slots = $(".slots", body), tbox = $(".tiles", body);
+  function draw() {
+    slots.innerHTML = ""; tbox.innerHTML = ""; slots.classList.remove("good", "bad");
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement("button"); s.className = "slot" + (placed[i] ? " fill" : ""); s.textContent = placed[i] ? placed[i].ch : "";
+      s.setAttribute("aria-label", "Letter " + (i + 1));
+      s.onclick = () => { if (!lock && placed[i]) { placed.splice(i, 1); draw(); } };
+      slots.appendChild(s);
+    }
+    tiles.forEach(t => {
+      const b = document.createElement("button"); b.className = "tile"; b.textContent = t.ch; b.disabled = placed.some(p => p.id === t.id);
+      b.onclick = () => { if (lock) return; placed.push(t); draw(); if (placed.length === n) check(); };
+      tbox.appendChild(b);
+    });
+  }
+  function check() {
+    lock = true;
+    if (placed.map(p => p.ch).join("") === a) { slots.classList.add("good"); speak(a); api.solve(L.w.en + " = " + L.w.my + " — " + L.w.ex); }
+    else { slots.classList.add("bad"); api.wrong(10, "စာလုံးစီပုံ မမှန်သေးဘူး"); later(() => { placed = []; lock = false; draw(); }, 700); }
+  }
+  draw();
+  return () => {
+    if (lock) return;
+    hintN = Math.min(hintN + 1, n - 1); placed = [];
+    for (let i = 0; i < hintN; i++) { const t = tiles.find(x => x.ch === a[i] && !placed.includes(x)); if (t) placed.push(t); }
+    penalty(HINT); api.say("💡 စာလုံး " + hintN + " လုံး ထည့်ပေးလိုက်ပြီ (−" + HINT + "s)", ""); draw();
+  };
+}
+
+function uiListen(body, L, api) {
+  const a = L.w.en.toLowerCase(), canSpeak = "speechSynthesis" in window && !Store.get("mute", false);
+  api.prompt("🎧");
+  body.innerHTML = '<button class="btn" id="lsay">🔊 နားထောင်ပါ</button><p class="muted" id="clue" style="margin:6px 0"></p>' +
+    '<div><input class="input" id="linp" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Type what you hear"></div>' +
+    '<div class="row"><button class="btn primary" id="lchk">Check</button></div>';
+  const inp = $("#linp", body), clue = $("#clue", body);
+  const showClue = () => { clue.textContent = "💡 " + L.w.my + " · " + a[0] + " " + a.slice(1).replace(/./g, "_ ").trim() + " (" + a.length + " လုံး)"; };
+  $("#lsay", body).onclick = () => { speak(L.w.en); inp.focus(); };
+  if (canSpeak) { speak(L.w.en); api.say("ကြားတဲ့ English စာလုံးကို ရိုက်ပါ", ""); }
+  else { showClue(); api.say("အသံ မရနိုင်လို့ အဓိပ္ပါယ်ကို ပြထားတယ်။ အဓိပ္ပါယ်ကိုကြည့်ပြီး English စာလုံးကို ရိုက်ပါ", ""); }
+  const check = () => {
+    const v = inp.value.trim().toLowerCase();
+    if (!v) return;
+    if (v === a) { inp.disabled = true; $("#lchk", body).hidden = true; speak(L.w.en); api.solve(L.w.en + " = " + L.w.my + " — " + L.w.ex); }
+    else { api.wrong(10, "မမှန်သေးဘူး"); inp.select(); }
+  };
+  $("#lchk", body).onclick = check;
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+  later(() => { try { inp.focus(); } catch (e) {} }, 50);
+  return () => { showClue(); penalty(HINT); api.say("💡 အဓိပ္ပါယ်နဲ့ စာလုံးအရေအတွက် ပြပေးလိုက်ပြီ (−" + HINT + "s)", ""); inp.focus(); };
+}
+
+function uiOrder(body, L, api) {
+  const toks = L.w.ex.split(" "), full = toks.join(" ");
+  api.prompt(L.w.exMy, true, true); api.say("စကားလုံးတွေကို အစီအစဉ်မှန်အောင် နှိပ်ပါ", "");
+  let items = toks.map((t, id) => ({ t, id }));
+  for (let k = 0; k < 12 && items.map(x => x.t).join(" ") === full; k++) items = shuffle(items);
+  let placed = [], lock = false, hintN = 0;
+  body.innerHTML = '<div class="chips line"></div><div class="chips"></div>';
+  const line = body.children[0], bank = body.children[1];
+  function draw() {
+    line.innerHTML = ""; bank.innerHTML = ""; line.className = "chips line";
+    placed.forEach((p, i) => {
+      const b = document.createElement("button"); b.className = "chip placed"; b.textContent = p.t;
+      b.onclick = () => { if (!lock) { placed.splice(i, 1); draw(); } };
+      line.appendChild(b);
+    });
+    items.forEach(p => {
+      const b = document.createElement("button"); b.className = "chip"; b.textContent = p.t; b.disabled = placed.includes(p);
+      b.onclick = () => { if (lock) return; placed.push(p); draw(); if (placed.length === items.length) check(); };
+      bank.appendChild(b);
+    });
+  }
+  function check() {
+    lock = true;
+    if (placed.map(p => p.t).join(" ") === full) { line.classList.add("good"); speak(full); api.solve(full + " — " + L.w.exMy); }
+    else { line.classList.add("bad"); api.wrong(10, "စကားလုံးအစီအစဉ် မမှန်သေးဘူး"); later(() => { placed = []; lock = false; draw(); }, 800); }
+  }
+  draw();
+  return () => {
+    if (lock) return;
+    hintN = Math.min(hintN + 1, toks.length - 1); placed = [];
+    for (let i = 0; i < hintN; i++) { const p = items.find(x => x.t === toks[i] && !placed.includes(x)); if (p) placed.push(p); }
+    penalty(HINT); api.say("💡 စကားလုံး " + hintN + " လုံး ထည့်ပေးလိုက်ပြီ (−" + HINT + "s)", ""); draw();
+  };
+}
+
+// ---------- end ----------
+function finale() {
+  state = "over"; clearInterval(tick);
+  const left = Math.max(0, deadline - Date.now()), r = left / (SECS * 1000);
+  const bonus = Math.floor(left / 10000); score += bonus; addPoints(bonus); hud();
+  stage.innerHTML = '<div class="panel scene"><div class="door open">🚪✨</div><div class="keys">🔑🔑🔑🔑🔑🔑</div><p class="story">သော့ ၆ ခုလုံး ပွင့်သွားပြီ၊ တံခါးကြီး ပွင့်လာတယ်! 🌅<br>အချိန် ' + fmt(left) + ' ကျန်ပြီး ထွက်ပြေးနိုင်ခဲ့တယ်။</p></div>';
+  sfx.win();
+  later(() => showResult({
+    title: "ထွက်ပြေးနိုင်ပါပြီ! 🎉", stars: r >= 0.5 ? 3 : r >= 0.2 ? 2 : 1,
+    text: "အချိန် " + fmt(left) + " ကျန်တယ် · " + score + " points", onAgain: again
+  }), 1600);
+}
+function lose() {
+  state = "over"; clearInterval(tick); closeModal();
+  $("#clock").textContent = "0:00";
+  stage.innerHTML = '<div class="panel scene"><div class="door">🔒⏰</div><p class="story">အချိန်ကုန်သွားပြီ၊ တံခါးက ဆက်ပိတ်နေတုန်းပဲ။ သော့ ' + keys + ' / ၆ ခု ဖွင့်နိုင်ခဲ့တယ်။</p></div>';
+  later(() => showResult({
+    title: "အချိန်ကုန်သွားပြီ ⏰", stars: 1, text: "သော့ " + keys + " / 6 ခု ဖွင့်နိုင်တယ် · " + score + " points", onAgain: again
+  }), 700);
+}
+function again() { play(); }
+again.gameId = "escape";
+intro();
+</script>
+</body>
+</html>

@@ -21,6 +21,7 @@
 <script src="js/choice.js"></script>
 <script>
 const topic = getTopic();
+const LV = getLevel();
 renderBar("Falling Words · " + topic.name);
 const ROUNDS = 10, H = 360, BTN = 48, OFFS = [0, -90, -45, -135];
 let round, lives, score, solved, target, els, t0, dur, raf, paused;
@@ -48,7 +49,7 @@ function nextRound() {
     return b;
   });
   speak(target.en);
-  dur = Math.max(4500, 9500 - round * 450);
+  dur = Math.max(3000, (9500 - round * 450) * LV.pace);
   t0 = performance.now();
   raf = requestAnimationFrame(loop);
 }

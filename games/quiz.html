@@ -25,10 +25,13 @@
 <script src="js/common.js"></script>
 <script>
 const topic = getTopic();
+const LV = getLevel();
 renderBar("Quick Quiz · " + topic.name);
-const LIMIT = 15000;
+const LIMIT = (LV.secs || 15) * 1000;
 let qs, i, correct, streak, score, answered, tick, tStart;
-$("#timerOn").checked = Store.get("timer", false);
+// From level 2 the timer is part of the challenge, so the switch goes away.
+$("#timerOn").checked = LV.secs ? true : Store.get("timer", false);
+if (LV.secs) $(".toggle").style.display = "none";
 $("#timerOn").onchange = e => { Store.set("timer", e.target.checked); play(); };
 
 function play() {
@@ -48,7 +51,7 @@ function show() {
   $("#say").hidden = !q.toMy;
   $("#say").onclick = () => speak(w.en);
   if (q.toMy) speak(w.en);
-  const wrong = shuffle(topic.words.filter(x => x !== w)).slice(0, 3);
+  const wrong = others(topic, w, 3);
   const opts = shuffle([w, ...wrong]);
   const box = $("#opts");
   box.innerHTML = "";

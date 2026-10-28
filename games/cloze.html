@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cloze Story</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.story { text-align: left; }
+.story h2 { margin: 0 0 6px; font-size: 1.2rem; text-align: center; }
+.story p { margin: 0; font-size: 1.1rem; line-height: 2.5; }
+.gap { font: inherit; font-weight: 800; min-height: 40px; min-width: 64px; padding: 0 10px; margin: 0 2px; border-radius: 10px;
+  border: 2px dashed var(--accent); background: transparent; color: var(--accent); cursor: pointer; vertical-align: middle; }
+.gap.fill { border-style: solid; background: var(--card); color: var(--ink); }
+.gap.cur { background: color-mix(in srgb, var(--accent) 18%, var(--card)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.gap.right { border-style: solid; border-color: var(--good); background: color-mix(in srgb, var(--good) 18%, var(--card)); color: var(--ink); }
+.gap.wrong { border-style: solid; border-color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, var(--card)); color: var(--ink); }
+.gap:disabled { cursor: default; }
+.meter { height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 12px; }
+.meter > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s; }
+.picker { margin-top: 12px; }
+.opt.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--card)); }
+.picker .opts { margin-top: 10px; }
+.review { margin-top: 14px; display: grid; gap: 10px; text-align: left; }
+.review .it { background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 10px 14px; line-height: 1.7; }
+.review .it.right { border-color: var(--good); }
+.review .it.wrong { border-color: var(--bad); }
+.review .tag { font-size: .8rem; font-weight: 800; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .meter > i { transition: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const T = { tense: "ကာလ (Tense)", prep: "ဝိဘတ် (Preposition)", link: "ချိတ်ဆက်စကားလုံး (Linking word)", coll: "စကားလုံးတွဲ (Collocation)", form: "စကားလုံးပုံစံ (Word form)", gram: "သဒ္ဒါ (Grammar)" };
+// text with {1}..{5}; gaps: [type, right answer, [three wrong answers], Burmese explanation]
+const STORIES = [
+  { title: "🏃 The Marathon",
+    text: "Last year my brother {1} to run his first marathon. He had never run more than five kilometres, {2} he knew the training would be hard. Every morning he got up at six and ran {3} an hour before work. He also {4} a strict diet and went to bed early. On race day he felt nervous but completely {5} to finish. His whole family was waiting at the end with a huge banner, and when he crossed the line after four hours, he cried with joy.",
+    gaps: [
+      ["tense", "decided", ["has decided", "would decide", "was deciding"], "Last year = အတိတ်အချိန်အတိအကျ၊ ဒါကြောင့် past simple (decided) သုံးတယ်။"],
+      ["link", "so", ["because", "unless", "despite"], "so = ရလဒ်ကို ပြောတယ်။ မပြေးဖူးလို့ → လေ့ကျင့်ရခက်မယ်ဆိုတာ သိတယ်။"],
+      ["prep", "for", ["since", "at", "by"], "for + ကြာချိန် (for an hour)၊ since + စတင်တဲ့အချိန်။"],
+      ["coll", "followed", ["made", "did", "took"], "follow a diet = စားသောက်မှုစနစ်ကို လိုက်နာတယ်။"],
+      ["form", "determined", ["determination", "determining", "determine"], "completely နောက်မှာ adjective လိုတယ်၊ determined = ပြတ်ပြတ်သားသား ရည်ရွယ်တဲ့။"]
+    ] },
+  { title: "🏛️ The City Museum",
+    text: "The old museum in our town {1} built in 1890 and is now one of the most popular tourist attractions. Visitors {2} take photographs inside the main hall, but they must switch off the flash. Last Saturday I went there with my cousin, who had been looking forward to it {3} weeks. We were surprised to find that the entrance was free, {4} the guide told us we could leave a donation. The exhibition about local history was so interesting that we stayed for three hours. If I {5} the time, I would visit every month.",
+    gaps: [
+      ["tense", "was", ["is", "has", "were"], "in 1890 = အတိတ်၊ passive ဖြစ်လို့ was built။ (museum တစ်ခုတည်း၊ ဒါကြောင့် were မဟုတ်ဘူး)"],
+      ["gram", "may", ["ought", "need", "have"], "may + verb = ခွင့်ပြုတယ်။ ought ကို to နဲ့ တွဲသုံးရတယ်၊ need/have + verb ပုံစံ မမှန်ဘူး။"],
+      ["prep", "for", ["since", "during", "from"], "for + ကြာချိန် (for weeks)။ since + စတင်ချိန်၊ for weeks = ရက်သတ္တပတ်ပေါင်းများစွာ။"],
+      ["link", "but", ["so", "because", "unless"], "but = ဆန့်ကျင်ဘက်။ အခမဲ့ပေမယ့် ရန်ပုံငွေ လှူနိုင်တယ်။"],
+      ["tense", "had", ["have", "would have", "will have"], "would visit ပါတာကြောင့် Type 2၊ if-clause မှာ past simple (had)။"]
+    ] },
+  { title: "🏠 Working from Home",
+    text: "More and more companies now allow their staff to work from home. Supporters say that this {1} people save time and money because they do not have to travel. It also gives workers more {2} over how they organise their day. However, some managers are worried {3} the quality of teamwork. Without face-to-face meetings, it can be hard to build strong working {4}. Experts suggest that firms should find a good {5} between home and office days, so that everyone can enjoy the benefits.",
+    gaps: [
+      ["gram", "helps", ["help", "helping", "to help"], "this = တစ်ခုတည်း (singular) ဖြစ်လို့ present simple မှာ -s ထည့်ရတယ် (helps)။"],
+      ["form", "control", ["controls", "controlling", "controlled"], "more နောက်မှာ noun လိုတယ်။ more control over = ... ကို ပိုထိန်းချုပ်ခွင့်။"],
+      ["prep", "about", ["for", "at", "of"], "worried about = ... အတွက် စိုးရိမ်တယ်။"],
+      ["form", "relationships", ["relates", "related", "relating"], "strong working ... = noun လိုတယ်။ relationships = ဆက်ဆံရေးတွေ။"],
+      ["coll", "balance", ["equal", "measure", "share"], "find a balance between A and B = နှစ်ခုကြား မျှတအောင် ရှာတယ်။"]
+    ] },
+  { title: "✈️ The Forgotten Passports",
+    text: "When we arrived at the airport, we realised that we {1} our passports at home. My wife was furious, {2} I tried to stay calm. Fortunately, we lived only twenty minutes away, so I took a taxi and hurried back. The driver said he {3} drive as fast as he could. {4} the traffic was heavy, we managed to return an hour before the flight. In the end, we {5} nothing but a little time, and we both laughed about it on the plane.",
+    gaps: [
+      ["tense", "had left", ["have left", "would leave", "were leaving"], "ရောက်တဲ့အချိန်ထက် အရင်ဖြစ်ပြီးသား (အိမ်မှာ ထားခဲ့တာ) → past perfect (had left)။"],
+      ["link", "while", ["because", "unless", "or"], "while = ... ပေမယ့် (ဆန့်ကျင်ချက်)။ ဇနီးက ဒေါသထွက်ပေမယ့် ကျွန်တော်က တည်ငြိမ်အောင်လုပ်တယ်။"],
+      ["tense", "would", ["will", "does", "has"], "Reported speech: said (အတိတ်) နောက်မှာ will → would။"],
+      ["link", "Although", ["Because", "Unless", "Despite"], "Although + clause = ... ပေမယ့်။ Despite နောက်မှာ noun/-ing လိုတယ်၊ clause မရဘူး။"],
+      ["coll", "lost", ["missed", "forgot", "broke"], "lose time = အချိန်ဆုံးရှုံးတယ်။ lost nothing but a little time = အချိန်နည်းနည်းပဲ ဆုံးရှုံးတယ်။"]
+    ] },
+  { title: "🌊 Plastic and the Ocean",
+    text: "Plastic pollution has become one of the biggest problems {1} our planet. Every year, millions of tonnes of plastic {2} into the oceans, where it harms fish and birds. Scientists have {3} that by 2050 there could be more plastic than fish in the sea. Many countries have already banned plastic bags, and others are {4} to do the same. Of course, governments cannot solve the problem alone. If everyone {5} less plastic, the situation would improve quickly, and our beaches would be much cleaner.",
+    gaps: [
+      ["form", "facing", ["face", "faced", "to facing"], "problems facing our planet = ကမ္ဘာကို ရင်ဆိုင်နေတဲ့ ပြဿနာတွေ၊ -ing (participle)။"],
+      ["tense", "are dumped", ["dump", "dumping", "has dumped"], "plastic ကို ပစ်ချခံရတာ → passive (are dumped)။ tonnes = များများ၊ are။"],
+      ["coll", "warned", ["told", "spoken", "talked"], "scientists have warned that = သတိပေးထားတယ်။ told နောက်မှာ လူ လိုတယ် (told us that)။"],
+      ["coll", "planning", ["thinking", "considering", "suggesting"], "plan to do = ... လုပ်ဖို့ စီစဉ်တယ်။ think/consider/suggest နောက်မှာ to မသုံးဘူး။"],
+      ["tense", "used", ["uses", "would use", "had used"], "would improve = Type 2၊ if-clause မှာ past simple (used)။"]
+    ] },
+  { title: "💼 The Interview",
+    text: "Last week I had an interview for a job {1} a marketing assistant. I {2} at the office early, so I had time to read my notes. The manager asked me why I wanted to join the company. I explained that I was keen on {3} new ideas and working with a team. She said she was impressed {4} my experience and that she would contact me by Friday. If I get the job, I will {5} the chance to learn from experienced colleagues.",
+    gaps: [
+      ["prep", "as", ["like", "in", "at"], "a job as ... = ... အဖြစ် အလုပ်ရာထူး။ like = ... လိုမျိုး။"],
+      ["prep", "arrived", ["got", "reached", "came"], "arrive at the office။ got/reached/came ရဲ့ နောက်မှာ at မသုံးဘူး (got to, reached, came to)။"],
+      ["form", "developing", ["develop", "to develop", "developed"], "keen on + -ing (preposition နောက်မှာ -ing ပုံစံ သုံးတယ်)။"],
+      ["prep", "with", ["of", "for", "on"], "impressed with/by + noun = ... ကို အထင်ကြီးတယ်။"],
+      ["coll", "have", ["do", "make", "say"], "have the chance to + verb = ... လုပ်ဖို့ အခွင့်အရေးရတယ်။"]
+    ] }
+];
+
+const topic = getTopic(), LV = getLevel();
+renderBar("Cloze Story · " + topic.name);
+$("#app").innerHTML =
+  '<div class="stats"><span>Gaps: <b id="filled">0</b>/5</span><span id="score">Score: <b id="pts">0</b></span></div>' +
+  '<div class="meter" aria-hidden="true"><i id="mbar"></i></div>' +
+  '<div class="panel story"><h2 id="ttl"></h2><p id="para"></p></div>' +
+  '<div class="panel picker" id="picker"><div class="q-label" id="plabel"></div><div class="opts" id="opts"></div></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div>' +
+  '<div class="row"><button class="btn primary" id="check" disabled>✓ Check answers</button><button class="btn primary" id="finish" hidden>Finish →</button></div>' +
+  '<div class="review" id="review"></div>';
+
+let story, ans, opts, cur, checked, last = -1, right;
+
+function play() {
+  let n; do { n = Math.floor(Math.random() * STORIES.length); } while (n === last && STORIES.length > 1);
+  last = n; story = STORIES[n];
+  ans = story.gaps.map(() => null);
+  opts = story.gaps.map(g => shuffle([g[1], ...shuffle(g[2]).slice(0, LV.opts - 1)]));
+  cur = 0; checked = false; right = 0;
+  $("#review").innerHTML = ""; $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#finish").hidden = true; $("#check").hidden = false; $("#pts").textContent = 0;
+  render();
+}
+
+function render() {
+  $("#ttl").textContent = story.title;
+  const para = $("#para"); para.innerHTML = "";
+  story.text.split(/\{(\d)\}/).forEach((part, k) => {
+    if (k % 2 === 0) { para.appendChild(document.createTextNode(part)); return; }
+    const i = +part - 1, b = document.createElement("button");
+    const g = story.gaps[i];
+    b.type = "button";
+    let cls = "gap";
+    if (ans[i]) cls += " fill";
+    if (!checked && i === cur) cls += " cur";
+    if (checked) cls += ans[i] === g[1] ? " right" : " wrong";
+    b.className = cls;
+    b.textContent = ans[i] ? ans[i] + (checked && ans[i] !== g[1] ? " ✗" : "") : "(" + part + ") ____";
+    b.setAttribute("aria-label", "Gap " + part + (ans[i] ? ": " + ans[i] : ": empty"));
+    b.disabled = checked;
+    b.onclick = () => { cur = i; render(); };
+    para.appendChild(b);
+  });
+  const filled = ans.filter(Boolean).length;
+  $("#filled").textContent = filled;
+  $("#mbar").style.width = (filled / ans.length * 100) + "%";
+  $("#check").disabled = filled < ans.length;
+  const pk = $("#picker");
+  pk.hidden = checked;
+  if (!checked) {
+    $("#plabel").textContent = "Gap " + (cur + 1) + " — " + T[story.gaps[cur][0]];
+    const box = $("#opts"); box.innerHTML = "";
+    opts[cur].forEach((o, k) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "opt"; b.textContent = o;
+      b.setAttribute("aria-label", (k + 1) + ". " + o);
+      if (ans[cur] === o) b.classList.add("sel");
+      b.onclick = () => choose(o);
+      box.appendChild(b);
+    });
+  }
+}
+
+function choose(o) {
+  if (checked) return;
+  ans[cur] = o;
+  // jump to the next empty gap after this one (or any empty gap)
+  const n = story.gaps.length;
+  for (let s = 1; s <= n; s++) { const j = (cur + s) % n; if (!ans[j]) { cur = j; break; } }
+  render();
+}
+
+function check() {
+  if (checked || ans.some(a => !a)) return;
+  checked = true;
+  right = ans.filter((a, i) => a === story.gaps[i][1]).length;
+  const pts = right * 10; addPoints(pts); $("#pts").textContent = pts;
+  right >= 3 ? sfx.ok() : sfx.bad();
+  const fb = $("#fb");
+  fb.className = "fb " + (right >= 4 ? "ok" : "no");
+  fb.textContent = right + " / " + ans.length + " မှန်တယ် — အောက်မှာ gap တစ်ခုချင်းစီရဲ့ ရှင်းလင်းချက်ကို ဖတ်ပါ";
+  $("#check").hidden = true; $("#finish").hidden = false; $("#finish").focus();
+  const rv = $("#review"); rv.innerHTML = "";
+  story.gaps.forEach((g, i) => {
+    const ok = ans[i] === g[1], d = document.createElement("div");
+    d.className = "it " + (ok ? "right" : "wrong");
+    const tag = document.createElement("div"); tag.className = "tag"; tag.textContent = (i + 1) + ". " + T[g[0]];
+    const a = document.createElement("div");
+    a.textContent = (ok ? "✓ " : "✗ ") + g[1] + (ok ? "" : "  (သင့်အဖြေ: " + ans[i] + ")");
+    a.style.fontWeight = "700";
+    const e = document.createElement("div"); e.textContent = g[3];
+    d.append(tag, a, e);
+    rv.appendChild(d);
+  });
+  render();
+  fb.scrollIntoView && fb.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+}
+
+function finish() {
+  const r = right / ans.length;
+  showResult({ title: cheer(r), stars: starsFor(r), text: right + " / " + ans.length + " ကွက်လပ် မှန်တယ် · " + right * 10 + " points", onAgain: play });
+}
+
+$("#check").onclick = check;
+$("#finish").onclick = finish;
+document.addEventListener("keydown", e => {
+  if (checked || e.ctrlKey || e.metaKey || e.altKey || document.querySelector(".overlay")) return;
+  const k = parseInt(e.key, 10);
+  if (k >= 1 && k <= opts[cur].length) choose(opts[cur][k - 1]);
+});
+play.gameId = "cloze";
+play();
+</script>
+</body>
+</html>

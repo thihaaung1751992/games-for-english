@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rhyme Time</title>
+<link rel="stylesheet" href="css/style.css">
+<style>.fb { white-space: pre-line; }</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Each family: words that rhyme (same ending sound, spelling may differ) and near = look-alike words that do NOT rhyme.
+const FAMS = [
+  { w: ["cat", "hat", "bat", "mat", "rat", "flat"], near: ["cart", "cut", "cot", "kit"] },
+  { w: ["night", "light", "right", "bright", "kite", "white"], near: ["nice", "neat", "nut", "note"] },
+  { w: ["play", "day", "say", "way", "stay", "gray"], near: ["plan", "plate", "plus", "plug"] },
+  { w: ["blue", "two", "shoe", "true", "new", "glue"], near: ["blow", "black", "bleed", "bus"] },
+  { w: ["ball", "tall", "wall", "call", "small", "fall"], near: ["bell", "bull", "bowl", "bill"] },
+  { w: ["tree", "see", "free", "key", "three", "bee"], near: ["trip", "trap", "truck", "tent"] },
+  { w: ["car", "star", "far", "jar", "bar"], near: ["care", "cap", "cow", "cup"] },
+  { w: ["bed", "red", "head", "said", "bread", "fed"], near: ["bad", "bid", "bud", "bird"] },
+  { w: ["pen", "ten", "men", "hen", "then", "when"], near: ["pan", "pin", "pet", "pie"] },
+  { w: ["sun", "run", "fun", "bun", "one", "done"], near: ["sand", "sign", "sit", "soon"] },
+  { w: ["dog", "log", "frog", "fog", "jog"], near: ["dig", "dug", "door", "duck"] },
+  { w: ["big", "pig", "dig", "wig", "fig"], near: ["bag", "bug", "beg", "bike"] },
+  { w: ["hot", "pot", "not", "dot", "lot", "got"], near: ["hat", "hut", "hit", "hope"] },
+  { w: ["bike", "like", "hike", "strike"], near: ["bake", "back", "bite", "book"] },
+  { w: ["cake", "make", "take", "lake", "shake", "snake"], near: ["cook", "kick", "cap", "coke"] },
+  { w: ["boat", "coat", "goat", "note", "float", "vote"], near: ["bat", "beat", "but", "bought"] },
+  { w: ["rain", "train", "plane", "pain", "brain", "main"], near: ["ran", "run", "ring", "rice"] },
+  { w: ["moon", "soon", "spoon", "noon"], near: ["man", "mean", "money", "more"] },
+  { w: ["book", "look", "cook", "hook", "took"], near: ["back", "boot", "box", "bake"] },
+  { w: ["king", "ring", "sing", "thing", "wing", "swing"], near: ["kind", "kick", "kiss", "kid"] },
+  { w: ["snow", "go", "show", "slow", "know", "toe"], near: ["now", "snack", "snake", "sun"] },
+  { w: ["bear", "chair", "hair", "pair", "share", "wear"], near: ["beer", "bar", "beard", "bean"] },
+  { w: ["hand", "sand", "land", "band", "stand"], near: ["hang", "hard", "hunt", "hen"] },
+  { w: ["nine", "line", "fine", "mine", "wine", "sign"], near: ["name", "noon", "none", "nice"] },
+  { w: ["meet", "feet", "street", "sweet", "eat", "seat"], near: ["met", "mate", "meal", "melt"] },
+  { w: ["door", "floor", "four", "more", "store", "pour"], near: ["dog", "dear", "down", "dark"] },
+  { w: ["fish", "dish", "wish"], near: ["fist", "fresh", "fix", "fill"] }
+];
+const ALLW = FAMS.flatMap(f => f.w);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const famOf = w => FAMS.find(f => f.w.includes(w));
+// words that look like `w` but do not rhyme with it: its own near-misses first, then words from other families
+function wrongFor(f, n) {
+  const LV = getLevel();
+  const pool = f.near.slice();
+  // harder levels use more look-alikes
+  const nNear = LV.similar ? Math.min(n, 3) : Math.min(n, 2);
+  const out = shuffle(pool).slice(0, nNear);
+  const far = shuffle(ALLW.filter(x => !f.w.includes(x) && !f.near.includes(x)));
+  while (out.length < n) out.push(far.shift());
+  return out;
+}
+const note = f => f.w.slice(0, 4).join(" · ") + " — အသံတူတယ် (rhyme)";
+
+function build() {
+  const LV = getLevel(), n = LV.opts;
+  return take(FAMS, 12).map((f, k) => {
+    const kind = k % 4; // 0,2 find the rhyme  1 odd one out  3 do they rhyme?
+    if (kind === 1) {
+      const three = shuffle(f.w).slice(0, n - 1), odd = pick(f.near);
+      const opts = shuffle([...three, odd]);
+      return { label: "အသံမတူတာကို ရွေးပါ (odd one out)", text: "🎵 ?", speak: opts.join(", "), options: opts, answer: odd,
+        explain: three.join(" · ") + " တို့ အသံတူတယ်။ " + odd + " က မတူဘူး။" };
+    }
+    if (kind === 3) {
+      const yes = Math.random() < 0.5, [a, b] = shuffle(f.w);
+      const c = yes ? b : pick(f.near);
+      return { label: "ဒီနှစ်လုံး အသံတူလား (rhyme?)", text: a + "  —  " + c, speak: a + ", " + c,
+        options: ["✓ အသံတူတယ်", "✗ မတူဘူး"], answer: yes ? "✓ အသံတူတယ်" : "✗ မတူဘူး",
+        explain: yes ? a + " နဲ့ " + c + " အသံတူတယ်။ (" + note(f) + ")" : a + " နဲ့ " + c + " အသံမတူဘူး။ " + a + " ရဲ့ အသံတူတွေ: " + f.w.filter(x => x !== a).slice(0, 3).join(", ") };
+    }
+    const target = pick(f.w), right = pick(f.w.filter(x => x !== target));
+    return mcq({ label: "ဘယ်စာလုံးက အသံတူလဲ (rhymes with)", text: target, speak: target, answer: right,
+      pool: wrongFor(f, n - 1), explain: target + " နဲ့ " + right + " အသံတူတယ်။ (" + note(f) + ")" });
+  });
+}
+runChoice({ gameId: "rhyme", title: "Rhyme Time", build });
+</script>
+</body>
+</html>

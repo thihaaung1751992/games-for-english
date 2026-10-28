@@ -13,14 +13,15 @@
 <main class="wrap">
   <div class="hero">
     <h2>English Game Hub</h2>
-    <p>အကြောင်းအရာရွေးပြီး game ကစားပါ</p>
+    <p>ခက်ခဲမှု အဆင့်ရွေးပြီး game ကစားပါ</p>
     <span class="pts" id="pts">⭐ 0 points</span>
   </div>
 
-  <h3 class="sec">၁။ Topic ရွေးပါ</h3>
-  <div class="topics" id="topics"></div>
+  <h3 class="sec">ခက်ခဲမှု အဆင့်</h3>
+  <div class="lvpick" id="lvpick" role="group" aria-label="Level"></div>
 
-  <h3 class="sec">၂။ Game ရွေးပါ</h3>
+  <h3 class="sec" id="gamesTitle">Game ရွေးပါ</h3>
+  <p class="muted lvinfo" id="lvinfo"></p>
   <div class="games" id="games"></div>
   <p class="muted" style="text-align:center;margin-top:24px;font-size:.9rem">Internet မရှိလည်း ကစားလို့ရပါတယ် (တစ်ကြိမ်ဖွင့်ပြီးရင်)။</p>
 </main>
@@ -29,67 +30,134 @@
 <script src="js/common.js"></script>
 <script>
 const GAMES = [
-  { id: "memory",   file: "memory.html",   ic: "🃏", nm: "Memory Match", ds: "စာလုံးနဲ့ အဓိပ္ပါယ် တွဲရှာပါ" },
-  { id: "quiz",     file: "quiz.html",     ic: "⚡", nm: "Quick Quiz",   ds: "မှန်တာကို အမြန်ရွေးပါ" },
-  { id: "scramble", file: "scramble.html", ic: "🔤", nm: "Word Scramble", ds: "အက္ခရာတွေကို စီပြီး စာလုံးဖွဲ့ပါ" },
-  { id: "hangman",  file: "hangman.html",  ic: "🎯", nm: "Hangman",       ds: "အက္ခရာတွေ ခန့်မှန်းပြီး စာလုံးရှာပါ" },
-  { id: "falling",  file: "falling.html",  ic: "☄️", nm: "Falling Words", ds: "မကျခင် မှန်တဲ့စာလုံးကို နှိပ်ပါ" },
-  { id: "fillblank", file: "fillblank.html", ic: "✏️", nm: "Fill the Blank", ds: "ဝါကျထဲက ကွက်လပ်ကို ဖြည့်ပါ" },
-  { id: "listen",   file: "listen.html",   ic: "🎧", nm: "Listen & Pick", ds: "ကြားပြီး အဓိပ္ပါယ်ရွေးပါ" },
-  { id: "truefalse", file: "truefalse.html", ic: "✅", nm: "True or False", ds: "ကိုက်လား မကိုက်ဘူးလား ဆုံးဖြတ်ပါ" },
-  { id: "typing",   file: "typing.html",   ic: "⌨️", nm: "Spell It",      ds: "အဓိပ္ပါယ်ကြည့်ပြီး စာလုံးပေါင်း ရိုက်ပါ" },
-  { id: "sentence", file: "sentence.html", ic: "🧩", nm: "Sentence Builder", ds: "စကားလုံးတွေ စီပြီး ဝါကျဖွဲ့ပါ" },
-  { id: "wordsearch", file: "wordsearch.html", ic: "🔍", nm: "Word Search", ds: "ဇယားထဲက ဝှက်ထားတဲ့ စာလုံးတွေ ရှာပါ" },
-  { id: "oddone",   file: "oddone.html",   ic: "🙃", nm: "Odd One Out",   ds: "အုပ်စုနဲ့ မတူတဲ့ စာလုံးကို ရွေးပါ" },
-  { id: "connect",  file: "connect.html",  ic: "🔗", nm: "Match Rush",    ds: "စက္ကန့် ၆၀ အတွင်း အများဆုံး တွဲပါ" },
-  { id: "dictation", file: "dictation.html", ic: "📝", nm: "Dictation",   ds: "ဝါကျကို နားထောင်ပြီး ရိုက်ပါ" },
-  { id: "missing",  file: "missing.html",  ic: "🔡", nm: "Missing Letters", ds: "ပျောက်နေတဲ့ အက္ခရာတွေ ဖြည့်ပါ" },
-  { id: "crossword", file: "crossword.html", ic: "📰", nm: "Mini Crossword", ds: "အဓိပ္ပါယ်ကြည့်ပြီး ကန့်လန့်ဖြတ် ဖြည့်ပါ" },
-  { id: "whack",    file: "whack.html",    ic: "🔨", nm: "Whack-a-Word",  ds: "ပေါ်လာတဲ့ မှန်တဲ့စာလုံးကို အမြန်ရိုက်ပါ" },
-  { id: "wordle",   file: "wordle.html",   ic: "🟩", nm: "Word Guess",    ds: "၆ ကြိမ်အတွင်း စာလုံးကို ခန့်မှန်းပါ" },
-  { id: "sort",     file: "sort.html",     ic: "🧺", nm: "Sort It",       ds: "စာလုံးတွေကို မှန်တဲ့ခြင်းထဲ ခွဲထည့်ပါ" },
-  { id: "speak",    file: "speak.html",    ic: "🎤", nm: "Say It",        ds: "စာလုံးကို အသံထွက် ပြောကြည့်ပါ" },
-  { id: "snake",    file: "snake.html",    ic: "🐍", nm: "Word Snake",    ds: "အက္ခရာတွေကို အစဉ်လိုက် စားပါ" },
-  { id: "bingo",    file: "bingo.html",    ic: "🎱", nm: "Word Bingo",    ds: "ကြားတဲ့စာလုံးရဲ့ အဓိပ္ပါယ်ကို ခြစ်ပါ" },
-  { id: "ladder",   file: "ladder.html",   ic: "🏆", nm: "Prize Ladder",  ds: "မေးခွန်း ၁၀ ခု ဖြေပြီး ဆုတက်ယူပါ" },
-  { id: "spellbee", file: "spellbee.html", ic: "🐝", nm: "Spelling Bee",  ds: "နားထောင်ပြီး စာလုံးပေါင်း ရိုက်ပါ" },
-  { id: "errorspot", file: "errorspot.html", ic: "🕵️", nm: "Spot the Mistake", ds: "ဝါကျထဲက မှားနေတဲ့ စာလုံးကို ရှာပါ" }
+  { id: "memory", from: 1,   file: "memory.html",   ic: "🃏", nm: "Memory Match", ds: "စာလုံးနဲ့ အဓိပ္ပါယ် တွဲရှာပါ" },
+  { id: "quiz", from: 1,     file: "quiz.html",     ic: "⚡", nm: "Quick Quiz",   ds: "မှန်တာကို အမြန်ရွေးပါ" },
+  { id: "scramble", from: 2, file: "scramble.html", ic: "🔤", nm: "Word Scramble", ds: "အက္ခရာတွေကို စီပြီး စာလုံးဖွဲ့ပါ" },
+  { id: "hangman", from: 2,  file: "hangman.html",  ic: "🎯", nm: "Hangman",       ds: "အက္ခရာတွေ ခန့်မှန်းပြီး စာလုံးရှာပါ" },
+  { id: "falling", from: 1,  file: "falling.html",  ic: "☄️", nm: "Falling Words", ds: "မကျခင် မှန်တဲ့စာလုံးကို နှိပ်ပါ" },
+  { id: "fillblank", from: 2, file: "fillblank.html", ic: "✏️", nm: "Fill the Blank", ds: "ဝါကျထဲက ကွက်လပ်ကို ဖြည့်ပါ" },
+  { id: "listen", from: 1,   file: "listen.html",   ic: "🎧", nm: "Listen & Pick", ds: "ကြားပြီး အဓိပ္ပါယ်ရွေးပါ" },
+  { id: "truefalse", from: 1, file: "truefalse.html", ic: "✅", nm: "True or False", ds: "ကိုက်လား မကိုက်ဘူးလား ဆုံးဖြတ်ပါ" },
+  { id: "typing", from: 3,   file: "typing.html",   ic: "⌨️", nm: "Spell It",      ds: "အဓိပ္ပါယ်ကြည့်ပြီး စာလုံးပေါင်း ရိုက်ပါ" },
+  { id: "sentence", from: 3, file: "sentence.html", ic: "🧩", nm: "Sentence Builder", ds: "စကားလုံးတွေ စီပြီး ဝါကျဖွဲ့ပါ" },
+  { id: "wordsearch", from: 2, file: "wordsearch.html", ic: "🔍", nm: "Word Search", ds: "ဇယားထဲက ဝှက်ထားတဲ့ စာလုံးတွေ ရှာပါ" },
+  { id: "oddone", from: 1,   file: "oddone.html",   ic: "🙃", nm: "Odd One Out",   ds: "အုပ်စုနဲ့ မတူတဲ့ စာလုံးကို ရွေးပါ" },
+  { id: "connect", from: 2,  file: "connect.html",  ic: "🔗", nm: "Match Rush",    ds: "အချိန်ကန့်ပြီး အများဆုံး တွဲပါ" },
+  { id: "dictation", from: 4, file: "dictation.html", ic: "📝", nm: "Dictation",   ds: "ဝါကျကို နားထောင်ပြီး ရိုက်ပါ" },
+  { id: "missing", from: 3,  file: "missing.html",  ic: "🔡", nm: "Missing Letters", ds: "ပျောက်နေတဲ့ အက္ခရာတွေ ဖြည့်ပါ" },
+  { id: "crossword", from: 3, file: "crossword.html", ic: "📰", nm: "Mini Crossword", ds: "အဓိပ္ပါယ်ကြည့်ပြီး ကန့်လန့်ဖြတ် ဖြည့်ပါ" },
+  { id: "whack", from: 2,    file: "whack.html",    ic: "🔨", nm: "Whack-a-Word",  ds: "ပေါ်လာတဲ့ မှန်တဲ့စာလုံးကို အမြန်ရိုက်ပါ" },
+  { id: "wordle", from: 3,   file: "wordle.html",   ic: "🟩", nm: "Word Guess",    ds: "ကြိမ်ရေကန့်ပြီး စာလုံးကို ခန့်မှန်းပါ" },
+  { id: "sort", from: 2,     file: "sort.html",     ic: "🧺", nm: "Sort It",       ds: "စာလုံးတွေကို မှန်တဲ့ခြင်းထဲ ခွဲထည့်ပါ" },
+  { id: "speak", from: 3,    file: "speak.html",    ic: "🎤", nm: "Say It",        ds: "စာလုံးကို အသံထွက် ပြောကြည့်ပါ" },
+  { id: "snake", from: 3,    file: "snake.html",    ic: "🐍", nm: "Word Snake",    ds: "အက္ခရာတွေကို အစဉ်လိုက် စားပါ" },
+  { id: "bingo", from: 2,    file: "bingo.html",    ic: "🎱", nm: "Word Bingo",    ds: "ကြားတဲ့စာလုံးရဲ့ အဓိပ္ပါယ်ကို ခြစ်ပါ" },
+  { id: "ladder", from: 4, boss: true, file: "ladder.html",   ic: "🏆", nm: "Prize Ladder",  ds: "မေးခွန်း ၁၀ ခု ဖြေပြီး ဆုတက်ယူပါ" },
+  { id: "spellbee", from: 3, file: "spellbee.html", ic: "🐝", nm: "Spelling Bee",  ds: "နားထောင်ပြီး စာလုံးပေါင်း ရိုက်ပါ" },
+  { id: "errorspot", from: 4, file: "errorspot.html", ic: "🕵️", nm: "Spot the Mistake", ds: "ဝါကျထဲက မှားနေတဲ့ စာလုံးကို ရှာပါ" },
+  { id: "balloon", from: 1, file: "balloon.html", ic: "🎈", nm: "Balloon Pop", ds: "မြင့်တက်လာတဲ့ ပူဖောင်းထဲက မှန်တဲ့စာလုံးကို ပေါက်ပါ" },
+  { id: "tictactoe", from: 1, file: "tictactoe.html", ic: "⭕", nm: "Word Tic-Tac-Toe", ds: "မေးခွန်းမှန်ရင် ကွက်ရပြီး ကွန်ပျူတာနဲ့ ယှဉ်ပြိုင်ပါ" },
+  { id: "opposites", from: 1, file: "opposites.html", ic: "🔄", nm: "Opposites", ds: "ဆန့်ကျင်ဘက် စာလုံးကို ရွေးပါ" },
+  { id: "fishcatch", from: 1, file: "fishcatch.html", ic: "🐟", nm: "Fish Catch", ds: "ရေကူးနေတဲ့ ငါးထဲက မှန်တဲ့စာလုံးကို ဖမ်းပါ" },
+  { id: "emojiquiz", from: 1, file: "emojiquiz.html", ic: "🐶", nm: "Emoji Quiz", ds: "emoji ကြည့်ပြီး English စာလုံးကို ရွေးပါ" },
+  { id: "colorclash", from: 1, file: "colorclash.html", ic: "🎨", nm: "Color Clash", ds: "စာလုံးအရောင်နဲ့ အဓိပ္ပါယ် မရှုပ်ပါစေနဲ့" },
+  { id: "simon", from: 1, file: "simon.html", ic: "🔔", nm: "Simon Words", ds: "စာလုံးအစီအစဉ်ကို မှတ်ပြီး ပြန်နှိပ်ပါ" },
+  { id: "alphabet", from: 1, file: "alphabet.html", ic: "🚂", nm: "Alphabet Train", ds: "ပျောက်နေတဲ့ အက္ခရာကို ရှာပါ" },
+  { id: "frog", from: 1, file: "frog.html", ic: "🐸", nm: "Frog Hop", ds: "မေးခွန်းမှန်ရင် ရွက်ပေါ် ခုန်ကူးပါ" },
+  { id: "numbers", from: 1, file: "numbers.html", ic: "🔢", nm: "Number Words", ds: "ဂဏန်းနဲ့ English ဂဏန်းစာလုံးကို တွဲပါ" },
+  { id: "aan", from: 1, file: "aan.html", ic: "🅰️", nm: "A or An", ds: "a လား an လား ရွေးပါ" },
+  { id: "plural", from: 1, file: "plural.html", ic: "🐑", nm: "Plural Pals", ds: "တစ်ခုတည်းကို အများကိန်း ပြောင်းပါ" },
+  { id: "greetchat", from: 1, file: "greetchat.html", ic: "💬", nm: "Greeting Chat", ds: "စကားပြောရင် သင့်တော်တဲ့ အဖြေကို ရွေးပါ" },
+  { id: "typerace", from: 1, file: "typerace.html", ic: "🏎️", nm: "Type Race", ds: "ကားပြိုင်ပြီး စာလုံးကို အမြန်ရိုက်ပါ" },
+  { id: "runner", from: 2, file: "runner.html", ic: "🏃", nm: "Word Runner", ds: "လမ်းကြောင်းပြောင်းပြီး မှန်တဲ့တံခါးကို ဖြတ်ပါ" },
+  { id: "snakeladder", from: 2, file: "snakeladder.html", ic: "🎲", nm: "Snakes & Ladders", ds: "အဖြေမှန်ရင် ခြေလှမ်းတက်ပြီး ကွန်ပျူတာနဲ့ ပြိုင်ပါ" },
+  { id: "monster", from: 2, file: "monster.html", ic: "⚔️", nm: "Monster Battle", ds: "မေးခွန်းဖြေပြီး အကောင်ဆိုးတွေကို အနိုင်ယူပါ" },
+  { id: "tugwar", from: 2, file: "tugwar.html", ic: "🪢", nm: "Tug of War", ds: "အဖြေမှန်ပြီး ကြိုးကို သင့်ဘက် ဆွဲပါ" },
+  { id: "pasttense", from: 2, file: "pasttense.html", ic: "🏴‍☠️", nm: "Past Tense Pirates", ds: "ကြိယာကို အတိတ်ကာလ ပြောင်းပါ" },
+  { id: "prepositions", from: 2, file: "prepositions.html", ic: "📍", nm: "Preposition Park", ds: "in / on / at ... မှန်တဲ့ဝိဘတ်ကို ရွေးပါ" },
+  { id: "questionwords", from: 2, file: "questionwords.html", ic: "❓", nm: "Question Words", ds: "who, what, where... မေးခွန်းစာလုံးကို ရွေးပါ" },
+  { id: "rhyme", from: 2, file: "rhyme.html", ic: "🎵", nm: "Rhyme Time", ds: "အသံတူ ကာရန်ညီတဲ့ စာလုံးကို ရှာပါ" },
+  { id: "chain", from: 2, file: "chain.html", ic: "🔗", nm: "Word Chain", ds: "နောက်ဆုံးအက္ခရာနဲ့ စတဲ့ စာလုံးကို ဆက်ပါ" },
+  { id: "shoptalk", from: 2, file: "shoptalk.html", ic: "🛒", nm: "Shop Talk", ds: "ဈေးဆိုင်စကားပြောမှာ သင့်တော်တဲ့ အဖြေရွေးပါ" },
+  { id: "flash", from: 2, file: "flash.html", ic: "👁️", nm: "Memory Flash", ds: "စာလုံးတွေကို မှတ်ပြီး ပျောက်သွားတာကို ရှာပါ" },
+  { id: "sentmatch", from: 2, file: "sentmatch.html", ic: "✂️", nm: "Sentence Match", ds: "ဝါကျနဲ့ အဓိပ္ပါယ်ကို တွဲပါ" },
+  { id: "shooter", from: 3, file: "shooter.html", ic: "🚀", nm: "Space Shooter", ds: "အာကာသယာဉ်နဲ့ မှန်တဲ့စာလုံးကို ပစ်ချပါ" },
+  { id: "escape", from: 3, file: "escape.html", ic: "🗝️", nm: "Escape Room", ds: "ပဟေဠိတွေဖြေပြီး အခန်းထဲက လွတ်မြောက်ပါ" },
+  { id: "defender", from: 3, file: "defender.html", ic: "🏰", nm: "Typing Defender", ds: "စာလုံးရိုက်ပြီး ရဲတိုက်ကို ကာကွယ်ပါ" },
+  { id: "collocation", from: 3, file: "collocation.html", ic: "🤝", nm: "Make or Do", ds: "make / do / take... စကားစုကို ရွေးပါ" },
+  { id: "confusing", from: 3, file: "confusing.html", ic: "⚠️", nm: "Confusing Words", ds: "there / their, to / too လို မှားတတ်တဲ့ စာလုံးတွေ" },
+  { id: "tensetime", from: 3, file: "tensetime.html", ic: "⏳", nm: "Tense Time Machine", ds: "အချိန်နဲ့ ကိုက်တဲ့ ကြိယာပုံစံကို ရွေးပါ" },
+  { id: "reading", from: 3, file: "reading.html", ic: "📖", nm: "Reading Quest", ds: "စာပိုဒ်ဖတ်ပြီး မေးခွန်းတွေဖြေပါ" },
+  { id: "synonym", from: 3, file: "synonym.html", ic: "🦁", nm: "Synonym Safari", ds: "အဓိပ္ပါယ်တူ စာလုံးကို ရှာပါ" },
+  { id: "dialogueorder", from: 3, file: "dialogueorder.html", ic: "💭", nm: "Dialogue Order", ds: "စကားပြောကြောင်းတွေကို အစဉ်လိုက်စီပါ" },
+  { id: "gaplisten", from: 3, file: "gaplisten.html", ic: "🎧", nm: "Gap Listen", ds: "နားထောင်ပြီး ပျောက်နေတဲ့ စာလုံးကို ရွေးပါ" },
+  { id: "wordfamily", from: 3, file: "wordfamily.html", ic: "👪", nm: "Word Family", ds: "happy → happiness လို စာလုံးပုံစံ ပြောင်းပါ" },
+  { id: "blitz", from: 3, file: "blitz.html", ic: "⚡", nm: "Blitz 45", ds: "၄၅ စက္ကန့်အတွင်း အဖြေမှန် အများဆုံးဖြေပါ" },
+  { id: "idiom", from: 4, file: "idiom.html", ic: "🔎", nm: "Idiom Detective", ds: "idiom တွေရဲ့ အဓိပ္ပါယ်ကို ရှာပါ" },
+  { id: "phrasal", from: 4, file: "phrasal.html", ic: "🧳", nm: "Phrasal Verbs", ds: "give up, look after... phrasal verb တွေ" },
+  { id: "conditional", from: 4, file: "conditional.html", ic: "🔀", nm: "If Clause", ds: "If ... would ... ပုံစံမှန်ကို ရွေးပါ" },
+  { id: "wordform", from: 4, file: "wordform.html", ic: "🏗️", nm: "Word Formation", ds: "decide → decision လို ပုံစံပြောင်းပြီး ရိုက်ပါ" },
+  { id: "cloze", from: 4, file: "cloze.html", ic: "📜", nm: "Cloze Story", ds: "ဇာတ်လမ်းထဲက ကွက်လပ် ၅ ခုကို ဖြည့်ပါ" },
+  { id: "paraphrase", from: 4, file: "paraphrase.html", ic: "🔁", nm: "Paraphrase Pro", ds: "အဓိပ္ပါယ်တူတဲ့ ဝါကျကို ရွေးပါ" },
+  { id: "readdetect", from: 4, file: "readdetect.html", ic: "📰", nm: "Reading Detective", ds: "True / False / Not Given ဆုံးဖြတ်ပါ" },
+  { id: "formal", from: 4, file: "formal.html", ic: "👔", nm: "Formal or Casual", ds: "ယဉ်ကျေးတဲ့ပုံစံနဲ့ ရိုးရိုးပုံစံ ခွဲပါ" },
+  { id: "emailfix", from: 4, file: "emailfix.html", ic: "📧", nm: "Email Etiquette", ds: "အီးမေးလ်ထဲမှာ သင့်တော်တဲ့ စကားစုကို ရွေးပါ" },
+  { id: "dragon", from: 4, file: "dragon.html", ic: "🐉", nm: "Dragon Boss", ds: "ဒရဂွန်ကို မေးခွန်းနဲ့ အနိုင်ယူပါ" },
+  { id: "decode", from: 4, file: "decode.html", ic: "🔐", nm: "Code Breaker", ds: "လျှို့ဝှက်ကုဒ်ကို ဖြေပြီး ဝါကျကို ရှာပါ" },
+  { id: "sniper", from: 4, file: "sniper.html", ic: "🎯", nm: "Synonym Sniper", ds: "အဆင့်မြင့်စာလုံးတွေကို အမြန်ပစ်ချပါ" },
+  { id: "perfect", from: 4, file: "perfect.html", ic: "🕰️", nm: "Perfect Tenses", ds: "have done / had done ကို ရွေးပါ" },
+  { id: "passive", from: 4, file: "passive.html", ic: "🔄", nm: "Passive Voice", ds: "passive ပုံစံမှန်ကို ရွေးပါ" },
+  { id: "defineit", from: 4, file: "defineit.html", ic: "🕵️", nm: "Define It", ds: "သဲလွန်စတွေကြည့်ပြီး စာလုံးကို ခန့်မှန်းပါ" },
+  { id: "listenq", from: 4, file: "listenq.html", ic: "🎙️", nm: "Listening Challenge", ds: "စကားကြားပြီး မေးခွန်းတွေဖြေပါ" },
+  { id: "reported", from: 4, file: "reported.html", ic: "💬", nm: "Reported Speech", ds: "ပြောခဲ့တာကို ပြန်ပြောပုံ ပြောင်းပါ" }
 ];
-let current = Store.get("topic", TOPICS[0].id);
-if (!TOPICS.some(t => t.id === current)) current = TOPICS[0].id;
+// Each game lives under exactly one level (`from`), so no game repeats across levels.
+// Content here is only a sample lesson per level: the last lesson of that level's unit.
+// Real content (from video transcripts) is chosen outside this page via ?lesson=...&level=...
+let level = Store.get("levelpick", 1);
+if (!LEVELS[level]) level = 1;
 
-function renderTopics() {
-  const box = $("#topics");
+function sampleLesson(lv) {
+  const unit = UNITS.find(u => u.level === lv) || UNITS[0];
+  const last = TOPICS.filter(t => t.unit === unit.n).pop();
+  return { lesson: last.id, boss: "boss" + unit.n, name: last.name };
+}
+function renderLevels() {
+  const box = $("#lvpick");
   box.innerHTML = "";
-  TOPICS.forEach(t => {
+  [1, 2, 3, 4].forEach(n => {
     const b = document.createElement("button");
-    b.className = "topic";
-    b.setAttribute("aria-pressed", t.id === current);
-    b.innerHTML = '<div class="tr"></div><div class="nm"></div><div class="mm"></div>';
-    $(".tr", b).textContent = t.track;
-    $(".nm", b).textContent = t.icon + " " + t.name;
-    $(".mm", b).textContent = t.mm;
-    b.onclick = () => { current = t.id; Store.set("topic", current); renderTopics(); renderGames(); };
+    b.setAttribute("aria-pressed", level === n);
+    b.textContent = "Lv " + n;
+    b.onclick = () => { level = n; Store.set("levelpick", n); render(); };
     box.appendChild(b);
   });
 }
 function renderGames() {
+  const lv = LEVELS[level];
+  const sample = sampleLesson(level);
+  $("#lvinfo").textContent = "Lv " + level + " " + lv.name + " (" + lv.mm + ")" +
+    (lv.secs ? " · မေးခွန်းတစ်ခုကို " + lv.secs + " စက္ကန့်" : " · အချိန်မကန့်ဘူး") +
+    (lv.review ? " · အရင်သင်ခန်းစာက စာလုံး " + lv.review + " လုံး ပြန်ပါမယ်" : "") +
+    " · Game " + GAMES.filter(g => g.from === level).length + " ခု";
   const box = $("#games");
   box.innerHTML = "";
-  GAMES.forEach(g => {
+  GAMES.filter(g => g.from === level).forEach(g => {
+    const lesson = g.boss ? sample.boss : sample.lesson;
     const a = document.createElement("a");
     a.className = "game";
-    a.href = g.file + "?topic=" + encodeURIComponent(current);
+    a.href = g.file + "?lesson=" + encodeURIComponent(lesson) + "&level=" + level;
     a.innerHTML = '<div class="ic"></div><div class="nm"></div><div class="ds"></div><div class="stars"></div>';
     $(".ic", a).textContent = g.ic;
-    $(".nm", a).textContent = g.nm;
+    $(".nm", a).textContent = g.nm + (g.boss ? " · Boss" : "");
     $(".ds", a).textContent = g.ds;
-    $(".stars", a).innerHTML = starsHtml(Store.get("stars_" + g.id + "_" + current, 0));
+    $(".stars", a).innerHTML = starsHtml(Store.get("stars_" + g.id + "_" + lesson, 0));
     box.appendChild(a);
   });
   $("#pts").textContent = "⭐ " + Store.get("points", 0) + " points";
 }
-renderTopics(); renderGames();
+function render() { renderLevels(); renderGames(); }
+render();
 </script>
 </body>
 </html>

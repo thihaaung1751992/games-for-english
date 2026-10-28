@@ -28,6 +28,7 @@
 <script src="js/common.js"></script>
 <script>
 const topic = getTopic();
+if (!getLevel().hint) $("#hint").hidden = true; // no hints at Expert level
 renderBar("Word Scramble · " + topic.name);
 let list, i, score, solved, hints, letters, placed, locked;
 

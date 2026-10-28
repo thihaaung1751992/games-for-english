@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>If Clause</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.q-text { word-break: break-word; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const TYPES = {
+  0: "🔀 Type 0 (အမြဲမှန်တဲ့ အချက်အလက်) = If + present simple, present simple",
+  1: "🔀 Type 1 (ဖြစ်နိုင်ချေရှိတဲ့ အနာဂတ်) = If + present simple, will + verb",
+  2: "🔀 Type 2 (အခုအခြေအနေမှာ မဖြစ်နိုင်/စိတ်ကူးထဲက) = If + past simple, would + verb",
+  3: "🔀 Type 3 (အတိတ်မှာ မဖြစ်ခဲ့တာ၊ ပြောင်းလို့မရတော့) = If + past perfect, would have + past participle",
+  m1: "🔀 Mixed (အတိတ်ကြောင့် အခု ရလဒ်) = If + past perfect, would + verb",
+  m2: "🔀 Mixed (အခု အခြေအနေကြောင့် အတိတ် ရလဒ်) = If + past simple, would have + past participle"
+};
+// [sentence with ____ and the base verb in brackets, right answer, three wrong answers, type, extra Burmese note]
+const BANK = [
+  ["If you heat ice, it ____ (melt).", "melts", ["melted", "would melt", "melting"], 0, "အမြဲဖြစ်တဲ့ သဘာဝအချက်ဖြစ်လို့ present simple နှစ်ဖက်လုံးသုံးတယ်။"],
+  ["If you mix red and blue, you ____ (get) purple.", "get", ["got", "would get", "had got"], 0, "သိပ္ပံ/ဖြစ်စဉ်အမှန်တရားကို ပြောတာ။"],
+  ["Plants die if they ____ (not / get) water.", "don't get", ["didn't get", "wouldn't get", "won't get"], 0, "if-clause ထဲမှာ will မသုံးဘူး။"],
+  ["If water ____ (reach) 100 degrees, it boils.", "reaches", ["reached", "would reach", "will reach"], 0, "အမြဲမှန်တဲ့ အချက်ဖြစ်လို့ present simple။"],
+  ["If I ____ (feel) tired, I always go to bed early.", "feel", ["felt", "will feel", "would feel"], 0, "always = အကျင့်/အမြဲဖြစ်တာ၊ present simple။"],
+  ["If the traffic lights turn red, cars ____ (stop).", "stop", ["stopped", "would stop", "had stopped"], 0, "စည်းကမ်းအမြဲမှန်တာ၊ present simple။"],
+  ["If it rains tomorrow, we ____ (stay) at home.", "will stay", ["would stay", "stayed", "would have stayed"], 1, "tomorrow = ဖြစ်နိုင်တဲ့ အနာဂတ်၊ main clause မှာ will။"],
+  ["If you ____ (not / hurry), you will miss the train.", "don't hurry", ["didn't hurry", "won't hurry", "wouldn't hurry"], 1, "if-clause မှာ present simple သုံးတယ်၊ will မသုံးဘူး။"],
+  ["She will pass the exam if she ____ (study) hard.", "studies", ["will study", "studied", "would study"], 1, "will ရှိတဲ့ main clause နဲ့ if-clause မှာ present simple။"],
+  ["If we ____ (leave) now, we will arrive before dark.", "leave", ["will leave", "left", "would leave"], 1, "ဖြစ်နိုင်ချေရှိတဲ့ အနာဂတ်၊ if + present simple။"],
+  ["Unless you ____ (apologise), she won't forgive you.", "apologise", ["will apologise", "apologised", "would apologise"], 1, "unless = if ... not၊ unless နောက်မှာလည်း present simple။"],
+  ["If the weather ____ (be) good this weekend, we'll go hiking.", "is", ["will be", "was", "would be"], 1, "if-clause မှာ will မသုံးဘူး၊ present simple။"],
+  ["If you ____ (see) Tom tomorrow, tell him to call me.", "see", ["will see", "saw", "would see"], 1, "tomorrow = ဖြစ်နိုင်တဲ့ အနာဂတ်၊ if + present simple။"],
+  ["The company will lose money if it ____ (not / change) its strategy.", "doesn't change", ["won't change", "didn't change", "wouldn't change"], 1, "will lose = Type 1၊ if-clause မှာ present simple။"],
+  ["If I ____ (finish) early tonight, I will probably go to the gym.", "finish", ["finished", "would finish", "had finished"], 1, "will probably = Type 1၊ if-clause မှာ present simple။"],
+  ["You can borrow my car provided that you ____ (drive) carefully.", "drive", ["will drive", "drove", "would drive"], 1, "provided that = if၊ present simple သုံးတယ်။"],
+  ["Unless it ____ (stop) raining soon, the match will be cancelled.", "stops", ["will stop", "stopped", "stopping"], 1, "unless + present simple၊ main clause မှာ will။"],
+  ["If I ____ (have) time, I would help you.", "had", ["have", "would have", "will have"], 2, "would help ကြောင့် if-clause မှာ past simple။ (အခု အချိန်မရှိဘူး)"],
+  ["If I ____ (be) you, I would accept the offer.", "were", ["am", "would be", "had been"], 2, "စိတ်ကူးထဲက အခြေအနေ၊ if I were you ဆိုတာ ပုံသေသုံးနှုန်း။"],
+  ["If she ____ (know) his number, she would call him.", "knew", ["knows", "would know", "will know"], 2, "ဒါပေမယ့် အခု မသိဘူး၊ ဒါကြောင့် if + past simple။"],
+  ["What would you do if you ____ (win) a million dollars?", "won", ["win", "will win", "would win"], 2, "would do = Type 2၊ if-clause မှာ past simple။"],
+  ["If we ____ (live) near the sea, we would go swimming every day.", "lived", ["live", "would live", "will live"], 2, "အခု ပင်လယ်နားမှာ မနေဘူး၊ စိတ်ကူးထဲကပဲ။"],
+  ["I ____ (buy) a bigger house if I had more money.", "would buy", ["will buy", "bought", "would have bought"], 2, "if + past simple ဆိုရင် main clause မှာ would + verb။"],
+  ["If he ____ (not / be) so lazy, he would get a better job.", "weren't", ["isn't", "wouldn't be", "won't be"], 2, "အခုကြောင်းကို စိတ်ကူးထဲကပြောတာ၊ if + past simple (were)။"],
+  ["She would travel more if she ____ (speak) French.", "spoke", ["speaks", "would speak", "will speak"], 2, "တကယ်တော့ မပြောတတ်ဘူး၊ Type 2။"],
+  ["If cats ____ (talk), they would tell us many secrets.", "talked", ["talk", "would talk", "will talk"], 2, "မဖြစ်နိုင်တာကို စိတ်ကူးတာ၊ if + past simple။"],
+  ["If I were rich, I ____ (not / work) at all.", "wouldn't work", ["won't work", "didn't work", "haven't worked"], 2, "if I were = Type 2 ဖြစ်လို့ main clause မှာ would + verb။"],
+  ["If I had known about the party last night, I ____ (come).", "would have come", ["would come", "will come", "had come"], 3, "last night = အတိတ်၊ မဖြစ်ခဲ့တာကို ပြောတာ၊ would have + past participle။"],
+  ["If she ____ (study) harder last year, she would have passed.", "had studied", ["studied", "would study", "has studied"], 3, "would have passed ကြောင့် if-clause မှာ past perfect။"],
+  ["We would have won the match if we ____ (not / miss) that penalty.", "hadn't missed", ["didn't miss", "wouldn't miss", "haven't missed"], 3, "Type 3 = if + had + past participle။"],
+  ["If you ____ (tell) me yesterday, I would have helped.", "had told", ["told", "would have told", "have told"], 3, "if-clause မှာ would မသုံးဘူး၊ had told။"],
+  ["He ____ (not / fail) the test if he had listened in class.", "wouldn't have failed", ["wouldn't fail", "hadn't failed", "didn't fail"], 3, "had listened (past perfect) နောက်မှာ would have + past participle။"],
+  ["If they had left home earlier that morning, they ____ (not / miss) the flight.", "wouldn't have missed", ["wouldn't miss", "hadn't missed", "won't miss"], 3, "that morning = အတိတ်၊ မဖြစ်ခဲ့တာ၊ would have + past participle။"],
+  ["If I had seen the sign at the junction, I ____ (stop) the car.", "would have stopped", ["would stop", "had stopped", "will stop"], 3, "had seen = Type 3၊ main clause မှာ would have + past participle။"],
+  ["If the dam had broken last night, the whole village ____ (flood).", "would have been flooded", ["would be flooded", "had been flooded", "will be flooded"], 3, "last night = အတိတ်၊ မဖြစ်ခဲ့တာ၊ passive + would have been + pp။"],
+  ["If you had listened to my advice back then, you ____ (not / be) in trouble now.", "wouldn't be", ["wouldn't have been", "won't be", "aren't"], "m1", "then = အတိတ်အကြောင်းရင်း၊ now = အခုရလဒ်၊ if + had + pp, would + verb။"],
+  ["If I had studied medicine, I ____ (be) a doctor now.", "would be", ["would have been", "will be", "had been"], "m1", "now ကြောင့် main clause မှာ would be (အခုရလဒ်)။"],
+  ["If she hadn't missed the bus this morning, she ____ (be) here now.", "would be", ["would have been", "will be", "had been"], "m1", "အတိတ်အကြောင်းရင်း (this morning) ကြောင့် အခု (now) မရှိဘူး။"],
+  ["If we had saved more money, we ____ (be) able to afford a car today.", "would be", ["would have been", "will be", "had been"], "m1", "today = အခုရလဒ်၊ would + verb။"],
+  ["If I were braver, I ____ (ask) her out last week.", "would have asked", ["would ask", "will ask", "had asked"], "m2", "if I were = အခုအကျင့်စရိုက်၊ last week = အတိတ်ရလဒ်၊ would have + pp။"],
+  ["If he weren't so shy, he ____ (join) the school choir last year.", "would have joined", ["would join", "will join", "had joined"], "m2", "အခု ရှက်တတ်တဲ့စိတ်ကြောင့် last year မှာ မဝင်ခဲ့ဘူး၊ would have + pp။"]
+].map(a => ({ s: a[0], a: a[1], w: a[2], t: a[3], note: a[4] }));
+
+const LV0 = getLevel();
+if (LV0.secs) LV0.secs = Math.max(LV0.secs, 14);
+
+function build() {
+  return take(BANK, 10).map(e => {
+    const clean = e.s.replace(/____ \([^)]*\)/, e.a);
+    return mcq({ label: "🔀 မှန်တဲ့ verb form ကို ရွေးပါ", text: e.s, small: true,
+      answer: e.a, pool: e.w, explain: TYPES[e.t] + " — “" + clean + "” ➜ " + e.note });
+  });
+}
+runChoice({ gameId: "conditional", title: "If Clause", build });
+</script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A or An</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.emo { font-size: clamp(3.4rem, 18vw, 5rem); line-height: 1.2; }
+.phrase { font-size: clamp(1.9rem, 9vw, 2.8rem); font-weight: 800; margin: 4px 0; }
+.phrase .gap { display: inline-block; min-width: 2.2em; border-bottom: 4px dashed var(--accent); color: var(--accent); }
+.phrase .gap.ok { border-bottom-style: solid; border-color: var(--good); color: var(--good); }
+.phrase .gap.no { border-bottom-style: solid; border-color: var(--bad); color: var(--bad); }
+.arts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.art { font: inherit; font-size: 2.2rem; font-weight: 800; min-height: 84px; border-radius: 18px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.art:hover:not(:disabled) { border-color: var(--accent); }
+.art.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 18%, var(--card)); }
+.art.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, var(--card)); }
+.art small { display: block; font-size: .72rem; font-weight: 600; color: var(--muted); line-height: 1.2; }
+.dots { display: flex; gap: 6px; justify-content: center; margin: 0 0 10px; flex-wrap: wrap; }
+.dots i { width: 14px; height: 14px; border-radius: 50%; background: var(--line); display: block; }
+.dots i.now { outline: 3px solid var(--accent); outline-offset: 1px; }
+.dots i.ok { background: var(--good); } .dots i.no { background: var(--bad); }
+.tipbox { margin: 12px 0 0; padding: 8px 12px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 10%, var(--card)); border: 2px dashed var(--line); font-size: .92rem; text-align: left; }
+.tipbox b { color: var(--accent); }
+.pm { font-size: 1.05rem; color: var(--muted); min-height: 1.8em; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="stats"><span>Question: <b id="qn">1</b>/<span id="qt">12</span></span><span>Streak: <b id="streak">0</b> 🔥</span><span>Score: <b id="score">0</b></span></div>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+  <div class="timer" id="timer" hidden><i id="tbar"></i></div>
+  <div class="panel">
+    <div class="q-label">a လား an လား? ရွေးပါ</div>
+    <div class="emo" id="emo" aria-hidden="true"></div>
+    <div class="phrase" id="phrase"></div>
+    <div class="pm my" id="pm"></div>
+    <button class="btn" id="say" hidden>🔊 Listen</button>
+    <div class="arts" id="arts">
+      <button class="art" data-v="a">a<small>consonant အသံ</small></button>
+      <button class="art" data-v="an">an<small>vowel အသံ</small></button>
+    </div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <button class="btn primary" id="next" hidden>Next →</button>
+    <div class="tipbox">💡 <b>an</b> = နောက်စာလုံးက <b>a, e, i, o, u အသံ</b> နဲ့ စရင် · <b>a</b> = တခြား အသံနဲ့ စရင်။ စာလုံးအက္ခရာမဟုတ်ဘဲ <b>အသံ</b> ကို နားထောင်ပါ။</div>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+(() => {
+  // [phrase after the article, emoji, takes "an"?, Burmese meaning, optional special note]
+  const PLAIN = [
+    ["apple", "🍎", 1, "ပန်းသီး"], ["egg", "🥚", 1, "ဥ"], ["elephant", "🐘", 1, "ဆင်"], ["umbrella", "☂️", 1, "ထီး", "umbrella ရဲ့ u က 'အပ်' (uh) အသံ ဖြစ်လို့ vowel အသံ → an umbrella"],
+    ["orange", "🍊", 1, "လိမ္မော်သီး"], ["ice cream", "🍦", 1, "ရေခဲမုန့်"], ["ant", "🐜", 1, "ပုရွက်ဆိတ်"], ["owl", "🦉", 1, "ဇီးကွက်"],
+    ["onion", "🧅", 1, "ကြက်သွန်နီ"], ["eye", "👁️", 1, "မျက်လုံး"], ["airplane", "✈️", 1, "လေယာဉ်ပျံ"], ["octopus", "🐙", 1, "ရေဘဝဲ"],
+    ["arm", "💪", 1, "လက်မောင်း"], ["ear", "👂", 1, "နား"], ["island", "🏝️", 1, "ကျွန်း"], ["idea", "💡", 1, "စိတ်ကူး / အကြံ"],
+    ["dog", "🐶", 0, "ခွေး"], ["cat", "🐱", 0, "ကြောင်"], ["book", "📘", 0, "စာအုပ်"], ["pen", "🖊️", 0, "ဘောပင်"], ["bus", "🚌", 0, "ဘတ်စ်ကား"],
+    ["car", "🚗", 0, "ကား"], ["house", "🏠", 0, "အိမ်"], ["flower", "🌸", 0, "ပန်း"], ["tree", "🌳", 0, "သစ်ပင်"], ["fish", "🐟", 0, "ငါး"],
+    ["monkey", "🐒", 0, "မျောက်"], ["tiger", "🐯", 0, "ကျား"], ["chair", "🪑", 0, "ကုလားထိုင်"], ["cup", "☕", 0, "ခွက်"], ["hat", "🎩", 0, "ဦးထုပ်"],
+    ["bag", "👜", 0, "အိတ်"], ["clock", "🕐", 0, "နာရီ"], ["cake", "🎂", 0, "ကိတ်မုန့်"], ["banana", "🍌", 0, "ငှက်ပျောသီး"], ["tomato", "🍅", 0, "ခရမ်းချဉ်သီး"]
+  ];
+  // friendly exceptions: the SOUND decides, not the letter
+  const EXC = [
+    ["hour", "⏰", 1, "တစ်နာရီ", "hour ရဲ့ h က မထွက်ဘူး (silent h)၊ 'အောဝါ' လို့ vowel အသံနဲ့ စတယ် → an hour"],
+    ["honest man", "🧑", 1, "သစ္စာရှိတဲ့ လူ", "honest ရဲ့ h က မထွက်ဘူး၊ 'အွန်နက်စ်' လို့ vowel အသံနဲ့ စတယ် → an honest man"],
+    ["X-ray", "🩻", 1, "ဓာတ်မှန်", "X-ray ကို 'အက်စ်ရေး' လို့ ဖတ်တယ်၊ 'e' အသံနဲ့ စတယ် → an X-ray"],
+    ["university", "🎓", 0, "တက္ကသိုလ်", "university ရဲ့ u က 'ယူ' (yu) အသံ → consonant အသံလို ဖြစ်လို့ a university"],
+    ["uniform", "👔", 0, "ယူနီဖောင်း", "uniform ရဲ့ u က 'ယူ' (yu) အသံ → consonant အသံ ဖြစ်လို့ a uniform"],
+    ["unicorn", "🦄", 0, "ယူနီကွန်း (ဒဏ္ဍာရီမြင်း)", "unicorn ရဲ့ u က 'ယူ' (yu) အသံ → consonant အသံ ဖြစ်လို့ a unicorn"],
+    ["useful tool", "🔧", 0, "အသုံးဝင်တဲ့ ကိရိယာ", "useful ရဲ့ u က 'ယူ' (yu) အသံ → consonant အသံ ဖြစ်လို့ a useful tool"],
+    ["one-way street", "🛣️", 0, "တစ်လမ်းသွားလမ်း", "one ကို 'ဝမ်း' (wun) လို့ ဖတ်တယ်၊ w ဆိုတဲ့ consonant အသံ ဖြစ်လို့ a one-way street"]
+  ];
+  // adjective + noun: look at the very next word
+  const ADJ = [
+    ["old man", "👴", 1, "အသက်ကြီးတဲ့ ယောက်ျား"], ["ugly duck", "🦆", 1, "ရုပ်ဆိုးတဲ့ ဘဲ"], ["easy test", "📝", 1, "လွယ်တဲ့ စာမေးပွဲ"],
+    ["interesting story", "📖", 1, "စိတ်ဝင်စားဖို့ကောင်းတဲ့ ပုံပြင်"], ["expensive car", "🚗", 1, "စျေးကြီးတဲ့ ကား"], ["empty box", "📦", 1, "ဗလာ ပုံး"],
+    ["angry bird", "🐦", 1, "ဒေါသထွက်တဲ့ ငှက်"], ["orange cat", "🐱", 1, "လိမ္မော်ရောင် ကြောင်"], ["unhappy girl", "😢", 1, "မပျော်တဲ့ မိန်းကလေး"],
+    ["big apple", "🍎", 0, "ပန်းသီး အကြီး"], ["red apple", "🍎", 0, "ပန်းသီးနီ"], ["happy child", "🧒", 0, "ပျော်နေတဲ့ ကလေး"], ["small egg", "🥚", 0, "ဥ အသေး"],
+    ["new umbrella", "☂️", 0, "ထီးအသစ်"], ["hot day", "☀️", 0, "ပူတဲ့ နေ့"], ["yellow banana", "🍌", 0, "အဝါရောင် ငှက်ပျောသီး"], ["quiet room", "🤫", 0, "တိတ်ဆိတ်တဲ့ အခန်း"]
+  ];
+  const ROUNDS = 12;
+  const LV = getLevel();
+  let qs, i, correct, streak, score, done, tick, res;
+
+  const first = ph => ph.split(/[ -]/)[0];
+  function explain(r, adj) {
+    if (r[4]) return r[4];
+    const w = first(r[0]);
+    const tail = adj ? " (a / an က ချက်ချင်း နောက်က စာလုံး '" + w + "' ရဲ့ အသံပေါ် မူတည်တယ်)" : "";
+    return (r[2] ? w + " က vowel အသံ (a, e, i, o, u) နဲ့ စတယ် → an " + r[0] : w + " က consonant အသံနဲ့ စတယ် → a " + r[0]) + tail;
+  }
+  function buildRound() {
+    for (let tries = 0; tries < 20; tries++) {
+      const pick = (arr, n, adj) => shuffle(arr).slice(0, n).map(r => ({ r, adj }));
+      const set = shuffle(pick(EXC, 2, false).concat(pick(ADJ, 3, true), pick(PLAIN, 7, false)));
+      const an = set.filter(x => x.r[2]).length;
+      if (an >= 4 && an <= 8) return set;
+    }
+    return shuffle(PLAIN).slice(0, ROUNDS).map(r => ({ r, adj: false }));
+  }
+
+  function play() {
+    qs = buildRound(); res = []; i = 0; correct = 0; streak = 0; score = 0;
+    $("#qt").textContent = qs.length;
+    $("#dots").innerHTML = qs.map(() => "<i></i>").join("");
+    show();
+  }
+  function paintDots() {
+    [...$("#dots").children].forEach((d, k) => { d.className = res[k] || (k === i ? "now" : ""); });
+  }
+  function show() {
+    done = false;
+    const { r } = qs[i];
+    $("#qn").textContent = i + 1; $("#streak").textContent = streak; $("#score").textContent = score;
+    paintDots();
+    $("#emo").textContent = r[1];
+    $("#phrase").innerHTML = '<span class="gap" id="gap">&nbsp;&nbsp;</span> ';
+    $("#phrase").appendChild(document.createTextNode(r[0]));
+    $("#pm").textContent = r[3];
+    $("#say").hidden = true;
+    [...$("#arts").children].forEach(b => { b.disabled = false; b.className = "art"; });
+    $("#fb").textContent = ""; $("#fb").className = "fb";
+    $("#next").hidden = true;
+    startTimer();
+  }
+  function startTimer() {
+    clearInterval(tick);
+    const bar = $("#timer");
+    bar.hidden = !LV.secs;
+    if (!LV.secs) return;
+    const t0 = Date.now();
+    $("#tbar").style.transform = "scaleX(1)";
+    tick = setInterval(() => {
+      const left = Math.max(0, 1 - (Date.now() - t0) / (LV.secs * 1000));
+      $("#tbar").style.transform = "scaleX(" + left + ")";
+      if (left === 0) choose(null);
+    }, 100);
+  }
+  function choose(v) {
+    if (done) return;
+    done = true; clearInterval(tick);
+    const { r, adj } = qs[i], want = r[2] ? "an" : "a", ok = v === want;
+    [...$("#arts").children].forEach(b => { b.disabled = true; if (b.dataset.v === want) b.classList.add("right"); else if (b.dataset.v === v) b.classList.add("wrong"); });
+    const gap = $("#gap");
+    gap.textContent = want; gap.className = "gap " + (ok ? "ok" : "no");
+    const fb = $("#fb");
+    if (ok) {
+      correct++; streak++;
+      const pts = 10 + Math.min(streak - 1, 5) * 2;
+      score += pts; addPoints(pts); sfx.ok();
+      fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! +" + pts;
+    } else {
+      streak = 0; sfx.bad();
+      fb.className = "fb no"; fb.textContent = v ? "✗ မှားပါတယ်။" : "⏱ အချိန်ကုန်သွားပါပြီ။";
+    }
+    fb.appendChild(document.createElement("br"));
+    fb.appendChild(document.createTextNode(explain(r, adj)));
+    paintDot(ok);
+    $("#streak").textContent = streak; $("#score").textContent = score;
+    $("#say").hidden = false; $("#say").onclick = () => speak(want + " " + r[0]);
+    const n = $("#next");
+    n.hidden = false; n.textContent = i === qs.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  function paintDot(ok) { res[i] = ok ? "ok" : "no"; paintDots(); }
+  function finish() {
+    clearInterval(tick);
+    showResult({
+      title: cheer(correct / qs.length),
+      stars: starsFor(correct / qs.length),
+      text: correct + " / " + qs.length + " မှန်တယ် · " + score + " points",
+      onAgain: play
+    });
+  }
+
+  $("#arts").addEventListener("click", e => { const b = e.target.closest(".art"); if (b) choose(b.dataset.v); });
+  $("#next").onclick = () => { if (i < qs.length - 1) { i++; show(); } else finish(); };
+  document.addEventListener("keydown", e => {
+    if (done || e.ctrlKey || e.metaKey || e.altKey || document.querySelector(".overlay")) return;
+    const k = e.key.toLowerCase();
+    if (k === "a" || k === "1" || k === "arrowleft") choose("a");
+    else if (k === "n" || k === "2" || k === "arrowright") choose("an");
+  });
+  renderBar("A or An · " + getTopic().name);
+  play.gameId = "aan";
+  play();
+})();
+</script>
+</body>
+</html>

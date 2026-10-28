@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Greeting Chat</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.chat { display: flex; flex-direction: column; gap: 10px; text-align: left; background: var(--bg); border: 2px solid var(--line); border-radius: 20px; padding: 12px; height: 270px; overflow-y: auto; margin: 4px 0 6px; scroll-behavior: smooth; }
+.msg { display: flex; align-items: flex-end; gap: 8px; max-width: 94%; animation: rise .25s ease-out; }
+.msg.you { align-self: flex-end; flex-direction: row-reverse; }
+.av { font-size: 1.8rem; line-height: 1; flex: none; }
+.bub { padding: 8px 14px; border-radius: 18px 18px 18px 4px; background: var(--card); border: 2px solid var(--line); font-weight: 700; font-size: 1.1rem; line-height: 1.5; }
+.bub .spk { font: inherit; border: 0; background: none; cursor: pointer; padding: 0 0 0 6px; min-width: 32px; min-height: 32px; vertical-align: middle; color: var(--ink); }
+.you .bub { border-radius: 18px 18px 4px 18px; background: var(--accent); border-color: var(--accent); color: #fff; }
+.you .bub.good { background: var(--good); border-color: var(--good); }
+.you .bub.bad { background: var(--bad); border-color: var(--bad); }
+.chat .mark { align-self: center; font-size: .8rem; color: var(--muted); }
+.reply .opt { text-align: left; font-size: 1.05rem; }
+.hint { margin: 2px 0 0; font-size: .9rem; color: var(--muted); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .msg { animation: none; } .chat { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="stats"><span>Chat: <b id="qn">1</b>/<span id="qt">10</span></span><span>Streak: <b id="streak">0</b> 🔥</span><span>Score: <b id="score">0</b></span></div>
+  <div class="timer" id="timer" hidden><i id="tbar"></i></div>
+  <div class="panel">
+    <div class="q-label">သဘာဝကျတဲ့ အဖြေကို ရွေးပါ</div>
+    <div class="chat" id="chat" role="log" aria-live="polite"></div>
+    <div class="opts reply" id="opts"></div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <button class="btn primary" id="next" hidden>Next →</button>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+(() => {
+  // [their line, best reply, 3 wrong replies, their line in Burmese, why]
+  const BANK = [
+    ["Hello! How are you?", "I'm fine, thank you.", ["It's a book.", "I'm twelve years old.", "You're welcome."], "ဟလို! နေကောင်းလား။", "How are you? ကို 'I'm fine, thank you.' (နေကောင်းပါတယ်၊ ကျေးဇူးတင်ပါတယ်) နဲ့ ဖြေတယ်။"],
+    ["What's your name?", "My name is Su.", ["I'm fine, thanks.", "It's ten o'clock.", "Yes, I am."], "နာမည် ဘယ်လိုခေါ်လဲ။", "နာမည်မေးရင် 'My name is …' နဲ့ ဖြေတယ်။"],
+    ["Nice to meet you.", "Nice to meet you, too.", ["Good night.", "I'm sorry.", "It's Monday."], "တွေ့ရတာ ဝမ်းသာပါတယ်။", "'… too' = 'ကျွန်တော်/ကျွန်မလည်း ဒီလိုပဲ' လို့ ပြန်ပြောတာ။"],
+    ["Thank you very much!", "You're welcome.", ["Excuse me.", "Good morning.", "I'm sixteen."], "အရမ်း ကျေးဇူးတင်ပါတယ်။", "Thank you ကို 'You're welcome.' (ရပါတယ်) နဲ့ ပြန်ဖြေတယ်။"],
+    ["I'm sorry I'm late.", "That's OK. Don't worry.", ["You're welcome.", "Nice to meet you.", "I'm hungry."], "နောက်ကျလို့ တောင်းပန်ပါတယ်။", "Sorry ကို 'That's OK.' / 'No problem.' (ကိစ္စမရှိပါဘူး) နဲ့ ဖြေတယ်။"],
+    ["What time is it?", "It's three o'clock.", ["It's a cat.", "I'm three years old.", "My name is Tom."], "အချိန် ဘယ်လောက်ရှိပြီလဲ။", "အချိန်မေးရင် 'It's … o'clock.' နဲ့ ဖြေတယ်။ age ကတော့ 'I'm … years old.'"],
+    ["How old are you?", "I'm twelve years old.", ["It's twelve o'clock.", "I'm fine, thank you.", "I'm from Mandalay."], "အသက် ဘယ်လောက်လဲ။", "How old …? = အသက်မေးတာ → 'I'm … years old.' နဲ့ ဖြေတယ်။"],
+    ["Where are you from?", "I'm from Myanmar.", ["I'm twelve.", "It's Friday.", "You're welcome."], "ဘယ်က လာတာလဲ။", "'I'm from + နိုင်ငံ / မြို့' နဲ့ ဖြေတယ်။"],
+    ["Good morning!", "Good morning!", ["Good night.", "Goodbye.", "I'm sorry."], "မင်္ဂလာ နံနက်ခင်းပါ။", "Good morning ကို Good morning နဲ့ပဲ ပြန်နှုတ်ဆက်တယ်။ Good night က အိပ်ခါနီးမှာ ပြောတာ။"],
+    ["Goodbye! See you tomorrow.", "See you tomorrow! Bye.", ["Nice to meet you.", "Good morning.", "I'm fine."], "ဘိုင်ဘိုင်၊ မနက်ဖြန် တွေ့မယ်နော်။", "ခွဲခါနီးမှာ 'See you tomorrow! Bye.' လို့ ပြန်ပြောတယ်။ Nice to meet you က ပထမဆုံးတွေ့တုန်းကပဲ။"],
+    ["Good night!", "Good night. Sleep well!", ["Good morning.", "Nice to meet you.", "You're welcome."], "ကောင်းသော ညပါ။", "Good night ကို Good night နဲ့ ပြန်ဖြေတယ်။ 'Sleep well' = အိပ်လို့ကောင်းပါစေ။"],
+    ["Would you like some tea?", "Yes, please.", ["You're welcome.", "It's Monday.", "Good morning."], "လက်ဖက်ရည် သောက်မလား။", "Would you like …? ကို 'Yes, please.' (ယူပါမယ်) လို့ ဖြေတယ်။"],
+    ["Excuse me, is this seat free?", "Yes, go ahead.", ["It's four o'clock.", "My name is Ko Ko.", "Happy birthday!"], "ဒီထိုင်ခုံ လွတ်လား။", "ခွင့်ပြုတဲ့အခါ 'Yes, go ahead.' (ထိုင်ပါ) လို့ ပြောတယ်။"],
+    ["Happy birthday!", "Thank you!", ["You're welcome.", "Good night.", "I'm sorry."], "မွေးနေ့မှာ ပျော်ရွှင်ပါစေ။", "ဆုတောင်းစကားကို 'Thank you!' နဲ့ ပြန်ဖြေတယ်။ 'You're welcome' က Thank you ကို ပြန်ဖြေတာ။"],
+    ["Do you speak English?", "Yes, a little.", ["Yes, I'm fine.", "It's Sunday.", "You're welcome."], "အင်္ဂလိပ်စကား ပြောတတ်လား။", "'Yes, a little.' = ဟုတ်တယ်၊ နည်းနည်းပါ။"],
+    ["How's the weather today?", "It's sunny and hot.", ["I'm twelve.", "My name is Mya.", "Nice to meet you."], "ဒီနေ့ ရာသီဥတု ဘယ်လိုလဲ။", "ရာသီဥတုမေးရင် 'It's sunny / rainy / hot …' နဲ့ ဖြေတယ်။"],
+    ["What's your favourite colour?", "I like blue.", ["I'm from Myanmar.", "It's two o'clock.", "Thank you."], "အကြိုက်ဆုံး အရောင်က ဘာလဲ။", "'I like …' / 'My favourite colour is …' နဲ့ ဖြေတယ်။"],
+    ["Can you help me, please?", "Sure! What do you need?", ["Good night.", "Happy birthday!", "Nice to meet you."], "ကူညီပေးနိုင်မလား။", "'Sure!' = ရတာပေါ့။ ကူညီမယ်ဆိုတဲ့ အဖြေပါ။"],
+    ["I'm sorry, I don't understand.", "No problem. I'll say it again.", ["Nice to meet you.", "See you tomorrow.", "It's Friday."], "စိတ်မရှိပါနဲ့၊ နားမလည်ဘူး။", "'No problem. I'll say it again.' = ရပါတယ်၊ ပြန်ပြောပေးမယ်။"],
+    ["Where do you live?", "I live in Yangon.", ["I'm twelve years old.", "It's five o'clock.", "You're welcome."], "ဘယ်မှာ နေလဲ။", "'I live in + မြို့' နဲ့ ဖြေတယ်။"],
+    ["Are you a student?", "Yes, I am.", ["Yes, it is.", "Yes, he does.", "Nice to meet you."], "မင်း ကျောင်းသားလား။", "Are you …? မေးရင် 'Yes, I am.' / 'No, I'm not.' နဲ့ ဖြေတယ်။ (do မဟုတ်ဘူး)"],
+    ["Do you like pizza?", "Yes, I do.", ["Yes, I am.", "Yes, it is.", "Yes, you're welcome."], "ပီဇာ ကြိုက်လား။", "Do you …? မေးရင် 'Yes, I do.' / 'No, I don't.' နဲ့ ဖြေတယ်။"],
+    ["What day is it today?", "It's Monday.", ["It's ten o'clock.", "I'm Monday.", "I'm fine."], "ဒီနေ့ ဘာနေ့လဲ။", "ဘာနေ့လဲ မေးရင် 'It's Monday.' နဲ့ ဖြေတယ်။ အချိန်ကတော့ 'It's … o'clock.'"],
+    ["See you later!", "See you! Bye!", ["Nice to meet you.", "Good morning.", "You're welcome."], "နောက်မှ ပြန်တွေ့မယ်နော်။", "ခွဲခါနီးမှာ 'See you! Bye!' လို့ ပြန်ပြောတယ်။"],
+    ["How do you feel today?", "I'm tired.", ["My name is Tom.", "It's six o'clock.", "Yes, please."], "ဒီနေ့ ဘယ်လိုနေလဲ။", "ခံစားချက်မေးရင် 'I'm tired / happy / hungry …' နဲ့ ဖြေတယ်။"],
+    ["Hi, I'm Tom.", "Hi Tom, I'm Su. Nice to meet you.", ["You're welcome, Tom.", "I'm sorry, Tom.", "Good night, Tom."], "ဟိုင်း၊ ကျွန်တော် တွမ်ပါ။", "မိတ်ဆက်တဲ့အခါ 'Hi, I'm … Nice to meet you.' လို့ ပြန်မိတ်ဆက်တယ်။"],
+    ["Thanks for your help!", "No problem.", ["Nice to meet you.", "I'm sorry.", "Good morning."], "ကူညီလို့ ကျေးဇူးပါ။", "'No problem.' = ရပါတယ်။ 'You're welcome' နဲ့ အတူတူပဲ။"],
+    ["Are you hungry?", "Yes, I am. Let's eat!", ["Yes, I do.", "Yes, it is.", "It's Tuesday."], "ဗိုက်ဆာလား။", "Are you …? မေးရင် 'Yes, I am.' နဲ့ ဖြေတယ်။ 'Let's eat!' = စားရအောင်။"]
+  ];
+  const FACES = ["🧑", "👩", "👨", "👧", "🧒", "👵", "👴", "🧑‍🏫", "👩‍🍳", "🧑‍🎓"];
+  const ROUNDS = 10;
+  const LV = getLevel();
+  let qs, i, correct, streak, score, done, tick, cur;
+
+  const add = (who, text, cls) => {
+    const m = document.createElement("div");
+    m.className = "msg " + who;
+    const av = document.createElement("span"); av.className = "av"; av.setAttribute("aria-hidden", "true");
+    av.textContent = who === "you" ? "😊" : cur.face;
+    const b = document.createElement("div"); b.className = "bub " + (cls || "");
+    b.appendChild(document.createTextNode(text));
+    if (who === "them") {
+      const s = document.createElement("button"); s.className = "spk"; s.setAttribute("aria-label", "Listen"); s.textContent = "🔊";
+      s.onclick = () => speak(text);
+      b.appendChild(s);
+    }
+    m.appendChild(av); m.appendChild(b);
+    const chat = $("#chat");
+    chat.appendChild(m);
+    chat.scrollTop = chat.scrollHeight;
+  };
+
+  function play() {
+    qs = shuffle(BANK).slice(0, ROUNDS);
+    i = 0; correct = 0; streak = 0; score = 0;
+    $("#qt").textContent = qs.length;
+    $("#chat").innerHTML = "";
+    show();
+  }
+  function show() {
+    done = false;
+    const q = qs[i];
+    cur = { q, face: FACES[(i * 3 + Math.floor(Math.random() * 3)) % FACES.length] };
+    $("#qn").textContent = i + 1; $("#streak").textContent = streak; $("#score").textContent = score;
+    add("them", q[0]);
+    const box = $("#opts"); box.innerHTML = "";
+    shuffle([q[1]].concat(shuffle(q[2]).slice(0, LV.opts - 1))).forEach((t, k) => {
+      const b = document.createElement("button");
+      b.className = "opt"; b.textContent = t; b.dataset.k = k;
+      b.onclick = () => choose(b, t === q[1], t);
+      box.appendChild(b);
+    });
+    $("#fb").textContent = ""; $("#fb").className = "fb";
+    $("#next").hidden = true;
+    startTimer();
+  }
+  function startTimer() {
+    clearInterval(tick);
+    $("#timer").hidden = !LV.secs;
+    if (!LV.secs) return;
+    const t0 = Date.now();
+    $("#tbar").style.transform = "scaleX(1)";
+    tick = setInterval(() => {
+      const left = Math.max(0, 1 - (Date.now() - t0) / (LV.secs * 1000));
+      $("#tbar").style.transform = "scaleX(" + left + ")";
+      if (left === 0) choose(null, false, "");
+    }, 100);
+  }
+  function choose(btn, ok, text) {
+    if (done) return;
+    done = true; clearInterval(tick);
+    const q = qs[i], fb = $("#fb");
+    [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === q[1]) b.classList.add("right"); });
+    if (text) add("you", text, ok ? "good" : "bad");
+    if (ok) {
+      correct++; streak++;
+      const pts = 10 + Math.min(streak - 1, 5) * 2;
+      score += pts; addPoints(pts); sfx.ok();
+      fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! +" + pts;
+    } else {
+      streak = 0; sfx.bad(); if (btn) btn.classList.add("wrong");
+      fb.className = "fb no"; fb.textContent = btn ? "✗ မှားပါတယ်။ ပိုသင့်တော်တာက: “" + q[1] + "”" : "⏱ အချိန်ကုန်သွားပါပြီ။ အဖြေက: “" + q[1] + "”";
+    }
+    fb.appendChild(document.createElement("br"));
+    fb.appendChild(document.createTextNode("“" + q[0] + "” = " + q[3] + " — " + q[4]));
+    $("#streak").textContent = streak; $("#score").textContent = score;
+    const n = $("#next");
+    n.hidden = false; n.textContent = i === qs.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  function finish() {
+    clearInterval(tick);
+    showResult({
+      title: cheer(correct / qs.length),
+      stars: starsFor(correct / qs.length),
+      text: correct + " / " + qs.length + " မှန်တယ် · " + score + " points",
+      onAgain: play
+    });
+  }
+  $("#next").onclick = () => { if (i < qs.length - 1) { i++; show(); } else finish(); };
+  document.addEventListener("keydown", e => {
+    if (done || e.ctrlKey || e.metaKey || e.altKey || document.querySelector(".overlay")) return;
+    const b = $("#opts").children[parseInt(e.key, 10) - 1];
+    if (b) b.click();
+  });
+  renderBar("Greeting Chat · " + getTopic().name);
+  play.gameId = "greetchat";
+  play();
+})();
+</script>
+</body>
+</html>

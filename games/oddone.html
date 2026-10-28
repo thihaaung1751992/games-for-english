@@ -19,8 +19,10 @@ runChoice({
   build: topic => {
     const mine = new Set(topic.words.map(w => w.en.toLowerCase()));
     const pool = [];
+    const LV = getLevel();
+    // Hard levels take the odd word from a neighbouring lesson in the same unit, so it is not obvious.
     TOPICS.forEach(t => {
-      if (t.id !== topic.id) t.words.forEach(w => { if (!mine.has(w.en.toLowerCase())) pool.push({ w, t }); });
+      if (t.id !== topic.id && (!LV.similar || !topic.unit || topic.boss || t.unit === topic.unit)) t.words.forEach(w => { if (!mine.has(w.en.toLowerCase())) pool.push({ w, t }); });
     });
     return shuffle(pool).slice(0, 8).map(({ w, t }) => {
       const three = shuffle(topic.words).slice(0, 3);

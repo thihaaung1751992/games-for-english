@@ -48,7 +48,7 @@ let cells, calls, idx, marked, done, mistakes, lock;
 function pickWords() {
   const seen = new Set(), uniq = ws => ws.filter(w => !seen.has(w.my) && !seen.has(w.en) && seen.add(w.my) && seen.add(w.en));
   const mine = uniq(shuffle(topic.words));
-  const rest = uniq(shuffle(TOPICS.filter(t => t !== topic).flatMap(t => t.words)));
+  const rest = uniq(shuffle(TOPICS.filter(t => t.id !== topic.id).flatMap(t => t.words)));
   const all = mine.concat(rest);
   return { card: all.slice(0, 9), extra: all.slice(9, 13) };
 }

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Balloon Pop</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// Balloons float up. Pop the one with the right English word before they all escape.
+runTargets({
+  gameId: "balloon", title: "Balloon Pop", motion: "rise", skin: "balloon",
+  build: topic => shuffle(topic.words).map(w => Object.assign(Q.myEn(topic, w), { label: "ဒီအဓိပ္ပါယ်ရှိတဲ့ ပူဖောင်းကို ပေါက်ပါ", speak: w.en }))
+});
+</script>
+</body>
+</html>

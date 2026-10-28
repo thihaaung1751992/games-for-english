@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Tic-Tac-Toe</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.ttt { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 360px; margin: 14px auto; }
+.cell { aspect-ratio: 1; border-radius: 16px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 2.6rem; font-weight: 800; cursor: pointer; padding: 0; }
+.cell:hover:not(:disabled) { border-color: var(--accent); }
+.cell.x { color: var(--accent); } .cell.o { color: var(--bad); }
+.cell.win { background: color-mix(in srgb, var(--good) 22%, var(--card)); border-color: var(--good); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="stats"><span>သင် ✕</span><span id="msg" aria-live="polite"></span><span>ကွန်ပျူတာ ○</span></div>
+  <div class="ttt" id="board"></div>
+  <p class="muted" style="text-align:center">ကွက်တစ်ခုကို နှိပ်ပြီး မေးခွန်းမှန်အောင်ဖြေရင် ✕ ရမယ်။ မှားရင် ကွန်ပျူတာ ○ ကစားမယ်။</p>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+const topic = getTopic(), LV = getLevel();
+renderBar("Word Tic-Tac-Toe · " + topic.name);
+const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const SMART = [0.3, 0.6, 0.85, 1][topic.level - 1];
+let cells, busy, over, solved;
+
+function play() {
+  cells = Array(9).fill(""); busy = false; over = false; solved = 0;
+  const box = $("#board"); box.innerHTML = "";
+  cells.forEach((_, n) => {
+    const b = document.createElement("button");
+    b.className = "cell"; b.setAttribute("aria-label", "Cell " + (n + 1));
+    b.onclick = () => mine(n);
+    box.appendChild(b);
+  });
+  $("#msg").textContent = "သင့်အလှည့်";
+}
+function paint() {
+  [...$("#board").children].forEach((b, n) => {
+    b.textContent = cells[n] === "x" ? "✕" : cells[n] === "o" ? "○" : "";
+    b.className = "cell " + cells[n]; b.disabled = !!cells[n] || over;
+  });
+}
+function winner() {
+  for (const l of LINES) if (cells[l[0]] && cells[l[0]] === cells[l[1]] && cells[l[1]] === cells[l[2]]) return l;
+  return null;
+}
+function free() { return cells.map((c, n) => c ? -1 : n).filter(n => n >= 0); }
+async function mine(n) {
+  if (busy || over || cells[n]) return;
+  busy = true;
+  const ok = await ask(Q.mixed(topic, 1)[0]);
+  if (ok) { cells[n] = "x"; solved++; addPoints(10); if (check()) return; }
+  if (cpu() && check()) return;
+  busy = false; $("#msg").textContent = "သင့်အလှည့်";
+}
+function find(mark) {
+  for (const l of LINES) {
+    const v = l.map(i => cells[i]);
+    if (v.filter(c => c === mark).length === 2 && v.includes("")) return l[v.indexOf("")];
+  }
+  return -1;
+}
+// The computer takes a cell (it wins or blocks more often at higher levels). false if the board is full.
+function cpu() {
+  const f = free();
+  if (!f.length) return false;
+  let n = -1;
+  if (Math.random() < SMART) n = find("o") >= 0 ? find("o") : find("x");
+  if (n < 0 && Math.random() < SMART && !cells[4]) n = 4;
+  if (n < 0) n = f[Math.floor(Math.random() * f.length)];
+  cells[n] = "o";
+  return true;
+}
+function check() {
+  paint();
+  const l = winner();
+  if (!l && free().length) return false;
+  over = true;
+  if (l) l.forEach(i => $("#board").children[i].classList.add("win"));
+  const youWon = l && cells[l[0]] === "x";
+  $("#msg").textContent = youWon ? "သင်နိုင်တယ်! 🎉" : l ? "ကွန်ပျူတာနိုင်တယ်" : "သရေ";
+  setTimeout(() => showResult({
+    title: youWon ? "နိုင်ပါတယ်! 🎉" : l ? "ကွန်ပျူတာ နိုင်သွားတယ် 💪" : "သရေ 🤝",
+    stars: youWon ? 3 : l ? 1 : 2,
+    text: solved + " ခု မှန်အောင် ဖြေခဲ့တယ်",
+    onAgain: play
+  }), 900);
+  return true;
+}
+play.gameId = "tictactoe";
+play();
+</script>
+</body>
+</html>

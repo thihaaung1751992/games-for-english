@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code Breaker</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.dc-key { display: inline-block; padding: 2px 14px; border-radius: 99px; background: var(--accent); color: #fff; font-weight: 800; font-family: ui-monospace, Menlo, monospace; }
+.dc-how { font-size: .9rem; color: var(--muted); margin: 6px 0 0; }
+.dc-msg { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: center; margin: 14px 0 6px; }
+.dc-word { display: inline-flex; gap: 3px; }
+.dc-ch { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 40px; border-radius: 8px; background: var(--bg); border: 2px solid var(--line); font-family: ui-monospace, Menlo, monospace; font-weight: 800; font-size: 1.25rem; cursor: pointer; padding: 0 2px; }
+.dc-ch.punct { border: 0; background: none; min-width: 10px; cursor: default; }
+.dc-ch.sel { border-color: var(--star); background: color-mix(in srgb, var(--star) 35%, var(--card)); }
+.dc-strips { margin: 10px 0 4px; }
+.dc-strip { display: grid; grid-template-columns: repeat(13, 1fr); gap: 2px; margin-bottom: 6px; font-family: ui-monospace, Menlo, monospace; font-weight: 800; }
+.dc-col { display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); text-align: center; line-height: 1.5; font-size: .85rem; }
+.dc-col b { background: var(--accent); color: #fff; }
+.dc-col span { background: var(--card); color: var(--ink); }
+.dc-col.sel { outline: 3px solid var(--star); z-index: 1; }
+.dc-col.sel span { background: color-mix(in srgb, var(--star) 45%, var(--card)); }
+.dc-legend { font-size: .8rem; color: var(--muted); }
+.dc-legend b { background: var(--accent); color: #fff; border-radius: 4px; padding: 0 5px; }
+.dc-ans { font-size: 1.2rem; font-weight: 800; letter-spacing: .02em; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script>
+// [message, Burmese meaning]  (4-8 words, letters only plus spaces)
+const SAYINGS = [
+  ["Actions speak louder than words", "လုပ်ရပ်က စကားထက် ပိုအရေးကြီးတယ်။"],
+  ["The early bird catches the worm", "စောစောစီးစီး စလုပ်သူက အကျိုးရတယ်။"],
+  ["Better late than never", "မလုပ်ဘဲနေတာထက် နောက်ကျပေမယ့် လုပ်တာ ပိုကောင်းတယ်။"],
+  ["Honesty is the best policy", "ရိုးသားမှုက အကောင်းဆုံး နည်းလမ်းပါ။"],
+  ["Two heads are better than one", "ခေါင်းနှစ်လုံးက တစ်လုံးထက် သာတယ် (အတူစဉ်းစားတာ ပိုကောင်းတယ်)။"],
+  ["Time and tide wait for no man", "အချိန်ဟာ ဘယ်သူ့ကိုမှ မစောင့်ဘူး။"],
+  ["All that glitters is not gold", "ပြောင်လက်တာအားလုံး ရွှေမဟုတ်ဘူး။"],
+  ["Do not judge a book by its cover", "အပြင်ပန်းကြည့်ပြီး လူ/အရာကို မဆုံးဖြတ်ပါနဲ့။"],
+  ["Rome was not built in a day", "ကြီးမားတဲ့အရာတွေ အချိန်ယူရတယ်။"],
+  ["Fortune favours the brave", "ကံက ရဲရင့်သူဘက်က ရပ်တယ်။"],
+  ["The pen is mightier than the sword", "စာရေးခြင်းက ဓားထက် အားကောင်းတယ်။"],
+  ["Easy come easy go", "လွယ်လွယ်ရတာ လွယ်လွယ်ပျောက်တယ်။"],
+  ["Slow and steady wins the race", "နှေးပေမယ့် မရပ်ဘဲ သွားရင် အနိုင်ရတယ်။"],
+  ["Many hands make light work", "လူများများနဲ့ လုပ်ရင် အလုပ်ပေါ့တယ်။"],
+  ["Do not count your chickens before they hatch", "မရသေးတာကို ကြိုမမျှော်ပါနဲ့။"],
+  ["You cannot teach an old dog new tricks", "အိုမင်းသူတွေကို အကျင့်သစ်သင်ဖို့ ခက်တယ်။"],
+  ["A friend in need is a friend indeed", "ခက်ခဲချိန်မှာ ကူညီသူက မိတ်ဆွေအစစ်။"],
+  ["Birds of a feather flock together", "စိတ်တူကိုယ်တူ လူတွေ အတူစုနေကြတယ်။"],
+  ["Laughter is the best medicine", "ရယ်မောခြင်းက အကောင်းဆုံးဆေး။"],
+  ["Look before you leap", "မလုပ်ခင် စဉ်းစားပါ။"],
+  ["Better safe than sorry", "နောင်တရတာထက် ကြိုတင်ကာကွယ်တာ ပိုကောင်းတယ်။"],
+  ["Every cloud has a silver lining", "ဆိုးတဲ့အထဲမှာလည်း ကောင်းတဲ့ဘက်ရှိတယ်။"],
+  ["Curiosity killed the cat", "စပ်စုလွန်းရင် အန္တရာယ်ရှိတတ်တယ်။"],
+  ["Out of sight out of mind", "မမြင်ရတော့ စိတ်ထဲကလည်း ပျောက်တယ်။"]
+];
+const ROUNDS = 6;
+const norm = s => String(s).toLowerCase().replace(/[^a-z]/g, "");
+function shiftText(t, k) {
+  return t.toUpperCase().replace(/[A-Z]/g, c => String.fromCharCode((c.charCodeAt(0) - 65 + k) % 26 + 65));
+}
+function build(topic) {
+  const lesson = shuffle(topic.words.filter(w => { const n = w.ex.split(/\s+/).length; return n >= 4 && n <= 8; }))
+    .slice(0, 2).map(w => ({ text: w.ex.replace(/[.!?]+$/, ""), my: w.exMy, src: "lesson" }));
+  const say = shuffle(SAYINGS).slice(0, ROUNDS - lesson.length).map(([t, my]) => ({ text: t, my, src: "saying" }));
+  const shifts = Array.from({ length: ROUNDS }, () => 1 + Math.floor(Math.random() * 5)).sort();
+  return shuffle(lesson.concat(say)).map((m, i) => Object.assign(m, { k: shifts[i], code: shiftText(m.text, shifts[i]) }));
+}
+
+const topic = getTopic();
+renderBar("Code Breaker · " + topic.name);
+$("#app").innerHTML =
+  '<div class="stats"><span>Message: <b id="n">1</b>/<span id="tot">' + ROUNDS + '</span></span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="panel"><div class="q-label">🔐 Secret message</div>' +
+  '<div style="margin-top:6px">key = <span class="dc-key" id="key"></span></div>' +
+  '<p class="dc-how" id="how"></p>' +
+  '<div class="dc-msg" id="msg" aria-live="polite"></div>' +
+  '<div class="dc-strips" id="strips"></div><div class="dc-legend"><b>A</b> ကုဒ်စာလုံး ➜ အောက်က စာလုံးက မူရင်း · စာလုံးကို နှိပ်ရင် ကော်လံ မီးမောင်းထိုးမယ်</div>' +
+  '<div><input class="input" id="inp" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Decoded message" placeholder="decoded message..."></div>' +
+  '<div class="fb" id="fb" aria-live="polite"></div>' +
+  '<div class="row"><button class="btn" id="hint" type="button">💡 First word (−3)</button><button class="btn" id="skip" type="button">Skip</button><button class="btn primary" id="check" type="button">Check</button><button class="btn primary" id="next" type="button" hidden>Next →</button></div></div>';
+
+let list, i, score, right, done, hinted, cur;
+
+function play() { list = build(topic); i = 0; score = 0; right = 0; $("#tot").textContent = list.length; show(); }
+function drawStrips(k) {
+  const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", box = $("#strips"); box.innerHTML = "";
+  [0, 13].forEach(from => {
+    const row = document.createElement("div"); row.className = "dc-strip";
+    for (let n = from; n < from + 13; n++) {
+      const real = abc[(n - k + 26) % 26], c = document.createElement("div");
+      c.className = "dc-col"; c.dataset.l = abc[n];
+      c.innerHTML = "<b>" + abc[n] + "</b><span>" + real + "</span>";
+      row.appendChild(c);
+    }
+    box.appendChild(row);
+  });
+}
+function mark(l) {
+  const on = !document.querySelector('.dc-col[data-l="' + l + '"]').classList.contains("sel");
+  document.querySelectorAll(".dc-col.sel, .dc-ch.sel").forEach(e => e.classList.remove("sel"));
+  if (on) document.querySelectorAll('[data-l="' + l + '"]').forEach(e => e.classList.add("sel"));
+}
+function show() {
+  cur = list[i]; done = false; hinted = false;
+  $("#n").textContent = i + 1; $("#score").textContent = score;
+  $("#key").textContent = "+" + cur.k;
+  const real = String.fromCharCode(65 + cur.k % 26);
+  $("#how").textContent = "မူရင်းစာလုံးတိုင်းကို အက္ခရာစဉ်အတိုင်း ရှေ့ " + cur.k + " လုံး ရွှေ့ထားတယ် (A ➜ " + real + ")။ ဒါကြောင့် " + real + " ကိုတွေ့ရင် A လို့ ဖတ်ပါ — ကုဒ်စာလုံးတိုင်းကို နောက်ကို " + cur.k + " လုံး ပြန်ရွှေ့ပါ။";
+  const msg = $("#msg"); msg.innerHTML = ""; msg.setAttribute("aria-label", cur.code);
+  cur.code.split(" ").forEach(word => {
+    const w = document.createElement("span"); w.className = "dc-word";
+    word.split("").forEach(ch => {
+      const s = document.createElement("span");
+      if (/[A-Z]/.test(ch)) { s.className = "dc-ch"; s.dataset.l = ch; s.onclick = () => mark(ch); } else s.className = "dc-ch punct";
+      s.textContent = ch; w.appendChild(s);
+    });
+    msg.appendChild(w);
+  });
+  drawStrips(cur.k);
+  const inp = $("#inp"); inp.value = ""; inp.disabled = false; inp.focus();
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#next").hidden = true; $("#check").hidden = false; $("#hint").disabled = false; $("#skip").hidden = false;
+}
+function finish() {
+  $("#inp").disabled = true; $("#check").hidden = true; $("#hint").disabled = true; $("#skip").hidden = true;
+  const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+  $("#score").textContent = score;
+}
+function check() {
+  if (done) return;
+  const v = norm($("#inp").value), want = norm(cur.text), fb = $("#fb");
+  if (!v) return;
+  if (v === want) {
+    done = true; right++; const p = hinted ? 7 : 10; score += p; addPoints(p); sfx.ok(); speak(cur.text);
+    fb.className = "fb ok"; fb.textContent = "";
+    const a = document.createElement("div"); a.className = "dc-ans"; a.textContent = "✓ " + cur.text; fb.appendChild(a);
+    fb.appendChild(document.createTextNode(cur.my));
+    finish();
+  } else {
+    sfx.bad(); fb.className = "fb no";
+    let hit = 0; for (let n = 0; n < want.length; n++) if (v[n] === want[n]) hit++;
+    fb.textContent = "မမှန်သေးပါဘူး၊ ထပ်ကြိုးစားပါ" + (v.length === want.length ? " (စာလုံး " + hit + "/" + want.length + " မှန်နေပြီ)" : " (စာလုံးအရေအတွက် " + v.length + " / " + want.length + ")");
+    $("#inp").select();
+  }
+}
+$("#check").onclick = check;
+$("#inp").addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+$("#hint").onclick = () => {
+  hinted = true;
+  const first = cur.text.split(" ")[0];
+  const fb = $("#fb"); fb.className = "fb"; fb.textContent = "💡 စာလုံးပထမ = " + first.toUpperCase() + " (" + cur.code.split(" ")[0] + " ➜ " + first.toUpperCase() + ")";
+  $("#inp").focus();
+};
+$("#skip").onclick = () => {
+  if (done) return;
+  done = true; sfx.bad();
+  const fb = $("#fb"); fb.className = "fb no"; fb.textContent = "";
+  const a = document.createElement("div"); a.className = "dc-ans"; a.textContent = "အဖြေ: " + cur.text; fb.appendChild(a);
+  fb.appendChild(document.createTextNode(cur.my));
+  finish();
+};
+$("#next").onclick = () => {
+  if (i < list.length - 1) { i++; show(); return; }
+  const r = right / list.length;
+  showResult({ title: cheer(r), stars: starsFor(r), text: right + " / " + list.length + " စာတိုက်ဖော်နိုင်တယ် · " + score + " points", onAgain: play });
+};
+play.gameId = "decode";
+play();
+</script>
+</body>
+</html>
