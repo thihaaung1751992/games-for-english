@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prize Ladder</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.lgame { display: grid; gap: 14px; }
+@media (min-width: 640px) { .lgame { grid-template-columns: 1fr 150px; align-items: start; } }
+.ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+@media (min-width: 640px) { .ladder { display: flex; flex-direction: column-reverse; } }
+.ladder li { border: 2px solid var(--line); border-radius: 10px; background: var(--card); color: var(--muted); font-weight: 700; font-size: .85rem; line-height: 1.3; padding: 4px 2px; text-align: center; min-width: 0; }
+.ladder li small { display: block; font-size: .7rem; font-weight: 800; }
+.ladder li.safe { border-color: var(--star); }
+.ladder li.done { color: var(--good); border-color: var(--good); }
+.ladder li.cur { background: var(--accent); border-color: var(--accent); color: #fff; }
+.life { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 10px 0 0; }
+.life .btn { min-height: 44px; padding: 4px 12px; font-size: .95rem; }
+.opt.gone { visibility: hidden; }
+.q-text.sm { font-size: clamp(1.3rem, 5.5vw, 1.8rem); }
+.q-text.my { font-size: clamp(1.6rem, 7vw, 2.4rem); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Step: <b id="qn">1</b>/10</span><span>Safe: <b id="safe">0</b></span><span>Prize: <b id="prize">0</b></span></div>
+  <div class="lgame">
+    <div class="panel">
+      <div class="q-label" id="qlabel"></div>
+      <div class="q-text" id="qtext"></div>
+      <div class="opts" id="opts"></div>
+      <div class="life">
+        <button class="btn" id="fifty" aria-label="50:50 lifeline">50:50</button>
+        <button class="btn" id="hear" aria-label="Hear it lifeline">🔊 Hear it</button>
+        <button class="btn" id="walk">🚶 Walk away</button>
+      </div>
+      <div class="fb" id="fb" aria-live="polite"></div>
+      <button class="btn primary" id="next" hidden>Next →</button>
+    </div>
+    <ol class="ladder" id="ladder" aria-label="Prize ladder"></ol>
+  </div>
+  <p class="muted" style="text-align:center;font-size:.9rem">၁–၄ ခလုတ် (သို့) A–D နဲ့လည်း ဖြေနိုင်ပါတယ်။ ⭐ = Safe step (မှားရင် ဒီအဆင့်ထိပဲ ကျမယ်)</p>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Prize Ladder · " + topic.name);
+const PRIZES = [100, 200, 300, 500, 1000, 2000, 4000, 6000, 8000, 10000], SAFE = [4, 9];
+const ALL = TOPICS.flatMap(t => t.words);
+let qs, i, won, answered, used, walkArm, over;
+
+function slowSpeak(text) {
+  if (!("speechSynthesis" in window) || Store.get("mute", false)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US"; u.rate = 0.6;
+  speechSynthesis.speak(u);
+}
+function safePrize() { let p = 0; SAFE.forEach(s => { if (won > s) p = PRIZES[s]; }); return p; }
+function build() {
+  const mine = shuffle(topic.words);
+  const pool = mine.slice(6).concat(shuffle(ALL.filter(w => !topic.words.includes(w))));
+  return mine.slice(0, 6).concat(pool.slice(0, 4)).map((w, n) => {
+    if (n < 3) return { w, label: "English → မြန်မာ", text: w.en, options: shuffle([w, ...others(topic, w, 3)]).map(x => x.my), answer: w.my, my: false, hint: w.ex };
+    if (n < 6) return { w, label: "မြန်မာ → English", text: w.my, options: shuffle([w, ...others(topic, w, 3)]).map(x => x.en), answer: w.en, my: true, hint: w.en };
+    const wrong = shuffle([...new Set(ALL.map(x => x.en))].filter(e => e.toLowerCase() !== w.en.toLowerCase())).slice(0, 3);
+    return { w, label: "ဝါကျကို ဖြည့်ပါ", text: blankOut(w), options: shuffle([w.en, ...wrong]), answer: w.en, sm: true, hint: w.ex };
+  });
+}
+function paintLadder() {
+  const l = $("#ladder");
+  l.innerHTML = "";
+  PRIZES.forEach((p, n) => {
+    const li = document.createElement("li");
+    li.className = (SAFE.includes(n) ? "safe " : "") + (n < won ? "done" : n === i && !over ? "cur" : "");
+    li.innerHTML = "<small>" + (n + 1) + (SAFE.includes(n) ? " ⭐" : "") + "</small>" + p.toLocaleString();
+    if (n === i && !over) li.setAttribute("aria-current", "step");
+    l.appendChild(li);
+  });
+  $("#prize").textContent = (won ? PRIZES[won - 1] : 0).toLocaleString();
+  $("#safe").textContent = safePrize().toLocaleString();
+}
+function play() {
+  qs = build(); i = 0; won = 0; over = false; used = { fifty: false, hear: false };
+  show();
+}
+function show() {
+  answered = false; walkArm = false;
+  const q = qs[i];
+  $("#qn").textContent = i + 1;
+  $("#qlabel").textContent = q.label + " · " + PRIZES[i].toLocaleString();
+  const qt = $("#qtext");
+  qt.textContent = q.text;
+  qt.className = "q-text" + (q.my ? " my" : "") + (q.sm ? " sm" : "");
+  const box = $("#opts");
+  box.innerHTML = "";
+  q.options.forEach((o, n) => {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.textContent = o;
+    b.setAttribute("aria-label", "ABCD"[n] + ": " + o);
+    b.onclick = () => choose(b, o === q.answer);
+    box.appendChild(b);
+  });
+  $("#fifty").disabled = used.fifty; $("#hear").disabled = used.hear;
+  $("#walk").disabled = false; $("#walk").textContent = "🚶 Walk away";
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#next").hidden = true;
+  paintLadder();
+}
+$("#fifty").onclick = () => {
+  if (answered || used.fifty) return;
+  used.fifty = true; $("#fifty").disabled = true;
+  const q = qs[i];
+  shuffle([...$("#opts").children].filter(b => b.textContent !== q.answer)).slice(0, 2).forEach(b => { b.disabled = true; b.classList.add("gone"); });
+  $("#fb").className = "fb"; $("#fb").textContent = "50:50 — မှားတဲ့အဖြေ ၂ ခု ဖယ်လိုက်ပါပြီ။";
+};
+$("#hear").onclick = () => {
+  if (answered || used.hear) return;
+  used.hear = true; $("#hear").disabled = true;
+  slowSpeak(qs[i].hint);
+  $("#fb").className = "fb"; $("#fb").textContent = "🔊 သေချာ နားထောင်ကြည့်ပါ…";
+};
+$("#walk").onclick = () => {
+  if (answered) return;
+  if (!walkArm) { walkArm = true; $("#walk").textContent = "သေချာလား? ထပ်နှိပ်ပါ"; return; }
+  answered = true; over = true;
+  finish("ဆုငွေယူပြီး ထွက်လိုက်ပါပြီ 🚶", won ? PRIZES[won - 1] : 0);
+};
+function lock() {
+  const q = qs[i];
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === q.answer) b.classList.add("right"); });
+  $("#fifty").disabled = $("#hear").disabled = $("#walk").disabled = true;
+}
+function choose(btn, ok) {
+  if (answered) return;
+  answered = true; lock();
+  const q = qs[i], fb = $("#fb"), n = $("#next");
+  if (ok) {
+    won = i + 1; sfx.ok();
+    fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! " + PRIZES[i].toLocaleString() + " ရပြီ" + (SAFE.includes(i) ? " ⭐ Safe!" : "");
+    n.textContent = i === qs.length - 1 ? "Finish 🏆" : "Next step →";
+  } else {
+    over = true; sfx.bad(); btn.classList.add("wrong");
+    fb.className = "fb no"; fb.textContent = "✗ မှားပါတယ်။ " + q.w.en + " = " + q.w.my;
+    n.textContent = "Result";
+  }
+  fb.appendChild(document.createElement("br"));
+  fb.appendChild(document.createTextNode(q.w.ex + " — " + q.w.exMy));
+  paintLadder();
+  n.hidden = false; n.focus();
+}
+$("#next").onclick = () => {
+  if (!over && i < qs.length - 1) { i++; show(); return; }
+  if (over) finish("ပြုတ်ကျသွားပြီ 😅 Safe step ဆီ ပြန်ကျပါတယ်", safePrize());
+  else { over = true; finish("ချန်ပီယံ! 🏆 ၁၀,၀၀၀ ရပြီ", PRIZES[9]); }
+};
+function finish(title, prize) {
+  $("#next").hidden = true; paintLadder();
+  const pts = Math.round(prize / 100);
+  addPoints(pts);
+  showResult({
+    title,
+    stars: won >= 10 ? 3 : won >= 5 ? 2 : 1,
+    text: "Step " + won + " / 10 ရောက်ခဲ့တယ် · ဆုငွေ " + prize.toLocaleString() + " · +" + pts + " points",
+    onAgain: play
+  });
+}
+document.addEventListener("keydown", e => {
+  if ($(".overlay") || answered || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = "1234".indexOf(e.key) + 1 || "abcd".indexOf(e.key.toLowerCase()) + 1;
+  const b = k && $("#opts").children[k - 1];
+  if (b && !b.disabled) { e.preventDefault(); b.click(); }
+});
+play.gameId = "ladder";
+play();
+</script>
+</body>
+</html>

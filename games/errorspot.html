@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spot the Mistake</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.chip.wb { background: var(--card); color: var(--ink); border-color: var(--line); max-width: 100%; overflow-wrap: anywhere; }
+.chip.wb:hover:not(:disabled) { border-color: var(--accent); }
+.chip.wb:disabled { opacity: 1; }
+.chip.wb.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, var(--card)); text-decoration: line-through; }
+.chip.wb.fix { border-color: var(--good); background: color-mix(in srgb, var(--good) 18%, var(--card)); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Round: <b id="sn">1</b>/<span id="st">8</span></span><span>Score: <b id="score">0</b></span></div>
+  <div class="panel">
+    <div class="q-label">မှားနေတဲ့ စကားလုံးကို နှိပ်ပါ</div>
+    <div class="q-text my" id="clue" style="font-size:clamp(1.1rem,4.6vw,1.4rem)"></div>
+    <div class="chips line" id="line" aria-label="Sentence"></div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <div class="row"><button class="btn primary" id="next" hidden>Next →</button></div>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Spot the Mistake · " + topic.name);
+let list, i, score, firstTry, tries, locked, cur;
+
+const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function makeRound(w) {
+  const m = new RegExp("(^|[^A-Za-z'])(" + esc(w.en) + ")(?![A-Za-z])", "i").exec(w.ex);
+  if (!m) return null;
+  const at = m.index + m[1].length, orig = m[2], low = w.ex.toLowerCase();
+  const pool = topic.words.filter(x => x.en.toLowerCase() !== w.en.toLowerCase() && !low.includes(x.en.toLowerCase()));
+  if (!pool.length) return null;
+  let r = shuffle(pool)[0].en;
+  if (/[A-Z]/.test(orig[0])) r = r[0].toUpperCase() + r.slice(1);
+  const pre = w.ex.slice(0, at).split(" "), post = w.ex.slice(at + orig.length).split(" ");
+  const a = pre.pop(), b = post.shift();
+  const toks = pre.filter(Boolean).map(t => ({ t }));
+  toks.push({ t: a + r + b, fix: a + orig + b, target: true });
+  post.filter(Boolean).forEach(t => toks.push({ t }));
+  return { w, toks };
+}
+function play() {
+  list = shuffle(topic.words).map(makeRound).filter(Boolean).slice(0, 8);
+  i = 0; score = 0; firstTry = 0; $("#st").textContent = list.length; show();
+}
+function show() {
+  cur = list[i]; tries = 0; locked = false;
+  cur.toks.forEach(p => { p.bad = false; });
+  $("#sn").textContent = i + 1; $("#score").textContent = score;
+  $("#clue").textContent = cur.w.exMy;
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#next").hidden = true; $("#line").className = "chips line";
+  draw(false);
+}
+function draw(done) {
+  const line = $("#line");
+  line.innerHTML = "";
+  cur.toks.forEach(p => {
+    const b = document.createElement("button");
+    b.className = "chip wb";
+    b.textContent = done && p.target ? p.fix : p.t;
+    if (p.bad) b.classList.add("wrong");
+    if (done && p.target) b.classList.add("fix");
+    b.disabled = done || p.bad;
+    b.onclick = () => pick(p);
+    line.appendChild(b);
+  });
+}
+function pick(p) {
+  if (locked) return;
+  tries++;
+  const fb = $("#fb");
+  if (p.target) {
+    const pts = tries === 1 ? 10 : 5;
+    if (tries === 1) firstTry++;
+    score += pts; addPoints(pts); sfx.ok();
+    finish(true);
+    fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! “" + p.t.trim() + "” အစား “" + cur.w.en + "” ဖြစ်ရမယ်";
+  } else {
+    sfx.bad(); p.bad = true;
+    if (tries < 2) {
+      draw(false);
+      fb.className = "fb no"; fb.textContent = "✗ ဒီစကားလုံးက မှန်ပါတယ်၊ နောက်တစ်ခါ ထပ်ကြိုးစားပါ";
+      const nb = [...$("#line").children].find(b => !b.disabled); if (nb) nb.focus();
+    } else {
+      finish(false);
+      fb.className = "fb no"; fb.textContent = "✗ မှားနေတာက “" + cur.toks.find(x => x.target).t + "” ပါ — “" + cur.w.en + "” ဖြစ်ရမယ်";
+    }
+  }
+}
+function finish(ok) {
+  locked = true;
+  draw(true);
+  $("#line").classList.add(ok ? "good" : "bad");
+  $("#score").textContent = score;
+  speak(cur.w.ex);
+  const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+}
+function advance() {
+  if (i < list.length - 1) { i++; show(); return; }
+  const pct = list.length ? firstTry / list.length : 0;
+  showResult({
+    title: "ပြီးပါပြီ! 🎉", stars: pct === 1 ? 3 : pct >= 0.7 ? 2 : 1,
+    text: "ပထမအကြိမ်မှာ " + firstTry + " / " + list.length + " ခု မှန်တယ် · " + score + " points",
+    onAgain: play
+  });
+}
+$("#next").onclick = advance;
+play.gameId = "errorspot";
+play();
+</script>
+</body>
+</html>

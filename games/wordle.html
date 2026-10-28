@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Guess</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.board { display: grid; gap: 6px; margin: 12px auto; max-width: 100%; }
+.wrow { display: grid; gap: 6px; }
+.wt { aspect-ratio: 1; min-width: 0; border-radius: 10px; border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: clamp(1rem, 5vw, 1.5rem); text-transform: uppercase; line-height: 1; }
+.wt.typed { border-color: var(--muted); }
+.wt.g, .wkb button.g { background: var(--good); border-color: var(--good); color: #fff; }
+.wt.y, .wkb button.y { background: var(--warn); border-color: var(--warn); color: #fff; }
+.wt.x, .wkb button.x { background: var(--muted); border-color: var(--muted); color: var(--card); }
+.wkb { margin: 12px 0; }
+.wkb div { display: flex; gap: 4px; justify-content: center; margin-bottom: 6px; }
+.wkb button { flex: 1 1 0; min-width: 0; max-width: 40px; height: 48px; border-radius: 8px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 800; text-transform: uppercase; cursor: pointer; padding: 0; }
+.wkb button.wide { max-width: 64px; flex-grow: 1.6; font-size: .8rem; text-transform: none; }
+.wkb button:disabled { opacity: .5; cursor: default; }
+.legend { font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Word: <b id="wn">1</b>/3</span><span>Tries: <b id="tries">6</b></span><span>Score: <b id="score">0</b></span></div>
+  <div class="panel">
+    <div class="q-label">အဓိပ္ပါယ်ကို ကြည့်ပြီး စာလုံးခန့်မှန်းပါ</div>
+    <div class="q-text my" id="meaning"></div>
+    <div class="muted" id="len"></div>
+    <div class="board" id="board" aria-live="polite"></div>
+    <div class="legend">🟩 နေရာမှန် · 🟧 စာလုံးပါပေမဲ့ နေရာမှား · ⬜ မပါဘူး</div>
+    <div class="wkb" id="kb"></div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <button class="btn primary" id="next" hidden>Next →</button>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Word Guess · " + topic.name);
+const ROUNDS = 3, TRIES = 6, kbBtns = {}, rank = { x: 1, y: 2, g: 3 };
+let list, i, word, rows, cur, keys, solved, score, done;
+
+function colorGuess(g, ans) {
+  const res = Array(ans.length).fill("x"), left = {};
+  [...ans].forEach((c, k) => { if (g[k] === c) res[k] = "g"; else left[c] = (left[c] || 0) + 1; });
+  [...g].forEach((c, k) => { if (res[k] !== "g" && left[c] > 0) { res[k] = "y"; left[c]--; } });
+  return res;
+}
+
+["qwertyuiop", "asdfghjkl", "+zxcvbnm-"].forEach(r => {
+  const d = document.createElement("div");
+  [...r].forEach(c => {
+    const b = document.createElement("button");
+    if (c === "+") { b.textContent = "Enter"; b.className = "wide"; b.onclick = submit; }
+    else if (c === "-") { b.textContent = "⌫"; b.className = "wide"; b.setAttribute("aria-label", "Delete"); b.onclick = back; }
+    else { b.textContent = c; b.onclick = () => type(c); kbBtns[c] = b; }
+    d.appendChild(b);
+  });
+  $("#kb").appendChild(d);
+});
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || done) return;
+  if (/^[a-z]$/i.test(e.key)) type(e.key.toLowerCase());
+  else if (e.key === "Enter") submit();
+  else if (e.key === "Backspace") back();
+  else return;
+  e.preventDefault();
+});
+
+function play() {
+  list = shuffle(topic.words.filter(w => /^[a-z]+$/i.test(w.en))).slice(0, ROUNDS);
+  i = 0; solved = 0; score = 0; load();
+}
+function load() {
+  word = list[i].en.toLowerCase(); rows = []; cur = ""; keys = {}; done = false;
+  $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
+  $("#meaning").textContent = list[i].my;
+  $("#len").textContent = "စာလုံး " + word.length + " လုံး";
+  const bd = $("#board");
+  bd.style.width = Math.min(100, word.length * 14) + "%";
+  bd.style.maxWidth = word.length * 56 + "px";
+  render();
+}
+function render() {
+  $("#wn").textContent = i + 1; $("#score").textContent = score;
+  $("#tries").textContent = TRIES - rows.length;
+  const bd = $("#board"), n = word.length;
+  bd.innerHTML = "";
+  for (let r = 0; r < TRIES; r++) {
+    const row = document.createElement("div"), g = rows[r];
+    row.className = "wrow"; row.style.gridTemplateColumns = "repeat(" + n + ", 1fr)";
+    const txt = g ? g.text : r === rows.length && !done ? cur : "";
+    for (let k = 0; k < n; k++) {
+      const t = document.createElement("div");
+      t.className = "wt" + (g ? " " + g.res[k] : txt[k] ? " typed" : "");
+      t.textContent = txt[k] || "";
+      row.appendChild(t);
+    }
+    if (g) row.setAttribute("aria-label", g.text + ": " + g.res.map(s => ({ g: "green", y: "yellow", x: "gray" })[s]).join(", "));
+    bd.appendChild(row);
+  }
+  for (const c in kbBtns) { kbBtns[c].className = keys[c] || ""; }
+  $("#kb").querySelectorAll("button").forEach(b => { b.disabled = done; });
+}
+function type(c) {
+  if (done || cur.length >= word.length) return;
+  cur += c; render();
+}
+function back() {
+  if (done || !cur) return;
+  cur = cur.slice(0, -1); render();
+}
+function submit() {
+  if (done) return;
+  const fb = $("#fb");
+  if (cur.length !== word.length) { sfx.bad(); fb.className = "fb no"; fb.textContent = "စာလုံး " + word.length + " လုံး ရိုက်ပါ"; return; }
+  const res = colorGuess(cur, word);
+  rows.push({ text: cur, res });
+  [...cur].forEach((c, k) => { if ((rank[res[k]] || 0) > (rank[keys[c]] || 0)) keys[c] = res[k]; });
+  const win = cur === word;
+  cur = ""; fb.textContent = ""; fb.className = "fb";
+  if (win) finishWord(true);
+  else if (rows.length === TRIES) finishWord(false);
+  else sfx.bad();
+  render();
+}
+function finishWord(win) {
+  done = true;
+  const w = list[i], fb = $("#fb");
+  if (win) { solved++; const p = 10 + (TRIES - rows.length) * 2; score += p; addPoints(p); sfx.ok(); fb.className = "fb ok"; fb.textContent = "✓ " + w.en + " — " + w.ex; speak(w.en); }
+  else { fb.className = "fb no"; fb.textContent = "စာလုံးက " + w.en + " ပါ — " + w.ex; }
+  const n = $("#next");
+  n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+}
+$("#next").onclick = () => {
+  if (i < list.length - 1) { i++; load(); return; }
+  showResult({
+    title: solved === ROUNDS ? "အရမ်းတော်တယ်! 🎉" : "ပြီးပါပြီ!",
+    stars: solved === ROUNDS ? 3 : solved >= 2 ? 2 : 1,
+    text: solved + " / " + ROUNDS + " လုံး မှန်တယ် · " + score + " points",
+    onAgain: play
+  });
+};
+play.gameId = "wordle";
+play();
+</script>
+</body>
+</html>

@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Crossword</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.cwp { padding: 14px; }
+.cbox { position: relative; }
+.cw { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 2px; width: min(100%, calc(var(--n) * 44px)); margin: 10px auto; container-type: inline-size; touch-action: manipulation; }
+.cc { position: relative; aspect-ratio: 1; border-radius: 4px; }
+.cc.on { background: var(--card); border: 2px solid var(--line); cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 800; text-transform: uppercase; font-size: calc(55cqw / var(--n)); line-height: 1; user-select: none; -webkit-user-select: none; }
+.cc .no { position: absolute; top: 1px; left: 2px; font-size: calc(24cqw / var(--n)); font-weight: 700; color: var(--muted); line-height: 1; }
+.cc.word { background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
+.cc.cur { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 30%, var(--card)); }
+.cc.bad { border-color: var(--bad); color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--card)); }
+.cc.ok { border-color: var(--good); color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--card)); }
+.cc.hint { color: var(--warn); }
+.ghost { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; font-size: 16px; }
+.cur-clue { min-height: 2.2em; font-weight: 700; margin-top: 8px; }
+.cur-clue small { color: var(--muted); font-weight: 400; }
+.clues { display: grid; gap: 4px 16px; text-align: left; margin-top: 12px; }
+@media (min-width: 560px) { .clues { grid-template-columns: 1fr 1fr; } }
+.clues h4 { margin: 6px 0 2px; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.clue { display: block; width: 100%; text-align: left; font: inherit; color: var(--ink); background: none; border: 2px solid transparent; border-radius: 10px; padding: 4px 8px; cursor: pointer; min-height: 44px; }
+.clue:hover { border-color: var(--line); }
+.clue.act { border-color: var(--accent); }
+.clue.done { color: var(--good); text-decoration: line-through; }
+.clue b { display: inline-block; min-width: 1.6em; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Words: <b id="sv">0</b>/<span id="wt">0</span></span><span>Checks: <b id="ck">0</b></span><span>Score: <b id="score">0</b></span></div>
+  <div class="panel cwp">
+    <div class="q-label">အကွက်ကို နှိပ်ပြီး စာလုံး ရိုက်ထည့်ပါ</div>
+    <div class="cur-clue" id="cur" aria-live="polite"></div>
+    <div class="cbox">
+      <input class="ghost" id="ghost" aria-label="Type a letter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <div class="cw" id="grid"></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="check">✓ Check</button>
+      <button class="btn" id="hint">💡 Reveal letter (-3)</button>
+    </div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <div class="clues"><div id="ac"><h4>Across →</h4></div><div id="dn"><h4>Down ↓</h4></div></div>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Mini Crossword · " + topic.name);
+const MAX = 11, K = (r, c) => r + "," + c;
+let words, cells, rows, cols, act, dir, pos, checks, reveals, score, over;
+
+function fits(map, en, r, c, d) {
+  const dr = d ? 1 : 0, dc = d ? 0 : 1;
+  if (map.has(K(r - dr, c - dc)) || map.has(K(r + dr * en.length, c + dc * en.length))) return -1;
+  let hits = 0;
+  for (let n = 0; n < en.length; n++) {
+    const y = r + dr * n, x = c + dc * n, m = map.get(K(y, x));
+    if (m) { if (m.ch !== en[n] || m[d]) return -1; hits++; }
+    else if (map.has(K(y + dc, x + dr)) || map.has(K(y - dc, x - dr))) return -1;
+  }
+  return hits;
+}
+function build(pool) {
+  const map = new Map(), out = [];
+  const put = (w, r, c, d) => {
+    out.push({ w, en: w.en.toLowerCase(), r, c, d });
+    [...w.en.toLowerCase()].forEach((ch, n) => {
+      const k = K(r + (d ? n : 0), c + (d ? 0 : n));
+      const m = map.get(k) || { ch };
+      m[d] = true; map.set(k, m);
+    });
+  };
+  const size = (en, r, c, d) => {
+    const ys = out.map(o => o.r).concat(r, r + (d ? en.length - 1 : 0)), xs = out.map(o => o.c).concat(c, c + (d ? 0 : en.length - 1));
+    out.forEach(o => { ys.push(o.r + (o.d ? o.en.length - 1 : 0)); xs.push(o.c + (o.d ? 0 : o.en.length - 1)); });
+    return Math.max(Math.max(...ys) - Math.min(...ys), Math.max(...xs) - Math.min(...xs)) + 1;
+  };
+  put(pool[0], 0, 0, 0);
+  for (const w of pool.slice(1)) {
+    if (out.length >= 6) break;
+    const en = w.en.toLowerCase(), want = out.filter(o => o.d).length < out.length / 2 ? 1 : 0, opts = [];
+    out.forEach(o => [...o.en].forEach((ch, a) => [...en].forEach((ch2, b) => {
+      if (ch !== ch2) return;
+      const d = o.d ? 0 : 1, r = o.r + (o.d ? a : 0) - (d ? b : 0), c = o.c + (o.d ? 0 : a) - (d ? 0 : b);
+      const h = fits(map, en, r, c, d);
+      if (h > 0 && size(en, r, c, d) <= MAX) opts.push({ r, c, d, s: h * 2 + (d === want ? 1 : 0) + Math.random() });
+    })));
+    if (!opts.length) continue;
+    const best = opts.sort((x, y) => y.s - x.s)[0];
+    put(w, best.r, best.c, best.d);
+  }
+  return out;
+}
+function generate(list) {
+  const pool = list.filter(w => /^[a-z]+$/i.test(w.en) && w.en.length <= MAX);
+  let best = [];
+  for (let t = 0; t < 40 && best.length < 6; t++) {
+    const out = build(shuffle(pool));
+    if (out.length > best.length) best = out;
+  }
+  const r0 = Math.min(...best.map(o => o.r)), c0 = Math.min(...best.map(o => o.c));
+  best.forEach(o => { o.r -= r0; o.c -= c0; });
+  return best;
+}
+function layout(ws) {
+  const map = new Map();
+  let h = 0, w = 0;
+  ws.forEach((o, id) => [...o.en].forEach((ch, n) => {
+    const r = o.r + (o.d ? n : 0), c = o.c + (o.d ? 0 : n), k = K(r, c);
+    const m = map.get(k) || { r, c, ch, v: "", ws: [] };
+    m.ws[o.d] = id; map.set(k, m);
+    h = Math.max(h, r + 1); w = Math.max(w, c + 1);
+  }));
+  const starts = [...new Set(ws.map(o => K(o.r, o.c)))].map(k => map.get(k)).sort((a, b) => a.r - b.r || a.c - b.c);
+  starts.forEach((m, n) => { m.no = n + 1; });
+  ws.forEach(o => { o.no = map.get(K(o.r, o.c)).no; o.cells = [...o.en].map((ch, n) => map.get(K(o.r + (o.d ? n : 0), o.c + (o.d ? 0 : n)))); });
+  return { map, h, w };
+}
+
+function play() {
+  words = generate(topic.words);
+  const L = layout(words);
+  cells = L.map; rows = L.h; cols = L.w;
+  checks = 0; reveals = 0; score = 0; over = false;
+  $("#wt").textContent = words.length;
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  const g = $("#grid");
+  g.innerHTML = ""; g.style.setProperty("--n", cols);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const d = document.createElement("div"), m = cells.get(K(r, c));
+    d.className = "cc";
+    if (m) {
+      m.el = d; d.className = "cc on";
+      d.onclick = () => tap(m);
+    }
+    g.appendChild(d);
+  }
+  ["ac", "dn"].forEach((id, d) => {
+    const box = $("#" + id);
+    box.querySelectorAll(".clue").forEach(b => b.remove());
+    words.map((o, n) => ({ o, n })).filter(x => x.o.d === d).sort((a, b) => a.o.no - b.o.no).forEach(({ o, n }) => {
+      const b = document.createElement("button");
+      b.className = "clue"; b.innerHTML = "<b></b><span></span> <small class='muted'></small>";
+      $("b", b).textContent = o.no + "."; $("span", b).textContent = o.w.my; $("small", b).textContent = "(" + o.en.length + ")";
+      b.onclick = () => select(n, 0);
+      o.btn = b; box.appendChild(b);
+    });
+  });
+  select(words.findIndex(o => o.no === 1), 0, true);
+}
+function select(id, p, noFocus) {
+  act = id; dir = words[id].d; pos = p;
+  const o = words[act];
+  if (!o.solved) while (pos < o.cells.length - 1 && o.cells[pos].lock) pos++;
+  draw();
+  if (!noFocus) $("#ghost").focus({ preventScroll: true });
+}
+function tap(m) {
+  const o = words[act], same = o.cells[pos] === m;
+  const d = same && m.ws[1 - dir] != null ? 1 - dir : m.ws[dir] != null ? dir : 1 - dir;
+  act = m.ws[d]; dir = d; pos = words[act].cells.indexOf(m);
+  draw(); $("#ghost").focus({ preventScroll: true });
+}
+function draw() {
+  const o = words[act];
+  cells.forEach(m => {
+    m.el.className = "cc on" + (m.lock ? " ok" : m.bad ? " bad" : "") + (m.hint && !m.lock ? " hint" : "") + (o.cells.includes(m) ? " word" : "") + (o.cells[pos] === m ? " cur" : "");
+    m.el.innerHTML = m.no ? "<span class='no'>" + m.no + "</span>" : "";
+    m.el.appendChild(document.createTextNode(m.v));
+    m.el.setAttribute("aria-label", (m.no ? m.no + " " : "") + (m.v || "blank"));
+  });
+  words.forEach((w, n) => { w.btn.className = "clue" + (n === act ? " act" : "") + (w.solved ? " done" : ""); });
+  $("#cur").textContent = o.no + (o.d ? " Down: " : " Across: ") + o.w.my + " ";
+  const s = document.createElement("small"); s.textContent = "(" + o.en.length + " လုံး)"; $("#cur").appendChild(s);
+  $("#sv").textContent = words.filter(w => w.solved).length; $("#ck").textContent = checks; $("#score").textContent = score;
+}
+function typeLetter(ch) {
+  if (over || document.querySelector(".overlay")) return;
+  const o = words[act];
+  let p = pos;
+  while (p < o.cells.length && o.cells[p].lock) p++;
+  if (p >= o.cells.length) return;
+  const m = o.cells[p];
+  m.v = ch; m.bad = false; m.hint = false;
+  pos = p;
+  while (pos < o.cells.length - 1) { pos++; if (!o.cells[pos].lock) break; }
+  if (o.cells[pos].lock && pos > p) pos = p;
+  solveCheck(); draw();
+}
+function back() {
+  if (over) return;
+  const o = words[act];
+  let m = o.cells[pos];
+  if (!m.v || m.lock) {
+    let p = pos - 1;
+    while (p >= 0 && o.cells[p].lock) p--;
+    if (p < 0) return;
+    pos = p; m = o.cells[p];
+  }
+  if (!m.lock) { m.v = ""; m.bad = false; m.hint = false; }
+  draw();
+}
+function move(dr, dc) {
+  const m = words[act].cells[pos];
+  for (let n = 1; n < Math.max(rows, cols); n++) {
+    const t = cells.get(K(m.r + dr * n, m.c + dc * n));
+    if (t) { const d = dr ? 1 : 0, id = t.ws[d] != null ? t.ws[d] : t.ws[1 - d]; act = id; dir = words[id].d; pos = words[id].cells.indexOf(t); draw(); return; }
+  }
+}
+function solveCheck() {
+  let any = false;
+  words.forEach(o => {
+    if (o.solved || !o.cells.every(m => m.v === m.ch)) return;
+    o.solved = true; any = true;
+    o.cells.forEach(m => { m.lock = true; m.bad = false; });
+    score += 10; addPoints(10);
+    sfx.ok(); speak(o.w.en);
+    const fb = $("#fb"); fb.className = "fb ok"; fb.textContent = "✓ " + o.w.en + " — " + o.w.ex;
+  });
+  if (any && words.every(o => o.solved)) finish();
+}
+function finish() {
+  over = true;
+  const used = checks + reveals;
+  setTimeout(() => showResult({
+    title: used === 0 ? "အရမ်းတော်တယ်! 🎉" : "ပြီးပါပြီ!",
+    stars: used <= 1 ? 3 : used <= 4 ? 2 : 1,
+    text: words.length + " လုံး ဖြေပြီးပြီ · Check " + checks + " ကြိမ် · Hint " + reveals + " ကြိမ် · " + score + " points",
+    onAgain: play
+  }), 900);
+}
+$("#check").onclick = () => {
+  if (over) return;
+  checks++;
+  let wrong = 0, empty = 0;
+  cells.forEach(m => { if (m.lock) return; if (!m.v) empty++; else if (m.v !== m.ch) { m.bad = true; wrong++; } });
+  const fb = $("#fb");
+  if (wrong) { sfx.bad(); fb.className = "fb no"; fb.textContent = "အနီရောင် အကွက် " + wrong + " ကွက် မှားနေတယ်၊ ပြန်ပြင်ပါ"; }
+  else { fb.className = "fb ok"; fb.textContent = empty ? "အခုထိ မှန်ပါတယ်၊ ကျန်တဲ့အကွက် " + empty + " ကွက် ဆက်ဖြည့်ပါ" : "မှန်ပါတယ်!"; }
+  draw();
+  $("#ghost").focus({ preventScroll: true });
+};
+$("#hint").onclick = () => {
+  if (over) return;
+  const o = words[act];
+  const m = o.cells[pos].v !== o.cells[pos].ch ? o.cells[pos] : o.cells.find(x => x.v !== x.ch);
+  if (!m) return;
+  reveals++; score = Math.max(0, score - 3);
+  if (Store.get("points", 0) >= 3) addPoints(-3);
+  m.v = m.ch; m.bad = false; m.hint = true;
+  const fb = $("#fb"); fb.className = "fb"; fb.textContent = "💡 စာလုံးတစ်လုံး ဖွင့်ပေးလိုက်ပြီ (-3 points)";
+  solveCheck(); draw();
+  $("#ghost").focus({ preventScroll: true });
+};
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || !words || document.querySelector(".overlay")) return;
+  const t = e.target, typing = t.tagName !== "INPUT" || t.id === "ghost";
+  if (/^[a-z]$/i.test(e.key) && typing) { e.preventDefault(); typeLetter(e.key.toLowerCase()); }
+  else if (e.key === "Backspace" && typing) { e.preventDefault(); back(); }
+  else if (typing && e.key.startsWith("Arrow")) {
+    e.preventDefault();
+    const v = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key];
+    move(v[0], v[1]);
+  }
+});
+$("#ghost").addEventListener("input", e => {
+  const g = e.target, s = g.value.toLowerCase().replace(/[^a-z]/g, "");
+  g.value = "";
+  [...s].forEach(typeLetter);
+});
+play.gameId = "crossword";
+play();
+</script>
+</body>
+</html>

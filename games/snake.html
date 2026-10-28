@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Snake</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+#board { display: block; width: 100%; max-width: 420px; aspect-ratio: 1; margin: 10px auto 0; border-radius: 16px; border: 2px solid var(--line); background: var(--card); touch-action: none; }
+.pad { display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(2, 52px); gap: 6px; justify-content: center; margin-top: 12px; }
+.pad button { font: inherit; font-size: 1.4rem; font-weight: 800; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; padding: 0; touch-action: manipulation; }
+.pad button:active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--card)); }
+.pad .u { grid-column: 2; } .pad .l { grid-column: 1; grid-row: 2; } .pad .d { grid-column: 2; grid-row: 2; } .pad .r { grid-column: 3; grid-row: 2; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Word: <b id="rn">1</b>/<b id="tot">5</b></span><span class="hearts" id="lives"></span><span>Score: <b id="score">0</b></span></div>
+  <div class="panel" style="padding:12px">
+    <div class="q-label">ဒီအဓိပ္ပါယ်ရှိတဲ့ စာလုံးရဲ့ အက္ခရာတွေကို အစဉ်လိုက် စားပါ</div>
+    <div class="q-text" id="meaning" style="margin:0;font-size:clamp(1.5rem,7vw,2.2rem)"></div>
+    <div class="mask" id="mask" style="margin:4px 0"></div>
+    <div class="fb" id="fb" style="min-height:1.8em;margin-top:0"></div>
+  </div>
+  <canvas id="board" aria-label="Snake board"></canvas>
+  <div class="pad">
+    <button class="u" data-d="up" aria-label="Up">↑</button>
+    <button class="l" data-d="left" aria-label="Left">←</button>
+    <button class="d" data-d="down" aria-label="Down">↓</button>
+    <button class="r" data-d="right" aria-label="Right">→</button>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Word Snake · " + topic.name);
+const N = 12, ROUNDS = 5, SPEED = 230, SY = 6, DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const pool = topic.words.filter(w => /^[a-z]+$/i.test(w.en));
+const cv = $("#board"), ctx = cv.getContext("2d");
+let words, wi, target, idx, snake, dir, queue, tiles, lives, score, done, moving, over, lock, timer, wait, C;
+
+function hearts() { $("#lives").textContent = "❤️".repeat(lives) + "🖤".repeat(3 - lives); }
+function fb(t, c) { $("#fb").textContent = t; $("#fb").className = "fb " + (c || ""); }
+function mask() { $("#mask").textContent = target.split("").map((c, i) => i < idx ? c : "_").join(" "); }
+function colors() { const s = getComputedStyle(document.documentElement), g = k => s.getPropertyValue(k).trim(); C = { ink: g("--ink"), line: g("--line"), accent: g("--accent"), good: g("--good"), card: g("--card"), bg: g("--bg") }; }
+
+function play() {
+  clearInterval(timer); clearTimeout(wait);
+  words = shuffle(pool).slice(0, ROUNDS); wi = -1; lives = 3; score = 0; done = 0; over = false;
+  $("#tot").textContent = words.length; $("#score").textContent = 0;
+  hearts(); colors(); nextWord();
+  timer = setInterval(tick, SPEED);
+}
+function nextWord() {
+  wi++;
+  if (wi >= words.length) return end();
+  $("#rn").textContent = wi + 1;
+  target = words[wi].en.toLowerCase(); idx = 0; lock = false;
+  $("#meaning").textContent = words[wi].my; mask();
+  spawn(); tiles = [];
+  const extra = shuffle("abcdefghijklmnopqrstuvwxyz".split("").filter(c => !target.includes(c))).slice(0, 3);
+  [...target.split(""), ...extra].forEach(place);
+  fb("စတင်ရန် မြှားခလုတ် (သို့) swipe လုပ်ပါ");
+  draw();
+}
+function spawn() { snake = [{ x: 3, y: SY }, { x: 2, y: SY }, { x: 1, y: SY }].concat(snake && idx ? growBy(idx) : []); dir = "right"; queue = []; moving = false; }
+function growBy(n) { return Array.from({ length: n }, () => ({ x: 1, y: SY })); }
+function free(x, y) { return !snake.some(s => s.x === x && s.y === y) && !tiles.some(t => t.x === x && t.y === y) && !(y === SY && x < 9); }
+function place(ch) {
+  let x, y, n = 0;
+  do { x = Math.floor(Math.random() * N); y = Math.floor(Math.random() * N); } while (!free(x, y) && ++n < 500);
+  tiles.push({ x, y, ch });
+}
+
+function turn(d) {
+  if (over || lock || !DIRS[d]) return;
+  const last = queue.length ? queue[queue.length - 1] : dir;
+  if (moving && (d === last || (DIRS[d][0] === -DIRS[last][0] && DIRS[d][1] === -DIRS[last][1]))) return;
+  if (!moving) { if (DIRS[d][0] === -DIRS[dir][0] && DIRS[d][1] === -DIRS[dir][1]) return; dir = d; queue = []; moving = true; fb(""); return; }
+  if (queue.length < 2) queue.push(d);
+}
+function tick() {
+  if (!moving || over) return;
+  if (queue.length) dir = queue.shift();
+  const h = snake[0], nx = h.x + DIRS[dir][0], ny = h.y + DIRS[dir][1];
+  if (nx < 0 || ny < 0 || nx >= N || ny >= N || snake.slice(0, -1).some(s => s.x === nx && s.y === ny)) return crash("နံရံ/ကိုယ့်ကိုယ်ကို တိုက်မိသွားပြီ!");
+  snake.unshift({ x: nx, y: ny });
+  const ti = tiles.findIndex(t => t.x === nx && t.y === ny);
+  if (ti < 0) { snake.pop(); return draw(); }
+  const t = tiles[ti];
+  if (t.ch === target[idx]) {
+    tiles.splice(ti, 1); idx++; sfx.ok(); mask();
+    if (idx >= target.length) {
+      moving = false; lock = true; done++; score += 10 + target.length; addPoints(10 + target.length);
+      $("#score").textContent = score; fb("မှန်တယ်! " + target + " ✓", "ok"); speak(target); draw();
+      wait = setTimeout(nextWord, 1200); return;
+    }
+    fb("");
+  } else {
+    snake.pop(); tiles.splice(ti, 1); place(t.ch);
+    lives--; sfx.bad(); hearts(); fb("မှားတယ်! နောက်အက္ခရာက “" + target[idx] + "” ဖြစ်ရမယ်", "no");
+    if (lives <= 0) { over = true; wait = setTimeout(end, 900); }
+  }
+  draw();
+}
+function crash(msg) {
+  lives--; sfx.bad(); hearts(); moving = false;
+  if (lives <= 0) { over = true; fb(msg, "no"); draw(); wait = setTimeout(end, 900); return; }
+  spawn(); fb(msg + " ပြန်စရန် မြှားကိုနှိပ်ပါ", "no"); draw();
+}
+
+function draw() {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = cv.height = Math.round(w * dpr); }
+  const s = cv.width / N;
+  ctx.clearRect(0, 0, cv.width, cv.width);
+  ctx.fillStyle = C.bg;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if ((x + y) % 2) ctx.fillRect(x * s, y * s, s, s);
+  ctx.font = "800 " + Math.round(s * 0.62) + "px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  tiles.forEach(t => {
+    ctx.fillStyle = C.card; ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(1, s * 0.06);
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(t.x * s + s * .08, t.y * s + s * .08, s * .84, s * .84, s * .2) : ctx.rect(t.x * s + s * .08, t.y * s + s * .08, s * .84, s * .84);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.ink; ctx.fillText(t.ch, t.x * s + s / 2, t.y * s + s / 2 + s * .03);
+  });
+  snake.forEach((p, i) => {
+    ctx.fillStyle = i ? C.good : C.accent; ctx.globalAlpha = i ? Math.max(.55, 1 - i * .03) : 1;
+    ctx.fillRect(p.x * s + s * .06, p.y * s + s * .06, s * .88, s * .88);
+  });
+  ctx.globalAlpha = 1;
+  const h = snake[0], [dx, dy] = DIRS[dir];
+  ctx.fillStyle = "#fff";
+  [-1, 1].forEach(k => { ctx.beginPath(); ctx.arc(h.x * s + s / 2 + dx * s * .2 + dy * k * s * .2, h.y * s + s / 2 + dy * s * .2 + dx * k * s * .2, s * .1, 0, 7); ctx.fill(); });
+}
+function end() {
+  clearInterval(timer); clearTimeout(wait); over = true; moving = false;
+  showResult({
+    title: done === words.length ? "အရမ်းတော်တယ်! 🐍" : "ပြီးပါပြီ!",
+    stars: done === words.length && lives >= 2 ? 3 : done >= Math.ceil(words.length / 2) ? 2 : 1,
+    text: done + " / " + words.length + " လုံး ပြီးတယ် · ❤️ " + Math.max(lives, 0) + " · " + score + " points",
+    onAgain: play
+  });
+}
+
+const KEYS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right" };
+document.addEventListener("keydown", e => {
+  const d = KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+  if (!d || document.querySelector(".overlay")) return;
+  e.preventDefault(); turn(d);
+});
+document.querySelectorAll(".pad button").forEach(b => { b.addEventListener("pointerdown", e => { e.preventDefault(); turn(b.dataset.d); }); b.onclick = e => { if (!e.detail) turn(b.dataset.d); }; });
+let sx, sy;
+cv.addEventListener("touchstart", e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+cv.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+cv.addEventListener("touchend", e => {
+  const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+  turn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
+});
+document.addEventListener("visibilitychange", () => { if (document.hidden && moving && !over) { moving = false; queue = []; fb("ခဏရပ်ထားတယ် · ဆက်ကစားရန် မြှားကိုနှိပ်ပါ"); } });
+window.addEventListener("resize", () => { if (snake) draw(); });
+play.gameId = "snake";
+play();
+</script>
+</body>
+</html>

@@ -1,8 +1,10 @@
-const CACHE = "english-games-v4";
+const CACHE = "english-games-v5";
 const FILES = [
   "./", "index.html", "memory.html", "quiz.html", "scramble.html",
   "hangman.html", "falling.html", "fillblank.html", "listen.html", "truefalse.html", "typing.html", "sentence.html",
   "wordsearch.html", "oddone.html", "connect.html", "dictation.html", "missing.html",
+  "crossword.html", "whack.html", "wordle.html", "sort.html", "speak.html",
+  "snake.html", "bingo.html", "ladder.html", "spellbee.html", "errorspot.html",
   "css/style.css", "js/common.js", "js/choice.js", "js/data.js", "icon.svg", "manifest.webmanifest"
 ];
 

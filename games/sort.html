@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sort It</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.stage { overflow-x: clip; padding: 4px 0 8px; }
+.scard {
+  background: var(--card); border: 2px solid var(--line); border-radius: 20px; padding: 18px 12px; text-align: center;
+  font-size: clamp(1.8rem, 8vw, 2.6rem); font-weight: 800; line-height: 1.4; overflow-wrap: anywhere;
+  transition: transform .45s ease-in, opacity .45s ease-in;
+}
+.scard.in { animation: sin .3s ease-out; }
+.scard.fly-l { transform: translate(-25%, 140px) scale(.3); opacity: 0; }
+.scard.fly-r { transform: translate(25%, 140px) scale(.3); opacity: 0; }
+.scard.no { border-color: var(--bad); animation: sshake .35s; }
+@keyframes sin { from { transform: translateY(-20px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes sshake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.baskets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.basket {
+  font: inherit; color: var(--ink); background: var(--card); border: 2px dashed var(--line); border-radius: 18px;
+  padding: 12px 8px; min-height: 120px; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 2px; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; transition: transform .15s;
+}
+.basket:hover:not(:disabled) { border-color: var(--accent); }
+.basket:disabled { cursor: default; }
+.basket .ic { font-size: 2rem; line-height: 1.2; }
+.basket .nm { font-weight: 800; }
+.basket .mm { font-size: .9rem; color: var(--muted); }
+.basket .key { font-size: .8rem; color: var(--muted); }
+.basket .cnt { font-weight: 800; color: var(--accent); }
+.basket.right { border-style: solid; border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--card)); }
+.basket.wrong { border-style: solid; border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--card)); }
+.basket.pop { transform: scale(1.05); }
+@media (prefers-reduced-motion: reduce) { .scard, .basket { transition: none; animation: none !important; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <p class="muted" style="margin-top:0">စာလုံးကို ကြည့်ပြီး မှန်တဲ့ ခြင်းတောင်းထဲ ထည့်ပါ။ (ခြင်းတောင်းကို နှိပ်ပါ၊ ဒါမှမဟုတ် ← → ခလုတ်)</p>
+  <div class="stats"><span>Card: <b id="num">1</b>/<b id="total">10</b></span><span>Correct: <b id="correct">0</b></span><span>Score: <b id="score">0</b></span></div>
+  <div class="stage">
+    <div class="scard" id="card" lang="en" aria-live="polite"></div>
+    <div class="baskets">
+      <button class="basket" id="b0"></button>
+      <button class="basket" id="b1"></button>
+    </div>
+  </div>
+  <div class="fb" id="fb" aria-live="polite"></div>
+  <div class="row"><button class="btn primary" id="next" hidden>ရှေ့ဆက် →</button></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Sort It · " + topic.name);
+let sides, deck, idx, correct, score, lock, counts;
+
+function play() {
+  const other = shuffle(TOPICS.filter(t => t !== topic))[0];
+  const enA = new Set(topic.words.map(w => w.en.toLowerCase())), enB = new Set(other.words.map(w => w.en.toLowerCase()));
+  const a = shuffle(topic.words.filter(w => !enB.has(w.en.toLowerCase()))).slice(0, 5).map(w => ({ w, side: 0 }));
+  const b = shuffle(other.words.filter(w => !enA.has(w.en.toLowerCase()))).slice(0, 5).map(w => ({ w, side: 1 }));
+  sides = shuffle([topic, other]);
+  if (sides[0] !== topic) [a, b].forEach(l => l.forEach(c => { c.side = 1 - c.side; }));
+  deck = shuffle(a.concat(b));
+  idx = 0; correct = 0; score = 0; counts = [0, 0];
+  sides.forEach((t, i) => {
+    const bk = $("#b" + i);
+    bk.innerHTML = '<span class="ic"></span><span class="nm"></span><span class="mm"></span><span class="key"></span>';
+    $(".ic", bk).textContent = t.icon;
+    $(".nm", bk).textContent = t.name;
+    $(".mm", bk).textContent = t.mm;
+    bk.setAttribute("aria-label", t.name + " basket");
+    bk.onclick = () => pick(i);
+  });
+  $("#total").textContent = deck.length;
+  show();
+}
+function update() {
+  $("#num").textContent = Math.min(idx + 1, deck.length);
+  $("#correct").textContent = correct;
+  $("#score").textContent = score;
+  [0, 1].forEach(i => { $("#b" + i + " .key").innerHTML = (i ? "→" : "←") + ' · <span class="cnt">' + counts[i] + "</span>"; });
+}
+function show() {
+  lock = false;
+  const card = $("#card");
+  card.className = "scard";
+  void card.offsetWidth;
+  card.classList.add("in");
+  card.textContent = deck[idx].w.en;
+  ["#b0", "#b1"].forEach(s => { $(s).className = "basket"; $(s).disabled = false; });
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#next").hidden = true;
+  update();
+}
+function pick(i) {
+  if (lock) return;
+  lock = true;
+  const c = deck[idx], card = $("#card"), fb = $("#fb");
+  ["#b0", "#b1"].forEach(s => { $(s).disabled = true; });
+  if (i === c.side) {
+    correct++; score += 10; addPoints(10); counts[i]++;
+    sfx.ok(); speak(c.w.en);
+    card.classList.remove("in");
+    card.classList.add(i ? "fly-r" : "fly-l");
+    $("#b" + i).classList.add("right", "pop");
+    setTimeout(() => $("#b" + i).classList.remove("pop"), 200);
+    fb.className = "fb ok";
+    fb.textContent = "✓ မှန်တယ်! " + c.w.en + " = " + c.w.my;
+    update();
+    setTimeout(next, 750);
+  } else {
+    sfx.bad();
+    card.classList.remove("in");
+    card.classList.add("no");
+    $("#b" + i).classList.add("wrong");
+    $("#b" + c.side).classList.add("right");
+    fb.className = "fb no";
+    fb.textContent = "✗ မှားသွားပြီ! " + c.w.en + " က " + sides[c.side].icon + " " + sides[c.side].name + " ထဲ ဝင်ရမယ်။ " + c.w.en + " = " + c.w.my;
+    $("#next").hidden = false;
+    $("#next").focus();
+  }
+}
+function next() {
+  idx++;
+  if (idx >= deck.length) return finish();
+  show();
+}
+$("#next").onclick = next;
+document.addEventListener("keydown", e => {
+  if (e.repeat || $(".overlay")) return;
+  if (e.key === "ArrowLeft") { e.preventDefault(); pick(0); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); pick(1); }
+});
+function finish() {
+  lock = true;
+  $("#next").hidden = true;
+  update();
+  const r = correct / deck.length;
+  const stars = r >= 0.9 ? 3 : r >= 0.6 ? 2 : 1;
+  setTimeout(() => showResult({
+    title: r >= 0.9 ? "အရမ်းတော်တယ်! 🎉" : "ပြီးပါပြီ! 👍", stars,
+    text: deck.length + " ခုထဲက " + correct + " ခု မှန်တယ် · " + score + " points",
+    onAgain: play
+  }), 400);
+}
+play.gameId = "sort";
+play();
+</script>
+</body>
+</html>

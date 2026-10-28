@@ -43,7 +43,17 @@ const GAMES = [
   { id: "oddone",   file: "oddone.html",   ic: "🙃", nm: "Odd One Out",   ds: "အုပ်စုနဲ့ မတူတဲ့ စာလုံးကို ရွေးပါ" },
   { id: "connect",  file: "connect.html",  ic: "🔗", nm: "Match Rush",    ds: "စက္ကန့် ၆၀ အတွင်း အများဆုံး တွဲပါ" },
   { id: "dictation", file: "dictation.html", ic: "📝", nm: "Dictation",   ds: "ဝါကျကို နားထောင်ပြီး ရိုက်ပါ" },
-  { id: "missing",  file: "missing.html",  ic: "🔡", nm: "Missing Letters", ds: "ပျောက်နေတဲ့ အက္ခရာတွေ ဖြည့်ပါ" }
+  { id: "missing",  file: "missing.html",  ic: "🔡", nm: "Missing Letters", ds: "ပျောက်နေတဲ့ အက္ခရာတွေ ဖြည့်ပါ" },
+  { id: "crossword", file: "crossword.html", ic: "📰", nm: "Mini Crossword", ds: "အဓိပ္ပါယ်ကြည့်ပြီး ကန့်လန့်ဖြတ် ဖြည့်ပါ" },
+  { id: "whack",    file: "whack.html",    ic: "🔨", nm: "Whack-a-Word",  ds: "ပေါ်လာတဲ့ မှန်တဲ့စာလုံးကို အမြန်ရိုက်ပါ" },
+  { id: "wordle",   file: "wordle.html",   ic: "🟩", nm: "Word Guess",    ds: "၆ ကြိမ်အတွင်း စာလုံးကို ခန့်မှန်းပါ" },
+  { id: "sort",     file: "sort.html",     ic: "🧺", nm: "Sort It",       ds: "စာလုံးတွေကို မှန်တဲ့ခြင်းထဲ ခွဲထည့်ပါ" },
+  { id: "speak",    file: "speak.html",    ic: "🎤", nm: "Say It",        ds: "စာလုံးကို အသံထွက် ပြောကြည့်ပါ" },
+  { id: "snake",    file: "snake.html",    ic: "🐍", nm: "Word Snake",    ds: "အက္ခရာတွေကို အစဉ်လိုက် စားပါ" },
+  { id: "bingo",    file: "bingo.html",    ic: "🎱", nm: "Word Bingo",    ds: "ကြားတဲ့စာလုံးရဲ့ အဓိပ္ပါယ်ကို ခြစ်ပါ" },
+  { id: "ladder",   file: "ladder.html",   ic: "🏆", nm: "Prize Ladder",  ds: "မေးခွန်း ၁၀ ခု ဖြေပြီး ဆုတက်ယူပါ" },
+  { id: "spellbee", file: "spellbee.html", ic: "🐝", nm: "Spelling Bee",  ds: "နားထောင်ပြီး စာလုံးပေါင်း ရိုက်ပါ" },
+  { id: "errorspot", file: "errorspot.html", ic: "🕵️", nm: "Spot the Mistake", ds: "ဝါကျထဲက မှားနေတဲ့ စာလုံးကို ရှာပါ" }
 ];
 let current = Store.get("topic", TOPICS[0].id);
 if (!TOPICS.some(t => t.id === current)) current = TOPICS[0].id;

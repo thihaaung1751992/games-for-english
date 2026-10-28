@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Say It</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.mic { width: 112px; height: 112px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 3rem; cursor: pointer; margin: 16px auto 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent); }
+.mic:disabled { opacity: .4; cursor: default; box-shadow: none; }
+.mic.on { background: var(--bad); animation: pulse 1.1s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--bad) 22%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .mic.on { animation: none; } }
+.mic-hint { font-size: .9rem; color: var(--muted); }
+.heard { font-size: 1rem; color: var(--muted); overflow-wrap: anywhere; }
+.heard b { color: var(--ink); }
+.tries { font-size: .9rem; color: var(--muted); }
+.note { background: color-mix(in srgb, var(--warn) 14%, var(--card)); border: 2px solid var(--warn); border-radius: 14px; padding: 10px 14px; margin-bottom: 14px; font-size: .95rem; text-align: left; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Word: <b id="wn">1</b>/<span id="wt">6</span></span><span>Score: <b id="score">0</b></span></div>
+  <div class="note" id="note" hidden></div>
+  <div class="panel">
+    <div class="q-label">ဒီစကားလုံးကို အသံထွက်ပြောပါ</div>
+    <div class="q-text" id="word"></div>
+    <div class="my" id="meaning" style="font-size:1.1rem"></div>
+    <div class="row"><button class="btn" id="say">🔊 Listen</button></div>
+    <div id="micbox">
+      <button class="mic" id="mic" aria-label="Speak (microphone)">🎤</button>
+      <div class="mic-hint" id="mhint">🎤 ကိုနှိပ်ပြီး ပြောပါ</div>
+      <div class="tries" id="tries"></div>
+    </div>
+    <div class="heard" id="heard" aria-live="polite"></div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+    <div class="row">
+      <button class="btn primary" id="said" hidden>I said it ✓</button>
+      <button class="btn" id="skip" hidden>Skip →</button>
+      <button class="btn primary" id="next" hidden>Next →</button>
+    </div>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Say It · " + topic.name);
+const ROUNDS = 6, MAX_TRIES = 3;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let selfMode = !SR, list, i, score, firsts, laters, tries, fails, done, rec, listening;
+
+function norm(s) { return s.toLowerCase().replace(/[’‘`]/g, "'").replace(/-/g, " ").replace(/[^\p{L}\p{N}\s']/gu, "").replace(/\s+/g, " ").trim(); }
+function matches(alt, en) { const a = " " + norm(alt) + " ", t = norm(en); return !!t && a.includes(" " + t + " "); }
+function setNote(msg) { const n = $("#note"); n.textContent = msg; n.hidden = !msg; }
+function enterSelfMode(msg) {
+  selfMode = true; stopRec();
+  setNote(msg);
+  $("#micbox").hidden = true; $("#heard").textContent = "";
+  if (!done) { $("#said").hidden = false; $("#skip").hidden = false; $("#said").focus(); }
+}
+
+function play() { stopRec(); list = shuffle(topic.words).slice(0, ROUNDS); i = 0; score = 0; firsts = 0; laters = 0; $("#wt").textContent = list.length; show(); }
+function show() {
+  done = false; tries = 0; fails = 0;
+  const w = list[i];
+  $("#wn").textContent = i + 1; $("#score").textContent = score;
+  $("#word").textContent = w.en; $("#meaning").textContent = w.my;
+  $("#heard").textContent = ""; $("#tries").textContent = "";
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  $("#next").hidden = true;
+  $("#micbox").hidden = selfMode; $("#mic").disabled = false;
+  $("#said").hidden = !selfMode; $("#skip").hidden = !selfMode;
+  $("#say").onclick = () => speak(w.en);
+  speak(w.en);
+  (selfMode ? $("#said") : $("#mic")).focus();
+}
+function stopRec() { if (rec) { rec.onresult = rec.onerror = rec.onend = null; try { rec.abort(); } catch (e) {} } rec = null; setListening(false); }
+function setListening(on) {
+  listening = on;
+  $("#mic").classList.toggle("on", on);
+  $("#mic").setAttribute("aria-pressed", on ? "true" : "false");
+  $("#mhint").textContent = on ? "နားထောင်နေတယ်… ပြောပါ 👂" : "🎤 ကိုနှိပ်ပြီး ပြောပါ";
+}
+function listen() {
+  if (done) return;
+  if (listening) { try { rec.stop(); } catch (e) {} return; }
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  const w = list[i];
+  rec = new SR();
+  rec.lang = "en-US"; rec.maxAlternatives = 5; rec.interimResults = false; rec.continuous = false;
+  let got = false;
+  rec.onresult = e => {
+    got = true;
+    const r = e.results[0], alts = [];
+    for (let k = 0; k < r.length; k++) alts.push(r[k].transcript);
+    judge(w, alts);
+  };
+  rec.onerror = e => {
+    got = true;
+    if (e.error === "aborted") return;
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      enterSelfMode("🎤 မိုက်ခရိုဖုန်း သုံးခွင့် မရပါ။ Browser setting မှာ mic ကို ခွင့်ပြုပေးပါ။ အခုတော့ 🔊 နားထောင်ပြီး ကိုယ်တိုင်ပြောပြီး “I said it ✓” ကိုနှိပ်ပါ။");
+      return;
+    }
+    fails++;
+    const fb = $("#fb"); fb.className = "fb no";
+    fb.textContent = e.error === "no-speech" ? "အသံ မကြားရပါဘူး၊ 🎤 ကိုနှိပ်ပြီး နည်းနည်းကျယ်ကျယ် ထပ်ပြောပါ"
+      : e.error === "audio-capture" ? "မိုက်ခရိုဖုန်း ရှာမတွေ့ပါ၊ mic ချိတ်ထားလား စစ်ပါ"
+      : e.error === "network" ? "အင်တာနက် လိုပါတယ်၊ connection စစ်ပြီး ထပ်ကြိုးစားပါ"
+      : "တစ်ခုခု မှားသွားတယ်၊ ထပ်ကြိုးစားပါ";
+    if (fails >= 2) $("#skip").hidden = false;
+  };
+  rec.onend = () => {
+    setListening(false); rec = null;
+    if (!got && !done) { fails++; $("#fb").className = "fb no"; $("#fb").textContent = "အသံ မကြားရပါဘူး၊ ထပ်ပြောပါ"; if (fails >= 2) $("#skip").hidden = false; }
+  };
+  try { rec.start(); setListening(true); $("#fb").textContent = ""; $("#fb").className = "fb"; }
+  catch (e) { rec = null; setListening(false); }
+}
+function judge(w, alts) {
+  const heard = $("#heard");
+  heard.innerHTML = "ကြားရတာ: <b></b>";
+  $("b", heard).textContent = alts[0] ? "“" + alts[0].trim() + "”" : "—";
+  if (alts.some(a => matches(a, w.en))) {
+    const pts = tries === 0 ? 10 : 5;
+    tries === 0 ? firsts++ : laters++;
+    win(w, pts, tries === 0 ? "✓ ပြည့်ပြည့်စုံစုံ မှန်တယ်! +" : "✓ မှန်သွားပြီ! +");
+    return;
+  }
+  tries++; sfx.bad();
+  const fb = $("#fb"); fb.className = "fb no";
+  $("#tries").textContent = "ကြိုးစားမှု " + tries + " / " + MAX_TRIES;
+  if (tries >= MAX_TRIES) {
+    stopRec(); $("#mic").disabled = true;
+    fb.textContent = "ဒီတစ်ခါ မရသေးဘူး — 🔊 နားထောင်ပြီး လိုက်ပြောကြည့်ပါ။ " + w.en + " — " + w.ex;
+    $("#skip").hidden = false; $("#skip").focus();
+  } else {
+    fb.textContent = "မမှန်သေးပါဘူး၊ 🔊 နားထောင်ပြီး ထပ်ပြောကြည့်ပါ";
+  }
+}
+function win(w, pts, msg) {
+  done = true; stopRec();
+  score += pts; addPoints(pts); sfx.ok();
+  const fb = $("#fb"); fb.className = "fb ok"; fb.textContent = msg + pts + " · " + w.ex;
+  finish();
+}
+function finish() {
+  $("#mic").disabled = true; $("#said").hidden = true; $("#skip").hidden = true;
+  const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+  $("#score").textContent = score;
+}
+function next() {
+  stopRec();
+  if (i < list.length - 1) { i++; show(); return; }
+  const v = (firsts * 2 + laters) / (list.length * 2), got = firsts + laters;
+  showResult({
+    title: "ပြီးပါပြီ! 🎉",
+    stars: v >= 0.85 ? 3 : v >= 0.5 ? 2 : 1,
+    text: got + " / " + list.length + " လုံး မှန်မှန်ပြောနိုင်တယ် (ပထမအကြိမ်မှာ " + firsts + " လုံး) · " + score + " points",
+    onAgain: play
+  });
+}
+$("#mic").onclick = listen;
+$("#said").onclick = () => { if (done) return; firsts++; win(list[i], 5, "✓ ကောင်းတယ်! +"); };
+$("#skip").onclick = next;
+$("#next").onclick = next;
+if (selfMode) setNote("ℹ️ ဒီ browser မှာ မိုက်ခရိုဖုန်းနဲ့ အသံစစ်တာ မရပါ (Chrome ကို သုံးဖို့ အကြံပြုပါတယ်)။ 🔊 နားထောင်ပြီး ကျယ်ကျယ် လိုက်ပြောပါ၊ ပြီးရင် “I said it ✓” ကိုနှိပ်ပါ။");
+play.gameId = "speak";
+play();
+</script>
+</body>
+</html>

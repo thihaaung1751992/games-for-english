@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Whack-a-Word</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.holes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.hole {
+  position: relative; aspect-ratio: 1 / .85; min-width: 0; overflow: hidden; padding: 0; font: inherit; cursor: pointer;
+  border-radius: 18px; border: 2px solid var(--line); color: var(--ink);
+  background: radial-gradient(ellipse 70% 22% at 50% 86%, color-mix(in srgb, var(--ink) 40%, var(--bg)) 96%, transparent 100%), var(--card);
+}
+.hole .k { position: absolute; top: 4px; left: 8px; font-size: .75rem; color: var(--muted); z-index: 1; }
+.hole .w {
+  position: absolute; left: 8%; right: 8%; bottom: 10%; height: 62%; border-radius: 14px 14px 10px 10px;
+  display: flex; align-items: center; justify-content: center; text-align: center; padding: 2px 4px;
+  background: var(--accent); color: #fff; font-weight: 800; font-size: clamp(.85rem, 4vw, 1.15rem); line-height: 1.3;
+  overflow-wrap: anywhere; transform: translateY(130%); transition: transform .15s ease-out;
+}
+.hole.up .w { transform: translateY(0); }
+.hole.hit .w { background: var(--good); }
+.hole.miss .w { background: var(--bad); }
+.hole.up:hover { border-color: var(--accent); }
+#time.low { color: var(--bad); }
+@media (prefers-reduced-motion: reduce) { .hole .w { transition: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Time: <b id="time">45</b>s</span><span class="hearts" id="lives"></span><span>Score: <b id="score">0</b></span></div>
+  <div class="panel" style="padding:12px">
+    <div class="q-label">ဒီအဓိပ္ပါယ်ရှိတဲ့ စာလုံး ပေါ်လာရင် မြန်မြန် ရိုက်ပါ 🔨</div>
+    <div class="q-text my" id="meaning" style="margin:0"></div>
+  </div>
+  <div class="holes" id="holes"></div>
+  <div class="fb" id="fb" aria-live="polite"></div>
+  <p class="muted" style="margin:0;font-size:.9rem">ကီးဘုတ်: နံပါတ် 1–9 နဲ့လည်း ရိုက်လို့ရပါတယ်။</p>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Whack-a-Word · " + topic.name);
+const GAME_SECS = 45, KEYS = "789456123";
+let holes, target, lives, score, hits, endAt, startAt, timers, clock, over, lastTarget;
+
+function hearts() { $("#lives").textContent = "❤️".repeat(lives) + "🖤".repeat(3 - lives); }
+function later(fn, ms) { const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); return t; }
+function clearAll() { if (timers) timers.forEach(clearTimeout); timers = new Set(); clearInterval(clock); }
+
+function build() {
+  const box = $("#holes");
+  box.innerHTML = "";
+  holes = [...Array(9)].map((_, n) => {
+    const b = document.createElement("button");
+    b.className = "hole"; b.setAttribute("aria-label", "Hole " + KEYS[n]);
+    b.innerHTML = '<span class="k" aria-hidden="true"></span><span class="w" lang="en"></span>';
+    $(".k", b).textContent = KEYS[n];
+    b.onclick = () => whack(n);
+    box.appendChild(b);
+    return { b, w: null, t: 0 };
+  });
+}
+function play() {
+  clearAll();
+  lives = 3; score = 0; hits = 0; over = false; lastTarget = null;
+  build(); hearts();
+  $("#fb").textContent = ""; $("#fb").className = "fb";
+  startAt = Date.now(); endAt = startAt + GAME_SECS * 1000;
+  newTarget(); update();
+  clock = setInterval(tick, 250);
+  later(spawn, 600);
+}
+function newTarget() {
+  const pool = topic.words.filter(w => w !== lastTarget);
+  target = lastTarget = pool[Math.floor(Math.random() * pool.length)];
+  $("#meaning").textContent = target.my;
+}
+function elapsed() { return (Date.now() - startAt) / 1000; }
+function timeLeft() { return Math.max(0, Math.ceil((endAt - Date.now()) / 1000)); }
+function update() {
+  const t = timeLeft();
+  $("#time").textContent = t; $("#time").className = t <= 10 ? "low" : "";
+  $("#score").textContent = score;
+}
+function tick() { update(); if (!over && timeLeft() === 0) finish(); }
+
+function spawn() {
+  if (over) return;
+  const e = elapsed();
+  const stay = Math.max(800, 1900 - e * 25), gap = Math.max(380, 900 - e * 12);
+  const free = holes.filter(h => !h.w && !h.b.classList.contains("up"));
+  if (free.length) {
+    const h = free[Math.floor(Math.random() * free.length)];
+    const shown = holes.filter(x => x.w).map(x => x.w);
+    let w;
+    if (!shown.includes(target) && Math.random() < 0.45) w = target;
+    else {
+      const pool = topic.words.filter(x => x !== target && !shown.includes(x));
+      w = pool.length ? pool[Math.floor(Math.random() * pool.length)] : target;
+    }
+    h.w = w; h.b.classList.remove("hit", "miss");
+    $(".w", h.b).textContent = w.en;
+    h.b.setAttribute("aria-label", "Hole " + KEYS[holes.indexOf(h)] + ": " + w.en);
+    h.b.classList.add("up");
+    clearTimeout(h.t); h.t = later(() => hide(h), stay);
+  }
+  later(spawn, gap);
+}
+function hide(h, delay) {
+  clearTimeout(h.t);
+  const go = () => { h.w = null; h.b.classList.remove("up"); h.b.setAttribute("aria-label", "Hole " + KEYS[holes.indexOf(h)]); };
+  if (delay) { h.w = null; h.t = later(go, delay); } else go();
+}
+function whack(n) {
+  const h = holes[n];
+  if (over || !h.w) return;
+  const fb = $("#fb");
+  if (h.w === target) {
+    hits++; score += 10; addPoints(10); sfx.ok(); speak(target.en);
+    h.b.classList.add("hit");
+    fb.className = "fb ok"; fb.textContent = "✓ " + target.en + " = " + target.my;
+    hide(h, 300); newTarget();
+  } else {
+    lives--; sfx.bad(); hearts();
+    h.b.classList.add("miss");
+    fb.className = "fb no"; fb.textContent = "✗ " + h.w.en + " = " + h.w.my + " · မှားသွားပြီ!";
+    hide(h, 300);
+    if (lives <= 0) finish();
+  }
+  update();
+}
+function finish() {
+  over = true; clearAll(); update();
+  holes.forEach(h => { h.b.disabled = true; });
+  const stars = hits >= 15 ? 3 : hits >= 8 ? 2 : 1;
+  setTimeout(() => showResult({
+    title: lives <= 0 ? "နှလုံးတွေ ကုန်သွားပြီ 💔" : hits >= 15 ? "အရမ်းမြန်တယ်! 🎉" : "အချိန်ပြည့်ပါပြီ! ⏰", stars,
+    text: hits + " ကြိမ် ရိုက်မိတယ် · " + score + " points",
+    onAgain: play
+  }), 500);
+}
+document.addEventListener("keydown", e => {
+  const i = KEYS.indexOf(e.key);
+  if (i < 0 || e.key === "" || over || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault(); whack(i);
+});
+play.gameId = "whack";
+play();
+</script>
+</body>
+</html>

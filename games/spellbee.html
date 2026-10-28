@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spelling Bee</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.bee { font-size: 3rem; line-height: 1.3; }
+.hintbox { min-height: 1.8em; font-size: 1.1rem; }
+.hintbox b { font-family: ui-monospace, Menlo, monospace; letter-spacing: .08em; }
+.ans { font-size: clamp(1.4rem, 7vw, 2rem); font-weight: 800; letter-spacing: .06em; font-family: ui-monospace, Menlo, monospace; word-break: break-all; line-height: 1.6; }
+.ans span { display: inline-block; padding: 0 2px; border-radius: 6px; }
+.ans .l-bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--card)); text-decoration: underline wavy; }
+.ans .l-ok { color: var(--good); }
+.typed { font-size: .95rem; color: var(--muted); word-break: break-all; }
+.typed s { color: var(--bad); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="stats"><span>Word: <b id="wn">1</b>/<span id="wt">8</span></span><span>Score: <b id="score">0</b></span></div>
+  <div class="panel">
+    <div class="q-label">ကြားရတဲ့ စာလုံးကို စာလုံးပေါင်းရိုက်ပါ</div>
+    <div class="bee" aria-hidden="true">🐝</div>
+    <div class="row">
+      <button class="btn" id="say">🔊 Again</button>
+      <button class="btn" id="slow">🐢 Slow</button>
+      <button class="btn" id="sent">📖 ဝါကျနဲ့ နားထောင်</button>
+    </div>
+    <div class="muted" id="nosound" hidden style="margin-top:8px">🔇 အသံမရရင် 💡 Hint ကိုသုံးပြီး ကစားလို့ရတယ်</div>
+    <div class="hintbox my" id="hintbox" aria-live="polite"></div>
+    <div><input class="input" id="inp" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Type the spelling of the word you hear"></div>
+    <div class="fb" id="fb" aria-live="polite"><div id="msg"></div><div class="ans" id="ans"></div><div class="typed" id="typed"></div></div>
+    <div class="row">
+      <button class="btn" id="hint">💡 Hint (−4)</button>
+      <button class="btn primary" id="check">Check</button>
+      <button class="btn primary" id="next" hidden>Next →</button>
+    </div>
+  </div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Spelling Bee · " + topic.name);
+const ROUNDS = 8;
+let list, i, score, right, hinted, done;
+
+function speakSlow(text) {
+  if (!("speechSynthesis" in window) || Store.get("mute", false)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US"; u.rate = 0.5;
+  speechSynthesis.speak(u);
+}
+// Mark each letter of the correct word: kept in the longest common subsequence with the typed text = ok, else bad.
+function diff(exp, got) {
+  const m = exp.length, n = got.length;
+  const L = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let x = m - 1; x >= 0; x--) for (let y = n - 1; y >= 0; y--) L[x][y] = exp[x] === got[y] ? L[x + 1][y + 1] + 1 : Math.max(L[x + 1][y], L[x][y + 1]);
+  const marks = [];
+  let x = 0, y = 0;
+  while (x < m) {
+    if (y < n && exp[x] === got[y]) { marks.push("ok"); x++; y++; }
+    else if (y < n && L[x][y + 1] >= L[x + 1][y]) y++;
+    else { marks.push("bad"); x++; }
+  }
+  return marks;
+}
+function noSound() { return !("speechSynthesis" in window) || Store.get("mute", false); }
+
+function play() { list = shuffle(topic.words).slice(0, ROUNDS); i = 0; score = 0; right = 0; $("#wt").textContent = list.length; show(); }
+function show() {
+  done = false; hinted = false;
+  const w = list[i];
+  $("#wn").textContent = i + 1; $("#score").textContent = score;
+  $("#nosound").hidden = !noSound();
+  $("#hintbox").textContent = "";
+  $("#inp").value = ""; $("#inp").disabled = false; $("#inp").focus();
+  $("#fb").className = "fb"; $("#msg").textContent = ""; $("#ans").innerHTML = ""; $("#typed").textContent = "";
+  $("#next").hidden = true; $("#check").hidden = false; $("#hint").disabled = false;
+  $("#say").onclick = () => { speak(w.en); $("#inp").focus(); };
+  $("#slow").onclick = () => { speakSlow(w.en); $("#inp").focus(); };
+  $("#sent").onclick = () => { speak(w.ex); $("#inp").focus(); };
+  speak(w.en);
+}
+function drawAnswer(w, got) {
+  const ans = $("#ans"), marks = got == null ? null : diff(w.en.toLowerCase(), got);
+  ans.innerHTML = "";
+  [...w.en].forEach((c, k) => {
+    const s = document.createElement("span");
+    s.className = "l-" + (marks ? marks[k] : "ok");
+    s.textContent = c;
+    ans.appendChild(s);
+  });
+}
+function check() {
+  if (done) return;
+  const w = list[i], v = $("#inp").value.trim().toLowerCase().replace(/\s+/g, " ");
+  if (!v) { $("#msg").textContent = "ကြားရတဲ့ စာလုံးကို အရင်ရိုက်ပါ"; return; }
+  done = true;
+  if (v === w.en.toLowerCase()) {
+    const pts = hinted ? 6 : 10;
+    right++; score += pts; addPoints(pts); sfx.ok();
+    $("#fb").className = "fb ok"; $("#msg").textContent = "✓ မှန်ပါတယ်! +" + pts + " · " + w.my;
+    drawAnswer(w, null);
+  } else {
+    sfx.bad();
+    $("#fb").className = "fb no"; $("#msg").textContent = "✗ မှားသွားတယ် — မှန်တဲ့ စာလုံးပေါင်း (" + w.my + ")";
+    drawAnswer(w, v);
+    $("#typed").innerHTML = "သင်ရိုက်တာ: <s></s>";
+    $("#typed s").textContent = v;
+  }
+  speak(w.en);
+  finish();
+}
+function finish() {
+  $("#inp").disabled = true; $("#check").hidden = true; $("#hint").disabled = true;
+  const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+  $("#score").textContent = score;
+}
+$("#check").onclick = check;
+$("#inp").addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+$("#hint").onclick = () => {
+  if (done || hinted) return;
+  const w = list[i]; hinted = true; $("#hint").disabled = true;
+  $("#hintbox").innerHTML = "💡 <span></span> · <b></b>";
+  $("#hintbox span").textContent = w.my;
+  $("#hintbox b").textContent = w.en[0] + " " + "_ ".repeat(w.en.length - 1).trim() + " (" + w.en.length + ")";
+  $("#inp").focus();
+};
+$("#next").onclick = () => {
+  if (i < list.length - 1) { i++; show(); return; }
+  showResult({
+    title: "ပြီးပါပြီ! 🐝",
+    stars: right === list.length ? 3 : right >= list.length * 0.6 ? 2 : 1,
+    text: right + " / " + list.length + " လုံး မှန်တယ် · " + score + " points",
+    onAgain: play
+  });
+};
+play.gameId = "spellbee";
+play();
+</script>
+</body>
+</html>

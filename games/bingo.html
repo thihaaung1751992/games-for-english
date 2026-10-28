@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Bingo</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.bingo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.cell {
+  position: relative; min-height: 84px; padding: 6px; border-radius: 14px; border: 2px solid var(--line); background: var(--card);
+  color: var(--ink); font: inherit; font-weight: 800; font-size: clamp(.9rem, 3.8vw, 1.1rem); line-height: 1.5; cursor: pointer; overflow-wrap: anywhere;
+}
+.cell:hover:not(.mark) { border-color: var(--accent); }
+.cell .n { position: absolute; top: 2px; left: 7px; font-size: .7rem; color: var(--muted); font-weight: 700; }
+.cell.mark { border-color: var(--good); background: color-mix(in srgb, var(--good) 18%, var(--card)); cursor: default; }
+.cell.mark::after { content: "✓"; position: absolute; top: 0; right: 7px; color: var(--good); font-size: .9rem; }
+.cell.line { border-color: var(--star); box-shadow: 0 0 0 3px color-mix(in srgb, var(--star) 35%, transparent); }
+.cell.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, var(--card)); }
+.caller .q-text { overflow-wrap: anywhere; }
+.bingo-hit { color: var(--star); font-weight: 800; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <p class="muted" style="margin-top:0">ခေါ်တဲ့ English စာလုံးကို နားထောင်ပြီး ကတ်ထဲက အဓိပ္ပါယ်ကို နှိပ်ပါ။ ကတ်ထဲမှာ မပါရင် "Not on my card" ကို နှိပ်ပါ။ (ကီးဘုတ်: 1-9, N, R)</p>
+  <div class="stats"><span>Called: <b id="called">0</b>/<b id="total">0</b></span><span>Bingo: <b id="lines">0</b></span><span>Mistakes: <b id="miss">0</b></span></div>
+  <div class="panel caller">
+    <div class="q-label">Caller says…</div>
+    <div class="q-text" id="word" aria-live="polite"></div>
+    <div class="row" style="margin-top:0">
+      <button class="btn" id="again">🔊 again</button>
+      <button class="btn primary" id="absent">Not on my card</button>
+    </div>
+    <div class="fb" id="fb" aria-live="polite"></div>
+  </div>
+  <div class="bingo" id="card"></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+const topic = getTopic();
+renderBar("Word Bingo · " + topic.name);
+const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+let cells, calls, idx, marked, done, mistakes, lock;
+
+function pickWords() {
+  const seen = new Set(), uniq = ws => ws.filter(w => !seen.has(w.my) && !seen.has(w.en) && seen.add(w.my) && seen.add(w.en));
+  const mine = uniq(shuffle(topic.words));
+  const rest = uniq(shuffle(TOPICS.filter(t => t !== topic).flatMap(t => t.words)));
+  const all = mine.concat(rest);
+  return { card: all.slice(0, 9), extra: all.slice(9, 13) };
+}
+function play() {
+  const { card, extra } = pickWords();
+  cells = card; marked = new Set(); done = new Set(); mistakes = 0; idx = 0; lock = false;
+  calls = shuffle(card.concat(extra));
+  const box = $("#card");
+  box.innerHTML = "";
+  cells.forEach((w, i) => {
+    const b = document.createElement("button");
+    b.className = "cell";
+    b.innerHTML = '<span class="n"></span><span class="t"></span>';
+    $(".n", b).textContent = i + 1;
+    $(".t", b).textContent = w.my;
+    b.onclick = () => pick(i);
+    w.el = b;
+    box.appendChild(b);
+  });
+  $("#total").textContent = calls.length;
+  $("#absent").disabled = false;
+  call();
+}
+function update() {
+  $("#called").textContent = Math.min(idx + 1, calls.length);
+  $("#lines").textContent = done.size;
+  $("#miss").textContent = mistakes;
+}
+function call() {
+  const w = calls[idx];
+  $("#word").textContent = w.en;
+  $("#fb").className = "fb"; $("#fb").textContent = "";
+  update();
+  speak(w.en);
+}
+function feedback(ok, msg) {
+  $("#fb").className = "fb " + (ok ? "ok" : "no");
+  $("#fb").textContent = msg;
+}
+function next(delay) {
+  lock = true;
+  setTimeout(() => {
+    lock = false;
+    if (marked.size === 9) return finish();
+    idx++;
+    if (idx >= calls.length) return finish();
+    call();
+  }, delay);
+}
+function miss(msg) {
+  mistakes++; sfx.bad(); update();
+  feedback(false, msg);
+}
+function pick(i) {
+  if (lock || marked.has(i)) return;
+  const w = calls[idx], b = cells[i].el;
+  if (cells[i] !== w) {
+    b.classList.add("wrong");
+    setTimeout(() => b.classList.remove("wrong"), 600);
+    return miss(cells.includes(w) ? "မဟုတ်သေးဘူး၊ ပြန်ရှာကြည့်ပါ။" : w.en + " က ကတ်ထဲမှာ မပါပါဘူး။");
+  }
+  marked.add(i); b.classList.add("mark"); b.setAttribute("aria-pressed", "true");
+  sfx.ok(); addPoints(10);
+  const fresh = LINES.filter((l, k) => !done.has(k) && l.every(j => marked.has(j)) && done.add(k));
+  if (fresh.length) {
+    fresh.forEach(l => l.forEach(j => cells[j].el.classList.add("line")));
+    setTimeout(sfx.win, 250); addPoints(20 * fresh.length);
+    $("#fb").className = "fb bingo-hit";
+    $("#fb").textContent = "🎉 BINGO" + (fresh.length > 1 ? " ×" + fresh.length : "") + "! " + w.en + " = " + w.my;
+    update();
+    return next(1400);
+  }
+  feedback(true, "မှန်တယ်! " + w.en + " = " + w.my);
+  update();
+  next(900);
+}
+function absent() {
+  if (lock) return;
+  const w = calls[idx];
+  if (cells.includes(w)) return miss(w.en + " က ကတ်ထဲမှာ ရှိပါတယ်။ ရှာကြည့်ပါ။");
+  sfx.ok(); addPoints(5);
+  feedback(true, "မှန်တယ်! " + w.en + " (" + w.my + ") က ကတ်ထဲမှာ မပါဘူး။");
+  next(1100);
+}
+function finish() {
+  $("#absent").disabled = true;
+  const stars = mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1;
+  setTimeout(() => showResult({
+    title: "Full card! 🎉", stars,
+    text: "Bingo " + done.size + " ကြောင်း · အမှား " + mistakes + " ခု",
+    onAgain: play
+  }), 500);
+}
+$("#again").onclick = () => speak(calls[idx].en);
+$("#absent").onclick = absent;
+document.addEventListener("keydown", e => {
+  if (document.querySelector(".overlay") || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k >= "1" && k <= "9") pick(+k - 1);
+  else if (k === "n") absent();
+  else if (k === "r") speak(calls[idx].en);
+});
+play.gameId = "bingo";
+play();
+</script>
+</body>
+</html>
