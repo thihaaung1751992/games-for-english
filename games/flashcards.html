@@ -8,16 +8,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;600&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f3f6fb;
-    --ink: #1d2433;
-    --muted: #5d6779;
+    --bg: #f0f9f8;
+    --ink: #12302d;
+    --muted: #4f6b68;
     --front: #ffffff;
-    --back: #2f5bea;
+    --back: #0d7f72;
     --back-ink: #ffffff;
-    --accent: #2f5bea;
-    --good: #1f9d63;
+    --accent: #0d7f72;
+    --good: #2f9e44;
     --warn: #e0803a;
-    --line: #dbe2ee;
+    --line: #cfe5e2;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
@@ -57,14 +57,14 @@
     position: absolute; inset: 0;
     backface-visibility: hidden; -webkit-backface-visibility: hidden;
     border-radius: 24px;
-    box-shadow: 0 10px 30px rgba(30,50,100,.15);
+    box-shadow: 0 10px 30px rgba(15,60,55,.15);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 24px 20px; gap: 8px;
   }
   .front { background: var(--front); border: 2px solid var(--line); }
   .back { background: var(--back); color: var(--back-ink); transform: rotateY(180deg); }
   .tag { font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
-  .back .tag { color: #cdd9ff; }
+  .back .tag { color: #c8ece7; }
   .word { font-size: clamp(2.6rem, 11vw, 4rem); font-weight: 800; line-height: 1.1; margin: 4px 0; }
   .pos { color: var(--muted); font-size: 1.05rem; }
   .speak {
@@ -74,7 +74,7 @@
   .hint { position: absolute; bottom: 14px; font-size: .85rem; color: var(--muted); }
   .meaning { font-size: clamp(2rem, 8vw, 2.8rem); font-weight: 600; line-height: 1.5; }
   .example { background: rgba(255,255,255,.16); border-radius: 14px; padding: 12px 16px; width: 100%; font-size: 1.05rem; }
-  .example small { display: block; margin-top: 4px; color: #dfe7ff; font-size: .95rem; }
+  .example small { display: block; margin-top: 4px; color: #dcf4f0; font-size: .95rem; }
 
   .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; width: 100%; max-width: 560px; margin-top: 22px; }
   button.btn {

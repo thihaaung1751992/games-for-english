@@ -1,4 +1,4 @@
-const CACHE = "english-games-v5";
+const CACHE = "english-games-v6";
 const FILES = [
   "./", "index.html", "memory.html", "quiz.html", "scramble.html",
   "hangman.html", "falling.html", "fillblank.html", "listen.html", "truefalse.html", "typing.html", "sentence.html",
