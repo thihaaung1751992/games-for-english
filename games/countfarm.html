@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Counting Farm</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.cf-q { padding: 10px 16px; }
+.cf-q .q-text { margin: 0; font-size: clamp(1.5rem, 6.5vw, 2.1rem); }
+.cf-my { color: var(--muted); font-weight: 700; min-height: 1.6em; }
+.cf-scene { position: relative; height: 380px; margin-top: 10px; border-radius: 22px; overflow: hidden; border: 2px solid var(--line); user-select: none; -webkit-user-select: none;
+  background: linear-gradient(#80cfff 0, #cdeeff 150px); }
+.cf-sun { position: absolute; right: 18px; top: 16px; width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff8b5, #ffd43b 60%, #ffa94d); box-shadow: 0 0 26px #ffd43b; }
+.cf-sun::before { content: ""; position: absolute; inset: -20px; border-radius: 50%; background: repeating-conic-gradient(rgba(255,212,59,.7) 0 7deg, transparent 7deg 22deg);
+  -webkit-mask: radial-gradient(circle, transparent 30px, #000 31px, #000 46px, transparent 47px); mask: radial-gradient(circle, transparent 30px, #000 31px, #000 46px, transparent 47px); animation: cfspin 18s linear infinite; }
+@keyframes cfspin { to { transform: rotate(360deg); } }
+.cf-cloud { position: absolute; top: 18px; left: 0; font-size: 2.2rem; opacity: .9; animation: cfdrift 38s linear infinite; }
+.cf-cloud.b { top: 50px; font-size: 1.6rem; animation-duration: 52s; animation-delay: -20s; }
+@keyframes cfdrift { from { transform: translateX(-60px); } to { transform: translateX(110vw); } }
+.cf-hill { position: absolute; border-radius: 50% 50% 0 0; }
+.cf-hill.a { left: -12%; width: 70%; height: 130px; top: 76px; background: #8ad07a; } .cf-hill.b { right: -18%; width: 82%; height: 150px; top: 62px; background: #6bbd66; }
+.cf-barn { position: absolute; left: 6%; top: 76px; width: 80px; height: 58px; background: #d9480f; border: 2px solid #a8350a; border-radius: 0 0 4px 4px; z-index: 1; }
+.cf-barn::before { content: ""; position: absolute; left: -8px; right: -8px; top: -28px; height: 30px; background: #a61e1e; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.cf-barn::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 30px; height: 36px; margin-left: -15px; background: #fff7e6; border: 3px solid #fff; box-sizing: border-box;
+  background-image: linear-gradient(45deg, transparent 46%, #d9480f 46% 54%, transparent 54%), linear-gradient(-45deg, transparent 46%, #d9480f 46% 54%, transparent 54%); }
+.cf-field { position: absolute; left: 0; right: 0; top: 140px; bottom: 0; background: linear-gradient(#8fd66e, #5aa94b); border-top: 3px solid rgba(255,255,255,.25); }
+.cf-field::after { content: "🌼      🌷       🌼    🌷"; position: absolute; left: 0; right: 0; bottom: 4px; white-space: pre; font-size: .9rem; opacity: .7; text-align: center; pointer-events: none; }
+.cf-fence { position: absolute; left: 0; right: 0; top: 118px; height: 28px; z-index: 1; background: linear-gradient(90deg, #fff7e6 0 7px, transparent 7px 20px) 0 0 / 20px 100%; border-top: 0; }
+.cf-fence::before, .cf-fence::after { content: ""; position: absolute; left: 0; right: 0; height: 4px; background: #e8d7b4; } .cf-fence::before { top: 6px; } .cf-fence::after { top: 17px; }
+.cf-an { position: absolute; width: 46px; height: 46px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; line-height: 1; transition-property: left, top; transition-timing-function: linear; }
+.cf-an .fl { display: block; font-size: 2.1rem; text-align: center; line-height: 46px; }
+.cf-an.small { width: 40px; height: 40px; } .cf-an.small .fl { font-size: 1.8rem; line-height: 40px; }
+.cf-an .bob { display: inline-block; animation: cfbob .9s ease-in-out infinite; animation-delay: var(--d, 0s); }
+@keyframes cfbob { 50% { transform: translateY(-4px) rotate(3deg); } }
+.cf-an::after { content: ""; position: absolute; left: 20%; right: 20%; bottom: 1px; height: 7px; border-radius: 50%; background: rgba(0,0,0,.2); z-index: -1; }
+.cf-an.counted .fl { filter: drop-shadow(0 0 5px #fff) drop-shadow(0 0 3px #ffd43b); }
+.cf-an.counted::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 3px solid #ffd43b; opacity: .9; }
+.cf-an:focus-visible { outline: 3px solid var(--accent); border-radius: 50%; }
+.cf-an.wig .bob { animation: cfwig .45s; }
+@keyframes cfwig { 25% { transform: rotate(-20deg); } 75% { transform: rotate(20deg); } }
+.cf-badge { position: absolute; left: 50%; top: -14px; margin-left: -15px; width: 30px; height: 30px; border-radius: 50%; background: #e5484d; color: #fff; font-weight: 900; font-size: .95rem; line-height: 30px; text-align: center; border: 2px solid #fff; box-shadow: 0 3px 5px rgba(0,0,0,.3); animation: cfpop .45s cubic-bezier(.3,1.7,.5,1); pointer-events: none; z-index: 2; }
+@keyframes cfpop { from { transform: scale(0) translateY(10px); } }
+.cf-hint { text-align: center; font-weight: 800; margin-top: 10px; min-height: 1.8em; }
+.cf-opts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+@media (min-width: 520px) { .cf-opts { grid-template-columns: repeat(4, 1fr); } }
+.cf-opts.three { grid-template-columns: repeat(3, 1fr); }
+.cf-opts .opt { font-size: 1.15rem; min-height: 58px; }
+.cf-opts .opt:disabled:not(.wrong):not(.right) { opacity: .45; }
+.cf-msg { text-align: center; font-weight: 800; min-height: 3.4em; margin-top: 8px; line-height: 1.6; }
+.cf-msg.ok { color: var(--good); } .cf-msg.no { color: var(--bad); }
+@media (prefers-reduced-motion: reduce) { .cf-sun::before, .cf-cloud, .cf-an .bob, .cf-an.wig .bob, .cf-badge { animation: none; } .cf-an { transition: none !important; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Tap every animal to count it out loud, then pick the English number word.
+const topic = getTopic(), LV = getLevel(), lvl = topic.level;
+renderBar("Counting Farm · " + topic.name);
+const ROUNDS = 8;
+const ANIMALS = [["cow", "cows", "🐮", "နွား"], ["pig", "pigs", "🐷", "ဝက်"], ["duck", "ducks", "🦆", "ဘဲ"], ["chicken", "chickens", "🐔", "ကြက်"], ["sheep", "sheep", "🐑", "သိုး"],
+  ["horse", "horses", "🐴", "မြင်း"], ["cat", "cats", "🐱", "ကြောင်"], ["dog", "dogs", "🐶", "ခွေး"], ["goat", "goats", "🐐", "ဆိတ်"], ["rabbit", "rabbits", "🐰", "ယုန်"]]
+  .map(([s, p, e, my]) => ({ s, p, e, my }));
+const NUM = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
+const NUMMY = ["", "တစ်", "နှစ်", "သုံး", "လေး", "ငါး", "ခြောက်", "ခုနစ်", "ရှစ်", "ကိုး", "ဆယ်", "ဆယ့်တစ်", "ဆယ့်နှစ်", "ဆယ့်သုံး", "ဆယ့်လေး", "ဆယ့်ငါး", "ဆယ့်ခြောက်", "ဆယ့်ခုနစ်", "ဆယ့်ရှစ်", "ဆယ့်ကိုး", "နှစ်ဆယ်"];
+const RANGE = [[1, 8], [2, 12], [3, 16], [5, 20]][lvl - 1];
+const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const ri = (a, b) => Math.floor(rnd(a, b + 1));
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Round: <b id="rn">1</b>/' + ROUNDS + '</span><span>Counted: <b id="cnt">0</b> 👆</span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="panel cf-q"><div class="q-label">🐄 FARM COUNT</div><div class="q-text" id="qtext"></div><div class="cf-my" id="qmy"></div>' +
+  '<button class="btn" id="say" style="min-height:44px">🔊 Listen</button></div>' +
+  '<div class="cf-scene" id="scene"><div class="cf-sun"></div><span class="cf-cloud">☁️</span><span class="cf-cloud b">☁️</span><div class="cf-hill a"></div><div class="cf-hill b"></div><div class="cf-barn"></div>' +
+  '<div class="cf-fence"></div><div class="cf-field" id="field"></div></div>' +
+  '<div class="cf-hint" id="hint"></div><div class="cf-opts" id="opts"></div><div class="cf-msg" id="msg" aria-live="polite"></div>';
+
+let run = 0, counts, round, firstTry, score, R, animals, counted, mistakes, locked, tick, qDone;
+const timers = new Set();
+function later(fn, ms) { const id = run; const t = setTimeout(() => { timers.delete(t); if (id === run) fn(); }, ms); timers.add(t); }
+function msg(t, c) { const m = $("#msg"); m.textContent = t; m.className = "cf-msg " + (c || ""); }
+const field = () => { const f = $("#field"); return { w: f.clientWidth, h: f.clientHeight }; };
+
+function play() {
+  run++; timers.forEach(clearTimeout); timers.clear(); clearInterval(tick);
+  const pool = []; for (let n = RANGE[0]; n <= RANGE[1]; n++) pool.push(n);
+  counts = shuffle(pool).slice(0, ROUNDS);
+  round = 0; firstTry = 0; score = 0; $("#score").textContent = 0; next();
+}
+function plan(n) {
+  const ks = shuffle(ANIMALS), mixed = lvl >= 4 && n >= 4 && Math.random() < 0.6;
+  let targets, groups;
+  if (mixed) { const a = ri(2, n - 2); targets = [ks[0], ks[1]]; groups = [[ks[0], a], [ks[1], n - a]]; }
+  else { targets = [ks[0]]; groups = [[ks[0], n]]; }
+  const other = ks[mixed ? 2 : 1];
+  let d = lvl <= 1 ? 0 : lvl === 2 ? ri(2, 3) : ri(2, 4);
+  d = Math.max(0, Math.min(d, 22 - n));
+  if (d) groups.push([other, d]);
+  return { n, targets, groups, mixed };
+}
+function next() {
+  clearInterval(tick);
+  if (round >= ROUNDS) return end();
+  const n = counts[round]; round++; R = plan(n); counted = 0; mistakes = 0; locked = false; qDone = false;
+  $("#rn").textContent = round; $("#cnt").textContent = 0;
+  const names = R.targets.map(t => t.p).join(" and ");
+  $("#qtext").textContent = "How many " + names + "?";
+  $("#qmy").textContent = R.targets.map(t => t.my).join(" နဲ့ ") + " ဘယ်နှစ်ကောင် ရှိလဲ?";
+  $("#say").onclick = () => speak("How many " + names + "?");
+  later(() => speak("How many " + names + "?"), 300);
+  buildField(); buildOpts();
+  const open = lvl >= 3;
+  setOpts(open);
+  $("#hint").textContent = open ? "👆 တစ်ကောင်ချင်း နှိပ်ပြီး ရေတွက်ပါ၊ ဒါမှမဟုတ် တန်းဖြေလို့ရတယ်" : "👆 " + R.targets.map(t => t.e).join(" ") + " တစ်ကောင်ချင်းစီကို နှိပ်ပြီး ရေတွက်ပါ!";
+  msg("");
+  if (!still()) tick = setInterval(wander, 800);
+}
+function buildField() {
+  const f = $("#field"); f.innerHTML = ""; animals = [];
+  const { w, h } = field(), total = R.groups.reduce((s, g) => s + g[1], 0), sm = total > 14, sz = sm ? 40 : 46;
+  const list = shuffle(R.groups.flatMap(([k, c]) => Array.from({ length: c }, () => k)));
+  list.forEach((k, i) => {
+    const b = document.createElement("button");
+    b.className = "cf-an" + (sm ? " small" : ""); b.setAttribute("aria-label", k.s);
+    b.innerHTML = '<span class="fl"><span class="bob"></span></span>'; $(".bob", b).textContent = k.e; b.style.setProperty("--d", (-rnd(0, 1)).toFixed(2) + "s");
+    const a = { el: b, k, isT: R.targets.includes(k), done: false, next: 0, x: 0, y: 0, sz };
+    // jittered grid so animals do not start piled up
+    const cols = Math.ceil(Math.sqrt(total * (w / h))), rows = Math.ceil(total / cols);
+    const gx = i % cols, gy = Math.floor(i / cols);
+    a.x = Math.max(2, Math.min(w - sz - 2, (gx + 0.5) * (w / cols) - sz / 2 + rnd(-8, 8)));
+    a.y = Math.max(4, Math.min(h - sz - 8, (gy + 0.5) * (h / rows) - sz / 2 + rnd(-6, 6)));
+    b.style.left = a.x + "px"; b.style.top = a.y + "px"; b.style.zIndex = Math.round(a.y);
+    b.onclick = () => tap(a);
+    a.next = performance.now() + rnd(300, 2500);
+    f.appendChild(b); animals.push(a);
+  });
+}
+function wander() {
+  const now = performance.now(), { w, h } = field();
+  animals.forEach(a => {
+    if (a.done || now < a.next) return;
+    const x = Math.max(2, Math.min(w - a.sz - 2, a.x + rnd(-80, 80))), y = Math.max(4, Math.min(h - a.sz - 8, a.y + rnd(-45, 45)));
+    const d = rnd(2.2, 4.6);
+    a.el.style.transitionDuration = d + "s";
+    a.el.style.left = x + "px"; a.el.style.top = y + "px"; a.el.style.zIndex = Math.round(y);
+    $(".fl", a.el).style.transform = x < a.x - 4 ? "scaleX(-1)" : x > a.x + 4 ? "scaleX(1)" : "";
+    a.x = x; a.y = y; a.next = now + d * 1000 + rnd(200, 1500);
+  });
+}
+function tap(a) {
+  if (locked || a.done) return;
+  const el = a.el;
+  if (!a.isT) {
+    sfx.bad(); el.classList.remove("wig"); void el.offsetWidth; el.classList.add("wig"); later(() => el.classList.remove("wig"), 500);
+    const names = R.targets.map(t => t.p).join(" and ");
+    msg("🙅 ဒါက " + a.k.s + " (" + a.k.my + ") ပါ၊ " + names + " ကိုပဲ ရေတွက်ပါ!", "no"); speak(a.k.s);
+    return;
+  }
+  a.done = true; counted++; $("#cnt").textContent = counted;
+  el.style.transition = "none"; el.style.left = el.offsetLeft + "px"; el.style.top = el.offsetTop + "px"; void el.offsetWidth; el.style.transition = "";
+  el.classList.add("counted");
+  const bd = document.createElement("span"); bd.className = "cf-badge"; bd.textContent = counted; el.appendChild(bd);
+  sfx.ok(); speak(NUM[counted] || String(counted)); msg("");
+  const total = R.groups.filter(g => R.targets.includes(g[0])).reduce((s, g) => s + g[1], 0);
+  if (counted === total && !qDone) { qDone = true; setOpts(true); $("#hint").textContent = "🎯 အားလုံး ရေတွက်ပြီးပြီ! ဘယ်နှစ်ကောင်လဲ ရွေးပါ"; }
+}
+function buildOpts() {
+  const n = R.n, want = LV.opts, set = new Set([n]);
+  const near = []; for (let d = -3; d <= 3; d++) { const v = n + d; if (d && v >= 1 && v <= 20) near.push(v); }
+  const near1 = near.filter(v => Math.abs(v - n) <= 2);
+  shuffle(near1.length >= want - 1 ? near1 : near).forEach(v => { if (set.size < want) set.add(v); });
+  for (let v = 1; set.size < want; v++) set.add(v);
+  const o = $("#opts"); o.innerHTML = ""; o.className = "cf-opts" + (want === 3 ? " three" : "");
+  [...set].sort((a, b) => a - b).forEach(v => {
+    const b = document.createElement("button"); b.className = "opt"; b.textContent = NUM[v]; b._v = v; b.onclick = () => answer(b); o.appendChild(b);
+  });
+}
+function setOpts(on) { [...$("#opts").children].forEach(b => { if (!b.classList.contains("wrong")) b.disabled = !on; }); }
+function answer(b) {
+  if (locked || b.disabled) return;
+  const ok = b._v === R.n;
+  if (ok) {
+    locked = true; clearInterval(tick);
+    const first = mistakes === 0; if (first) firstTry++;
+    const pts = first ? 10 : 5; score += pts; addPoints(pts); $("#score").textContent = score; sfx.ok();
+    b.classList.add("right"); setOpts(false);
+    const p = fx.at(b); fx.confetti(p.x, p.y, 40); fx.pop(b, "+" + pts);
+    const names = R.targets.map(t => t.p).join(" and ");
+    msg("✓ " + NUM[R.n] + " = " + NUMMY[R.n] + " 🎉  " + R.n + " " + names, "ok");
+    later(() => speak(NUM[R.n] + " " + names), 250);
+    animals.forEach(a => { if (a.isT && !a.done) { a.done = true; a.el.classList.add("counted"); } });
+    later(next, 2600);
+  } else {
+    mistakes++; sfx.bad(); b.classList.add("wrong"); b.disabled = true; fx.shake(b);
+    msg("✗ " + NUM[b._v] + " မဟုတ်သေးဘူး၊ " + (counted < R.targets.length ? "တစ်ကောင်ချင်း နှိပ်ပြီး ရေတွက်ကြည့်ပါ 👆" : "ထပ်ကြိုးစားပါ"), "no");
+  }
+}
+function end() {
+  clearInterval(tick);
+  const r = firstTry / ROUNDS; fx.rain(50);
+  showResult({ title: cheer(r), stars: starsFor(r), text: firstTry + " / " + ROUNDS + " ကြိမ် တစ်ခါတည်း မှန်တယ် · " + score + " points", onAgain: play });
+}
+play.gameId = "countfarm";
+play();
+</script>
+</body>
+</html>

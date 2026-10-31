@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feed the Monster</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.fm-q { padding: 12px 16px; }
+.fm-stage { position: relative; height: 470px; margin-top: 10px; border-radius: 22px; overflow: hidden; border: 2px solid var(--line); user-select: none; -webkit-user-select: none;
+  background: radial-gradient(ellipse at 50% 105%, color-mix(in srgb, var(--good) 40%, transparent), transparent 60%),
+    linear-gradient(color-mix(in srgb, #8b5cf6 16%, var(--card)), color-mix(in srgb, var(--accent) 20%, var(--card))); }
+.fm-stage::before { content: "✨ ⭐ ✨"; position: absolute; top: 6px; left: 0; right: 0; text-align: center; letter-spacing: 70px; opacity: .35; font-size: .9rem; pointer-events: none; }
+.fm-row { position: absolute; top: 14px; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 10px 12px; justify-content: center; align-content: flex-start; padding: 0 8px; z-index: 5; }
+.fm-ck { position: relative; border: 0; background: none; padding: 0; margin: 0; cursor: grab; touch-action: none; font: inherit; z-index: 1; }
+.fm-ck.drag { cursor: grabbing; z-index: 20; }
+.fm-ck .ck { display: flex; align-items: center; justify-content: center; min-width: 92px; max-width: 142px; min-height: 84px; padding: 12px 14px; border-radius: 50px; text-align: center;
+  background: radial-gradient(circle at 30% 25%, #f3c987, #d9954a 70%, #c07a34); border: 3px solid #b0692a; box-shadow: 0 5px 0 #8f5120, 0 10px 14px rgba(0,0,0,.2);
+  animation: fmbob 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * -.6s); position: relative; }
+.fm-ck .ck::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(circle at 14% 36%, #5a3418 0 4px, transparent 5px), radial-gradient(circle at 84% 28%, #5a3418 0 4px, transparent 5px), radial-gradient(circle at 72% 82%, #5a3418 0 5px, transparent 6px),
+    radial-gradient(circle at 24% 84%, #5a3418 0 4px, transparent 5px), radial-gradient(circle at 50% 8%, #5a3418 0 3px, transparent 4px); }
+.fm-ck .ck b { position: relative; background: rgba(255,240,210,.82); color: #4a2c14; border-radius: 12px; padding: 2px 8px; font-size: .95rem; line-height: 1.35; word-break: break-word; }
+.fm-ck:focus-visible .ck { outline: 3px solid var(--accent); outline-offset: 3px; }
+.fm-ck.bad { opacity: .5; filter: grayscale(.6); cursor: default; }
+.fm-ck.bad .ck { animation: none; box-shadow: 0 2px 0 #8f5120; }
+@keyframes fmbob { 50% { transform: translateY(-8px) rotate(2deg); } }
+.fm-mon { --mc: #8e6bf2; --s: .8; position: absolute; left: 50%; bottom: 12px; width: 170px; height: 190px; margin-left: -85px; transform: scale(var(--s)); transform-origin: 50% 100%; transition: transform .6s cubic-bezier(.3,1.5,.5,1); z-index: 2; --lx: 0; --ly: 0; }
+.fm-mon[data-st="1"] { --mc: #2bb5a4; } .fm-mon[data-st="2"] { --mc: #f08c2e; } .fm-mon[data-st="3"] { --mc: #e5489d; }
+.fm-body { position: absolute; inset: 14px 0 0; border-radius: 46% 46% 40% 40% / 52% 52% 38% 38%; z-index: 2;
+  background: radial-gradient(circle at 32% 24%, color-mix(in srgb, var(--mc) 55%, #fff), var(--mc) 55%, color-mix(in srgb, var(--mc) 70%, #000));
+  box-shadow: inset 0 -10px 18px rgba(0,0,0,.18), 0 8px 16px rgba(0,0,0,.22); animation: fmidle 2.8s ease-in-out infinite; transform-origin: 50% 100%; }
+.fm-mon.chomp .fm-body { animation: fmsquash .45s; }
+.fm-mon.yuck .fm-body { animation: fmwob .5s 2; }
+@keyframes fmidle { 50% { transform: scale(1.03, .97); } }
+@keyframes fmsquash { 30% { transform: scale(1.12, .84); } 60% { transform: scale(.94, 1.08); } }
+@keyframes fmwob { 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
+.fm-eyes { position: absolute; top: 16%; left: 0; right: 0; display: flex; justify-content: center; gap: 12px; }
+.fm-eye { width: 42px; height: 42px; border-radius: 50%; background: #fff; box-shadow: inset 0 -3px 5px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; animation: fmblink 4s infinite; }
+.fm-eye b { width: 18px; height: 18px; border-radius: 50%; background: #1d1330; transform: translate(calc(var(--lx) * 9px), calc(var(--ly) * 9px)); transition: transform .12s; position: relative; }
+.fm-eye b::after { content: ""; position: absolute; top: 3px; left: 4px; width: 5px; height: 5px; border-radius: 50%; background: #fff; }
+.fm-eye:nth-child(2) { width: 36px; height: 36px; }
+@keyframes fmblink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+.fm-mon.yuck .fm-eye { animation: none; transform: scaleY(.3); }
+.fm-mouth { position: absolute; bottom: 14%; left: 50%; width: 88px; height: 48px; margin-left: -44px; border-radius: 10px 10px 50px 50px; background: #3b0d2c; overflow: hidden; transition: height .18s, width .18s, margin-left .18s, border-radius .18s; box-shadow: inset 0 6px 10px rgba(0,0,0,.45); }
+.fm-mouth::before { content: ""; position: absolute; top: 0; left: 6%; right: 6%; height: 12px; background: linear-gradient(135deg, #fff 50%, transparent 50%) 0 0 / 14px 12px, linear-gradient(225deg, #fff 50%, transparent 50%) 0 0 / 14px 12px; background-repeat: repeat-x; }
+.fm-tongue { position: absolute; bottom: -10px; left: 50%; width: 46px; height: 28px; margin-left: -23px; border-radius: 50%; background: #ff6f91; }
+.fm-mon.open .fm-mouth { height: 74px; width: 108px; margin-left: -54px; }
+.fm-mon.eat .fm-mouth { animation: fmeat .45s; }
+@keyframes fmeat { 0% { height: 74px; } 40% { height: 8px; } 100% { height: 48px; } }
+.fm-mon.yuck .fm-mouth { height: 20px; width: 70px; margin-left: -35px; border-radius: 50px; background: #2e6b3a; }
+.fm-mon.yuck .fm-mouth::before { display: none; }
+.fm-horn { position: absolute; top: 0; width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent; border-bottom: 38px solid #ffe28a; z-index: 1; display: none; filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+.fm-horn.l { left: 22px; transform: rotate(-18deg); } .fm-horn.r { right: 22px; transform: rotate(18deg); }
+.fm-mon:not([data-st="0"]) .fm-horn { display: block; }
+.fm-mon[data-st="2"] .fm-horn, .fm-mon[data-st="3"] .fm-horn { border-bottom-width: 52px; border-left-width: 17px; border-right-width: 17px; }
+.fm-arm { position: absolute; bottom: 38px; width: 34px; height: 64px; border-radius: 40px; background: color-mix(in srgb, var(--mc) 85%, #000); z-index: 1; }
+.fm-arm.l { left: -14px; transform: rotate(25deg); } .fm-arm.r { right: -14px; transform: rotate(-25deg); }
+.fm-wing { position: absolute; top: 40px; width: 62px; height: 78px; border-radius: 80% 20% 70% 30%; background: color-mix(in srgb, var(--mc) 50%, #fff); display: none; z-index: 0; opacity: .85; animation: fmflap 1.2s ease-in-out infinite; }
+.fm-wing.l { left: -34px; transform-origin: 100% 60%; } .fm-wing.r { right: -34px; transform: scaleX(-1); transform-origin: 100% 60%; animation-name: fmflap2; }
+.fm-mon[data-st="2"] .fm-wing, .fm-mon[data-st="3"] .fm-wing { display: block; }
+@keyframes fmflap { 50% { transform: rotate(-14deg); } } @keyframes fmflap2 { 50% { transform: scaleX(-1) rotate(-14deg); } }
+.fm-crown { position: absolute; top: -34px; left: 50%; margin-left: -22px; font-size: 2.6rem; display: none; z-index: 4; animation: fmbob 2s ease-in-out infinite; }
+.fm-mon[data-st="3"] .fm-crown { display: block; }
+.fm-mon[data-st="3"] .fm-body { box-shadow: inset 0 -10px 18px rgba(0,0,0,.18), 0 0 26px #ffd54a, 0 8px 16px rgba(0,0,0,.22); }
+.fm-say { position: absolute; top: -8px; right: -26px; z-index: 6; background: var(--card); color: var(--ink); border: 2px solid var(--line); border-radius: 16px; padding: 2px 10px; font-weight: 800; font-size: 1rem; line-height: 1.5; white-space: nowrap; opacity: 0; transform: scale(.6); transition: .2s; pointer-events: none; }
+.fm-say.on { opacity: 1; transform: scale(1); }
+.fm-msg { text-align: center; font-weight: 800; min-height: 3.4em; margin-top: 10px; line-height: 1.6; }
+.fm-msg.ok { color: var(--good); } .fm-msg.no { color: var(--bad); }
+.fm-meter { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.fm-meter .trk { flex: 1; height: 16px; border-radius: 99px; background: var(--line); overflow: hidden; border: 2px solid var(--line); }
+.fm-meter .trk i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #f5b301, #f08c2e); transition: width .5s; border-radius: 99px; }
+.fm-meter .nm { font-weight: 800; font-size: .85rem; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  .fm-ck .ck, .fm-body, .fm-eye, .fm-wing, .fm-crown, .fm-mon.eat .fm-mouth, .fm-mon.chomp .fm-body, .fm-mon.yuck .fm-body { animation: none !important; }
+  .fm-mon, .fm-meter .trk i { transition: none; }
+}
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Drag the right cookie into the monster's mouth (or just tap it). Feed it 10 times and it evolves.
+const topic = getTopic(), LV = getLevel();
+renderBar("Feed the Monster · " + topic.name);
+const ROUNDS = 10;
+const STAGES = ["Baby Monster 🥚", "Little Monster 👶", "Big Monster 💪", "Monster King 👑"];
+const stageOf = n => n >= 9 ? 3 : n >= 6 ? 2 : n >= 3 ? 1 : 0;
+const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Round: <b id="rn">1</b>/' + ROUNDS + '</span><span>Fed: <b id="fed">0</b> 🍪</span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="fm-meter"><span class="nm" id="stname"></span><div class="trk"><i id="grow"></i></div></div>' +
+  '<div class="panel fm-q"><div class="q-label" id="qlabel"></div><div class="q-text" id="qtext" style="margin:0"></div>' +
+  '<button class="btn" id="say" style="min-height:44px;margin-top:4px">🔊 Listen</button></div>' +
+  '<div class="fm-stage" id="stage"><div class="fm-row" id="row"></div>' +
+  '<div class="fm-mon" id="mon" data-st="0"><div class="fm-say" id="sayb"></div><div class="fm-crown">👑</div><div class="fm-wing l"></div><div class="fm-wing r"></div>' +
+  '<div class="fm-horn l"></div><div class="fm-horn r"></div><div class="fm-arm l"></div><div class="fm-arm r"></div>' +
+  '<div class="fm-body"><div class="fm-eyes"><i class="fm-eye"><b></b></i><i class="fm-eye"><b></b></i></div><div class="fm-mouth" id="mouth"><span class="fm-tongue"></span></div></div></div></div>' +
+  '<div class="fm-msg" id="msg" aria-live="polite"></div>';
+
+let run = 0, qs, round, fed, firstTry, mistakes, locked, score, q, cur;
+const timers = new Set();
+function later(fn, ms) { const id = run; const t = setTimeout(() => { timers.delete(t); if (id === run) fn(); }, ms); timers.add(t); }
+function msg(t, c) { const m = $("#msg"); m.textContent = t; m.className = "fm-msg " + (c || ""); }
+function bubble(t) { const b = $("#sayb"); b.textContent = t; b.classList.add("on"); later(() => b.classList.remove("on"), 1100); }
+function paintMonster(bounce) {
+  const mon = $("#mon"), st = stageOf(fed);
+  mon.dataset.st = st;
+  mon.style.setProperty("--s", (0.78 + fed * 0.03).toFixed(3));
+  $("#stname").textContent = STAGES[st];
+  $("#grow").style.width = (fed / ROUNDS * 100) + "%";
+  $("#fed").textContent = fed; $("#score").textContent = score;
+}
+function pulse(cls, ms) { const m = $("#mon"); m.classList.remove(cls); void m.offsetWidth; m.classList.add(cls); later(() => m.classList.remove(cls), ms); }
+function look(x, y) {
+  const m = $("#mon"), r = m.getBoundingClientRect();
+  if (x == null) { m.style.setProperty("--lx", 0); m.style.setProperty("--ly", 0); return; }
+  const dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height * 0.35), d = Math.hypot(dx, dy) || 1;
+  m.style.setProperty("--lx", (dx / d).toFixed(2)); m.style.setProperty("--ly", (dy / d).toFixed(2));
+}
+const mouthC = () => { const r = $("#mouth").getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; };
+function overMouth(x, y) { const m = mouthC(); return Math.abs(x - m.x) < m.w / 2 + 40 && Math.abs(y - m.y) < m.h / 2 + 50; }
+
+function play() {
+  run++; timers.forEach(clearTimeout); timers.clear();
+  const kinds = [Q.enMy, Q.myEn, Q.listen, Q.hear], off = Math.floor(Math.random() * 4);
+  qs = take(topic.words, ROUNDS).map((w, k) => kinds[(k + off) % 4](topic, w));
+  round = 0; fed = 0; firstTry = 0; score = 0;
+  paintMonster(); next();
+}
+function next() {
+  if (round >= ROUNDS) return end();
+  q = qs[round]; round++; mistakes = 0; locked = false;
+  $("#rn").textContent = round;
+  $("#qlabel").textContent = q.label;
+  const qt = $("#qtext"); qt.textContent = q.text; qt.className = "q-text" + (q.my ? " my" : "");
+  qt.style.fontSize = "clamp(1.6rem, 7vw, 2.2rem)";
+  $("#say").hidden = !q.speak; $("#say").onclick = () => speak(q.speak);
+  if (q.speak && q.auto) speak(q.speak);
+  msg("🍪 မှန်တဲ့ ကွတ်ကီးကို ကလေးပါးစပ်ထဲ ဆွဲထည့်ပါ (သို့) နှိပ်ပါ");
+  const row = $("#row"); row.innerHTML = "";
+  q.options.forEach((t, i) => {
+    const b = document.createElement("button");
+    b.className = "fm-ck"; b.style.setProperty("--i", i); b.innerHTML = '<span class="ck"><b></b></span>';
+    $("b", b).textContent = t; b._t = t;
+    bind(b); row.appendChild(b);
+  });
+}
+function bind(b) {
+  let sx, sy, home, id = null, moved = 0, drag = false;
+  b.addEventListener("pointerdown", e => {
+    if (locked || b.classList.contains("bad") || b._busy) return;
+    id = e.pointerId; try { b.setPointerCapture(id); } catch (x) {}
+    sx = e.clientX; sy = e.clientY; moved = 0; drag = true;
+    const r = b.getBoundingClientRect(); home = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    b.style.transition = "none"; b.classList.add("drag");
+  });
+  b.addEventListener("pointermove", e => {
+    if (!drag || e.pointerId !== id) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy; moved = Math.max(moved, Math.hypot(dx, dy));
+    b.style.transform = "translate(" + dx + "px," + dy + "px) scale(1.1) rotate(" + (dx / 14) + "deg)";
+    $("#mon").classList.toggle("open", overMouth(home.x + dx, home.y + dy)); look(e.clientX, e.clientY);
+  });
+  const up = (e, cancel) => {
+    if (!drag || e.pointerId !== id) return;
+    drag = false; b.classList.remove("drag"); $("#mon").classList.remove("open"); look();
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!cancel && (moved < 10 || overMouth(home.x + dx, home.y + dy))) give(b, home);
+    else back(b);
+  };
+  b.addEventListener("pointerup", e => up(e, false));
+  b.addEventListener("pointercancel", e => up(e, true));
+  b.addEventListener("click", e => { if (e.detail === 0 && !locked && !b.classList.contains("bad") && !b._busy) { const r = b.getBoundingClientRect(); give(b, { x: r.left + r.width / 2, y: r.top + r.height / 2 }); } });
+}
+function back(b) { b.style.transition = "transform .3s cubic-bezier(.3,1.4,.5,1)"; b.style.transform = ""; }
+function give(b, home) {
+  locked = true; b._busy = true;
+  const m = mouthC(), dx = m.x - home.x, dy = m.y - home.y;
+  $("#mon").classList.add("open");
+  b.style.transition = "transform .25s ease-in"; b.style.transform = "translate(" + dx + "px," + dy + "px) scale(.25)";
+  later(() => { $("#mon").classList.remove("open"); chew(b, dx, dy); b._busy = false; }, 260);
+}
+function chew(b, dx, dy) {
+  const mon = $("#mon");
+  if (b._t === q.answer) {
+    b.style.opacity = 0; pulse("eat", 460); pulse("chomp", 460);
+    const before = stageOf(fed);
+    fed++; if (mistakes === 0) firstTry++;
+    const pts = mistakes === 0 ? 10 : 5; score += pts; addPoints(pts); sfx.ok(); beep([180, 140], 0.07);
+    paintMonster();
+    const c = mouthC(); fx.confetti(c.x, c.y - 20, 30); fx.pop($("#mouth"), "+" + pts);
+    bubble(["Yum! 😋", "Nom nom!", "Tasty! 🍪", "More! 😍"][fed % 4]);
+    speak(q.explain.split(" = ")[0]);
+    msg("✓ မှန်ပါတယ်! " + q.explain, "ok");
+    const evolved = stageOf(fed) !== before;
+    if (evolved) later(() => { bubble("I grew! 🎉"); fx.rain(40); msg("🎉 " + STAGES[stageOf(fed)] + " ဖြစ်သွားပြီ!", "ok"); sfx.win(); }, 700);
+    later(next, evolved ? 2300 : 1500);
+  } else {
+    mistakes++; sfx.bad(); b.classList.add("bad");
+    pulse("yuck", 1000); bubble("Yuck! 🤢");
+    b.style.transition = "none"; b.style.transform = "translate(" + dx + "px," + dy + "px) scale(.25)"; void b.offsetWidth;
+    if (still()) { b.style.transform = ""; } else {
+      const a = b.animate([
+        { transform: "translate(" + dx + "px," + dy + "px) scale(.25) rotate(0)" },
+        { transform: "translate(" + dx * 0.5 + "px," + (dy - 110) + "px) scale(1.15) rotate(220deg)", offset: 0.5 },
+        { transform: "translate(0,0) scale(1) rotate(360deg)" }], { duration: 650, easing: "ease-out" });
+      a.onfinish = () => { b.style.transform = ""; };
+    }
+    b.style.transform = "";
+    msg("✗ ဟင့်အင်း၊ မမှန်ဘူး! (" + b._t + ") ကွတ်ကီး တခြားတစ်ခုကို ထပ်ရွေးပါ", "no");
+    later(() => { locked = false; }, 700);
+  }
+}
+function end() {
+  const r = firstTry / ROUNDS;
+  fx.rain(60);
+  showResult({ title: r >= 0.9 ? "ကလေးကြီး ဘုရင်ဖြစ်ပြီ! 👑" : cheer(r), stars: starsFor(r), text: firstTry + " / " + ROUNDS + " ကြိမ် တစ်ခါတည်း မှန်တယ် · " + score + " points", onAgain: play });
+}
+play.gameId = "feedmonster";
+play();
+</script>
+</body>
+</html>

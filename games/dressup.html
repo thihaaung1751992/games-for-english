@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather Dress-Up</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.dr-scene { position: relative; height: 340px; border-radius: 22px; overflow: hidden; border: 2px solid var(--line); background: linear-gradient(var(--sky1, #6ec6ff), var(--sky2, #cdeeff)); transition: background .6s; user-select: none; -webkit-user-select: none; }
+.dr-fx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.dr-ground { position: absolute; left: 0; right: 0; bottom: 0; height: 46px; background: linear-gradient(var(--gr1, #6cc46c), var(--gr2, #3f9a47)); border-top: 4px solid rgba(255,255,255,.35); z-index: 1; }
+.dr-say-top { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 6; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dr-pill { background: var(--card); color: var(--ink); border: 2px solid var(--line); border-radius: 16px; padding: 2px 14px; font-weight: 900; font-size: clamp(1.05rem, 4.6vw, 1.4rem); line-height: 1.6; box-shadow: 0 3px 0 var(--line); }
+.dr-wmy { background: color-mix(in srgb, var(--card) 85%, transparent); border-radius: 99px; padding: 0 12px; font-weight: 800; font-size: .85rem; color: var(--ink); }
+.dr-say-top .btn { min-height: 44px; padding: 4px 12px; }
+/* weather effects */
+.dr-fx .cl { position: absolute; left: 0; top: 40px; line-height: 1; opacity: .92; animation: drcloud 26s linear infinite; }
+@keyframes drcloud { from { transform: translateX(-90px); } to { transform: translateX(110vw); } }
+.dr-fx .rd { position: absolute; top: -20px; width: 2px; height: 15px; border-radius: 2px; background: linear-gradient(transparent, #cfe6ff); transform: rotate(12deg); animation: drrain linear infinite; }
+@keyframes drrain { to { transform: translate(-40px, 380px) rotate(12deg); } }
+.dr-fx .fl { position: absolute; top: -20px; color: #fff; text-shadow: 0 0 4px rgba(120,160,210,.8); animation: drsnow linear infinite; }
+@keyframes drsnow { 0% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(24px, 190px) rotate(180deg); } 100% { transform: translate(-6px, 380px) rotate(360deg); } }
+.dr-fx .wl { position: absolute; left: 0; height: 3px; border-radius: 3px; background: rgba(255,255,255,.85); animation: drwind linear infinite; }
+@keyframes drwind { from { transform: translateX(-140px); } to { transform: translateX(110vw); } }
+.dr-fx .lf { position: absolute; left: 0; font-size: 1.5rem; animation: drleaf linear infinite; }
+@keyframes drleaf { 0% { transform: translate(-40px, 0) rotate(0); } 50% { transform: translate(55vw, -30px) rotate(300deg); } 100% { transform: translate(110vw, 20px) rotate(640deg); } }
+.dr-fx .sun { position: absolute; right: 16px; top: 62px; width: 66px; height: 66px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff8b5, #ffd43b 60%, #ffa94d); box-shadow: 0 0 34px #ffd43b; }
+.dr-fx .sun::before { content: ""; position: absolute; inset: -24px; border-radius: 50%; background: repeating-conic-gradient(rgba(255,212,59,.75) 0 7deg, transparent 7deg 22deg);
+  -webkit-mask: radial-gradient(circle, transparent 38px, #000 39px, #000 60px, transparent 61px); mask: radial-gradient(circle, transparent 38px, #000 39px, #000 60px, transparent 61px); animation: drspin 16s linear infinite; }
+.dr-fx .sun.hot { width: 84px; height: 84px; background: radial-gradient(circle at 40% 35%, #fff2a8, #ff922b 60%, #e8590c); box-shadow: 0 0 46px #ff922b; }
+.dr-fx .heat { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,0) 0 12px, rgba(255,255,255,.14) 12px 24px); animation: drheat 1.2s linear infinite; }
+@keyframes drspin { to { transform: rotate(360deg); } } @keyframes drheat { to { background-position: 0 24px; } }
+/* kid */
+.dr-kid { position: absolute; left: 50%; bottom: 16px; width: 190px; height: 262px; margin-left: -95px; z-index: 3; }
+.dr-kid .b { position: absolute; background: #ffd9b3; border: 2px solid rgba(0,0,0,.12); }
+.dr-kid .torso { left: 60px; top: 74px; width: 70px; height: 84px; border-radius: 22px 22px 10px 10px; background: linear-gradient(#dbe4ff, #b8c7ff); }
+.dr-kid .arm { top: 80px; width: 22px; height: 74px; border-radius: 14px; } .dr-kid .arm.l { left: 40px; transform: rotate(8deg); } .dr-kid .arm.r { left: 128px; transform: rotate(-8deg); }
+.dr-kid .leg { top: 154px; width: 26px; height: 86px; border-radius: 6px 6px 12px 12px; } .dr-kid .leg.l { left: 66px; } .dr-kid .leg.r { left: 98px; }
+.dr-kid .face { position: absolute; left: 0; right: 0; top: 0; text-align: center; font-size: 66px; line-height: 1; z-index: 2; transition: transform .2s; }
+.dr-kid.sad .face { animation: drwob .5s 2; }
+@keyframes drwob { 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
+.dr-kid.happy .face { animation: drhop .55s 2; }
+@keyframes drhop { 50% { transform: translateY(-14px); } }
+.dr-w { position: absolute; left: 0; right: 0; text-align: center; line-height: 1; display: flex; justify-content: center; gap: 6px; pointer-events: none; animation: drin .45s cubic-bezier(.3,1.6,.5,1); }
+@keyframes drin { from { transform: scale(.2) translateY(-30px); opacity: 0; } }
+.dr-w.silly { animation: drsilly .5s ease-in-out infinite alternate; }
+@keyframes drsilly { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
+.dr-w.it-hat { top: -14px; font-size: 56px; z-index: 9; } .dr-w.it-cap { top: -8px; font-size: 54px; z-index: 9; } .dr-w.it-sunglasses { top: 20px; font-size: 44px; z-index: 10; }
+.dr-w.it-scarf { top: 60px; font-size: 56px; z-index: 8; } .dr-w.it-tshirt { top: 60px; font-size: 90px; z-index: 3; }
+.dr-w.it-sweater { top: 54px; font-size: 100px; z-index: 4; filter: hue-rotate(190deg) saturate(1.7); } .dr-w.it-coat { top: 50px; font-size: 108px; z-index: 5; }
+.dr-w.it-raincoat { top: 50px; font-size: 108px; z-index: 6; filter: hue-rotate(28deg) saturate(3) brightness(1.3); }
+.dr-w.it-shorts { top: 140px; font-size: 66px; z-index: 3; } .dr-w.it-boots { top: 206px; font-size: 46px; z-index: 3; gap: 10px; } .dr-w.it-sandals { top: 212px; font-size: 42px; z-index: 3; gap: 10px; }
+.dr-w.it-gloves { top: 124px; font-size: 40px; z-index: 7; justify-content: space-between; padding: 0 2px; }
+.dr-w.it-umbrella { left: 112px; right: auto; width: 90px; top: 30px; font-size: 92px; z-index: 11; transform: rotate(12deg); }
+.dr-bubble { position: absolute; left: 4px; top: 74px; max-width: 46%; z-index: 12; background: var(--card); color: var(--ink); border: 2px solid var(--ink); border-radius: 16px; padding: 2px 10px; font-weight: 800; font-size: .88rem; line-height: 1.45; opacity: 0; transform: scale(.6); transition: .2s; pointer-events: none; }
+.dr-bubble.on { opacity: 1; transform: scale(1); }
+.dr-wardrobe { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+@media (min-width: 520px) { .dr-wardrobe { grid-template-columns: repeat(5, 1fr); } }
+.dr-it { font: inherit; border-radius: 16px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; padding: 6px 2px 4px; min-height: 78px; box-shadow: 0 4px 0 var(--line); transition: transform .1s, border-color .15s; }
+.dr-it .em { display: block; font-size: 2rem; line-height: 1.2; } .dr-it .nm { display: block; font-size: .78rem; font-weight: 800; line-height: 1.2; }
+.dr-it:hover:not(:disabled) { border-color: var(--accent); } .dr-it:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+.dr-it[aria-pressed="true"] { border-color: var(--good); background: color-mix(in srgb, var(--good) 20%, var(--card)); box-shadow: 0 4px 0 var(--good); }
+.dr-it.oops { animation: drwob .45s; border-color: var(--bad); }
+.dr-it:disabled { cursor: default; opacity: .6; }
+.dr-it .rc { filter: hue-rotate(28deg) saturate(3) brightness(1.3); } .dr-it .sw { filter: hue-rotate(190deg) saturate(1.7); }
+.dr-bar { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.dr-bar .btn { flex: 1; font-size: 1.15rem; min-height: 56px; }
+.dr-need { font-weight: 800; color: var(--muted); white-space: nowrap; }
+.dr-msg { text-align: center; font-weight: 800; min-height: 3.6em; margin-top: 10px; line-height: 1.7; }
+.dr-msg.ok { color: var(--good); } .dr-msg.no { color: var(--bad); }
+.dr-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
+.dr-chips span { border: 2px solid var(--good); background: color-mix(in srgb, var(--good) 14%, var(--card)); border-radius: 99px; padding: 0 10px; font-size: .88rem; color: var(--ink); }
+@media (max-width: 380px) { .dr-pill { padding: 0 10px; } }
+@media (prefers-reduced-motion: reduce) { .dr-fx *, .dr-fx .sun::before, .dr-w, .dr-w.silly, .dr-kid.sad .face, .dr-kid.happy .face, .dr-it.oops { animation: none !important; } .dr-bubble, .dr-scene { transition: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Look at the weather, then dress the kid with the right clothes.
+const topic = getTopic(), LV = getLevel(), lvl = topic.level;
+renderBar("Weather Dress-Up · " + topic.name);
+const ROUNDS = 6;
+const ITEMS = [
+  ["umbrella", "ထီး", "☂️"], ["raincoat", "မိုးကာအင်္ကျီ", "🧥"], ["boots", "ဘွတ်ဖိနပ်", "👢"], ["coat", "ကုတ်အင်္ကျီထူ", "🧥"], ["scarf", "လည်စည်း", "🧣"],
+  ["gloves", "လက်အိတ်", "🧤"], ["hat", "ဦးထုပ်", "👒"], ["cap", "ဦးထုပ်ကော့", "🧢"], ["sunglasses", "နေကာမျက်မှန်", "🕶️"], ["T-shirt", "တီရှပ်", "👕"],
+  ["shorts", "ဘောင်းဘီတို", "🩳"], ["sandals", "ခြေညှပ်ဖိနပ်", "🩴"], ["sweater", "ဆွယ်တာ", "🧥"]
+].map(([en, my, e]) => ({ id: en === "T-shirt" ? "tshirt" : en, en, my, e }));
+const BYID = {}; ITEMS.forEach(i => { BYID[i.id] = i; });
+const WEATHER = {
+  sunny: { my: "နေသာသော", good: ["sunglasses", "cap", "hat", "tshirt", "shorts", "sandals"], face: "🥵", sad: "☀️ ပူလိုက်တာ! ဒါ မလိုဘူး", sky: ["#6ec6ff", "#cdeeff"] },
+  hot: { my: "ပူသော", good: ["tshirt", "shorts", "sandals", "cap", "hat"], face: "🥵", sad: "🥵 ပူလွန်းတယ်! ချွတ်ပါ", sky: ["#ffb36b", "#ffe9b0"] },
+  rainy: { my: "မိုးရွာသော", good: ["umbrella", "raincoat", "boots"], face: "😰", sad: "💦 ဒါနဲ့ ရွှဲသွားမယ်!", sky: ["#7f8fa6", "#b9c5d4"] },
+  snowy: { my: "နှင်းကျသော", good: ["coat", "scarf", "gloves", "boots", "hat", "sweater"], face: "🥶", sad: "🥶 ဗျိုး! အေးလိုက်တာ", sky: ["#bcd6ee", "#f4f9ff"], snow: true },
+  windy: { my: "လေတိုက်သော", good: ["coat", "sweater", "scarf"], face: "😵", sad: "💨 ဝူး! လေမှာ လွင့်သွားတယ်", sky: ["#a8dcee", "#e6f6fb"] },
+  cloudy: { my: "တိမ်ထူသော", good: ["sweater", "coat", "umbrella"], face: "🤔", sad: "🤔 အင်း... မလိုက်သေးဘူး", sky: ["#9db1c4", "#d3dde7"] },
+  cold: { my: "အေးသော", good: ["coat", "scarf", "gloves", "sweater", "hat", "boots"], face: "🥶", sad: "🥶 အေးလိုက်တာ! ဒါ မလုံလောက်ဘူး", sky: ["#8fc3ea", "#dff0fb"], snow: true }
+};
+const WORN = lvl <= 1 ? 8 : lvl === 2 ? 10 : 13;
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Round: <b id="rn">1</b>/' + ROUNDS + '</span><span>Perfect: <b id="ok">0</b> ⭐</span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="dr-scene" id="scene"><div class="dr-fx" id="fx"></div><div class="dr-ground" id="ground"></div>' +
+  '<div class="dr-say-top"><span class="dr-pill" id="sent"></span><span class="dr-wmy" id="wmy"></span><button class="btn" id="say" aria-label="Listen">🔊</button></div>' +
+  '<div class="dr-kid" id="kid"><div class="face" id="face">🧒</div><div class="b torso"></div><div class="b arm l"></div><div class="b arm r"></div><div class="b leg l"></div><div class="b leg r"></div>' +
+  '<div class="dr-bubble" id="bub"></div></div></div>' +
+  '<div class="dr-wardrobe" id="ward"></div>' +
+  '<div class="dr-bar"><span class="dr-need" id="need"></span><button class="btn primary" id="go">Go! 🚀</button></div><div class="dr-msg" id="msg" aria-live="polite"></div>';
+
+let run = 0, plan, round, perfect, score, wkey, W, worn, need, mistakes, state, totalCredit;
+const timers = new Set();
+function later(fn, ms) { const id = run; const t = setTimeout(() => { timers.delete(t); if (id === run) fn(); }, ms); timers.add(t); }
+function msg(t, c, html) { const m = $("#msg"); if (html) m.innerHTML = html; else m.textContent = t; m.className = "dr-msg " + (c || ""); }
+function bubble(t, ms) { const b = $("#bub"); b.textContent = t; b.classList.add("on"); later(() => b.classList.remove("on"), ms || 1700); }
+
+function fxHtml(k) {
+  let h = "";
+  const cloud = (n, size, op) => { for (let i = 0; i < n; i++) h += '<span class="cl" style="top:' + rnd(34, 130) + 'px;font-size:' + rnd(size, size + 22) + 'px;animation-duration:' + rnd(22, 40) + 's;animation-delay:' + (-rnd(0, 30)) + 's;opacity:' + op + '">☁️</span>'; };
+  if (k === "sunny") { h += '<div class="sun"></div>'; cloud(1, 40, .9); }
+  if (k === "hot") { h += '<div class="sun hot"></div><div class="heat"></div>'; }
+  if (k === "rainy") { cloud(4, 56, .95); for (let i = 0; i < 34; i++) h += '<i class="rd" style="left:' + rnd(0, 105) + '%;animation-duration:' + rnd(.55, 1) + 's;animation-delay:' + (-rnd(0, 1.5)) + 's"></i>'; }
+  if (k === "snowy" || k === "cold") { cloud(k === "snowy" ? 3 : 1, 52, .85); const n = k === "snowy" ? 30 : 12; for (let i = 0; i < n; i++) h += '<span class="fl" style="left:' + rnd(0, 100) + '%;font-size:' + rnd(10, 22) + 'px;animation-duration:' + rnd(4, 8) + 's;animation-delay:' + (-rnd(0, 8)) + 's">❄</span>'; }
+  if (k === "windy") { cloud(2, 44, .8); for (let i = 0; i < 9; i++) h += '<i class="wl" style="top:' + rnd(30, 260) + 'px;width:' + rnd(50, 120) + 'px;animation-duration:' + rnd(1.1, 2.2) + 's;animation-delay:' + (-rnd(0, 2)) + 's"></i>'; for (let i = 0; i < 4; i++) h += '<span class="lf" style="top:' + rnd(60, 250) + 'px;animation-duration:' + rnd(3, 5.5) + 's;animation-delay:' + (-rnd(0, 5)) + 's">' + (i % 2 ? "🍃" : "🍂") + '</span>'; }
+  if (k === "cloudy") cloud(6, 54, .95);
+  return h;
+}
+function wornEl(id, silly) {
+  const it = BYID[id], d = document.createElement("div");
+  d.className = "dr-w it-" + id + (silly ? " silly" : "");
+  d.dataset.id = id;
+  if (id === "boots" || id === "sandals" || id === "gloves") d.innerHTML = "<span>" + it.e + "</span><span>" + it.e + "</span>"; else d.textContent = it.e;
+  return d;
+}
+function setup(k) {
+  W = WEATHER[k]; wkey = k; worn = new Set(); mistakes = 0; state = "dress";
+  need = Math.min(W.good.length, lvl <= 1 ? 2 : 3);
+  const sc = $("#scene"); sc.style.setProperty("--sky1", W.sky[0]); sc.style.setProperty("--sky2", W.sky[1]);
+  const snow = k === "snowy" || k === "cold";
+  sc.style.setProperty("--gr1", snow ? "#f4f8fc" : "#6cc46c"); sc.style.setProperty("--gr2", snow ? "#cfdbe8" : "#3f9a47");
+  $("#fx").innerHTML = fxHtml(k);
+  $("#sent").textContent = "It is " + k + " today."; $("#wmy").textContent = W.my;
+  $("#say").onclick = () => speak("It is " + k + " today.");
+  $("#kid").querySelectorAll(".dr-w").forEach(e => e.remove()); $("#kid").className = "dr-kid"; $("#face").textContent = "🧒";
+  const goods = shuffle(W.good).slice(0, Math.min(W.good.length, need + (lvl <= 1 ? 1 : 2)));
+  const bads = shuffle(ITEMS.filter(i => !W.good.includes(i.id)));
+  const shown = shuffle(goods.concat(bads).slice(0, Math.max(WORN, goods.length + 2)).map(i => (typeof i === "string" ? BYID[i] : i)));
+  const ward = $("#ward"); ward.innerHTML = "";
+  shown.forEach(it => {
+    const b = document.createElement("button"); b.className = "dr-it"; b.setAttribute("aria-pressed", "false"); b._id = it.id;
+    const cls = it.id === "raincoat" ? "rc" : it.id === "sweater" ? "sw" : "";
+    b.innerHTML = '<span class="em ' + cls + '"></span><span class="nm"></span>'; $(".em", b).textContent = it.e; $(".nm", b).textContent = it.en;
+    b.onclick = () => tap(b); ward.appendChild(b);
+  });
+  $("#go").textContent = "Go! 🚀"; $("#go").disabled = true; refresh();
+  msg("👕 ဒီရာသီဥတုနဲ့ သင့်တဲ့ အဝတ်အစား " + need + " ခု ရွေးပေးပါ", "");
+  later(() => speak("It is " + k + " today."), 400);
+}
+function refresh() { $("#need").textContent = "👕 " + worn.size + " / " + need + "+"; $("#go").disabled = worn.size < need || state !== "dress"; }
+function tap(b) {
+  if (state !== "dress") return;
+  const id = b._id, it = BYID[id];
+  if (worn.has(id)) { worn.delete(id); b.setAttribute("aria-pressed", "false"); $("#kid").querySelector('.dr-w[data-id="' + id + '"]')?.remove(); refresh(); return; }
+  if (W.good.includes(id)) {
+    worn.add(id); b.setAttribute("aria-pressed", "true"); sfx.ok(); $("#kid").appendChild(wornEl(id)); speak(it.en); refresh();
+  } else {
+    mistakes++; sfx.bad(); b.classList.remove("oops"); void b.offsetWidth; b.classList.add("oops");
+    const el = wornEl(id, true); $("#kid").appendChild(el);
+    const kid = $("#kid"); kid.classList.remove("sad"); void kid.offsetWidth; kid.classList.add("sad"); $("#face").textContent = W.face;
+    bubble(W.sad, 1700); msg("✗ " + it.en + " (" + it.my + ") က " + wkey + " ရာသီဥတုနဲ့ မလိုက်ဘူး 😅", "no");
+    later(() => { el.remove(); b.classList.remove("oops"); kid.classList.remove("sad"); $("#face").textContent = "🧒"; }, 1700);
+  }
+}
+function go() {
+  if (state === "next") { state = "dress"; return next(); }
+  if (state !== "dress" || worn.size < need) return;
+  state = "next";
+  const credit = Math.max(0.3, 1 - 0.25 * mistakes), pts = Math.max(3, 10 - 2 * mistakes);
+  totalCredit += credit; if (!mistakes) perfect++; score += pts; addPoints(pts); sfx.ok();
+  $("#ok").textContent = perfect; $("#score").textContent = score;
+  $("#ward").querySelectorAll(".dr-it").forEach(b => { b.disabled = true; });
+  const kid = $("#kid"); kid.classList.add("happy"); $("#face").textContent = "😄"; bubble("I'm ready! 🎉", 2600);
+  const p = fx.at(kid); fx.confetti(p.x, p.y - 40, 46);
+  const list = [...worn].map(id => BYID[id]);
+  msg("", "ok", "✓ " + (mistakes ? "ကောင်းတယ်!" : "အကောင်းဆုံး!") + " " + wkey + " ရက်အတွက် ပြင်ဆင်ပြီးပြီ 🎉<div class='dr-chips'>" + list.map(i => "<span>" + i.e + " " + i.en + " = " + i.my + "</span>").join("") + "</div>");
+  later(() => speak("It is " + wkey + ". Wear " + list.map(i => i.en).join(", ")), 500);
+  $("#go").textContent = round >= ROUNDS ? "Finish ✓" : "Next →"; $("#go").disabled = false; $("#go").focus();
+}
+function play() {
+  run++; timers.forEach(clearTimeout); timers.clear();
+  plan = take(Object.keys(WEATHER), ROUNDS); round = 0; perfect = 0; score = 0; totalCredit = 0; state = "dress";
+  $("#ok").textContent = 0; $("#score").textContent = 0; next();
+}
+function next() {
+  if (round >= ROUNDS) return end();
+  const k = plan[round]; round++; $("#rn").textContent = round; setup(k);
+}
+function end() {
+  const r = totalCredit / ROUNDS; fx.rain(50);
+  showResult({ title: cheer(r), stars: starsFor(r), text: "ပြည့်စုံစွာ " + perfect + " / " + ROUNDS + " ကြိမ် ဝတ်ဆင်နိုင်တယ် · " + score + " points", onAgain: play });
+}
+$("#go").onclick = go;
+play.gameId = "dressup";
+play();
+</script>
+</body>
+</html>

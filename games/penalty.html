@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Penalty Kick</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.pk-q { padding: 10px 16px; }
+.pk-q .q-text { margin: 0; }
+.pk-phase { display: inline-block; padding: 1px 14px; border-radius: 99px; font-weight: 900; font-size: .85rem; letter-spacing: .06em; color: #fff; background: var(--accent); margin-bottom: 2px; }
+.pk-phase.keep { background: var(--warn); }
+.pk-score { font-weight: 900; color: var(--ink); }
+.pk-score b { display: inline-block; min-width: 1.2em; text-align: center; padding: 0 6px; border-radius: 8px; background: var(--card); border: 2px solid var(--line); }
+.pk-dots { display: flex; justify-content: space-between; gap: 10px; font-size: .8rem; font-weight: 800; color: var(--muted); margin-bottom: 8px; }
+.pk-dots span { flex: 1; display: flex; align-items: center; gap: 4px; justify-content: center; padding: 2px 6px; border-radius: 99px; background: var(--card); border: 2px solid var(--line); }
+.pk-dots i { font-style: normal; width: 1.3em; text-align: center; }
+.pk-pitch { position: relative; height: 312px; border-radius: 20px; overflow: hidden; border: 2px solid var(--line); user-select: none; -webkit-user-select: none;
+  background: linear-gradient(#7cc6fe 0, #b9e3ff 52px, transparent 52px), repeating-linear-gradient(90deg, #3c9640 0 46px, #47a84b 46px 92px); }
+.pk-crowd { position: absolute; left: 0; right: 0; top: 0; height: 54px; z-index: 0;
+  background: radial-gradient(circle at 8px 10px, #f59f00 5px, transparent 6px) 0 0 / 24px 20px, radial-gradient(circle at 20px 16px, #e03131 5px, transparent 6px) 0 0 / 24px 20px, radial-gradient(circle at 14px 5px, #1c7ed6 5px, transparent 6px) 0 0 / 24px 20px, #3b4a5a; }
+.pk-crowd.cheer { animation: pkjump .35s 4; } .pk-crowd.groan { filter: grayscale(.8) brightness(.8); }
+@keyframes pkjump { 50% { transform: translateY(-8px); } }
+.pk-line { position: absolute; left: 7%; right: 7%; top: 196px; bottom: -4px; border: 3px solid rgba(255,255,255,.55); border-bottom: 0; border-radius: 10px 10px 0 0; }
+.pk-spot { position: absolute; left: 50%; bottom: 20px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: rgba(255,255,255,.7); }
+.pk-goal { position: absolute; top: 50px; left: 10%; width: 80%; height: 146px; border: 7px solid #f8f9fa; border-bottom: 0; border-radius: 6px 6px 0 0; z-index: 1; box-shadow: 0 6px 10px rgba(0,0,0,.2);
+  background: repeating-linear-gradient(45deg, rgba(255,255,255,.2) 0 2px, transparent 2px 11px), repeating-linear-gradient(-45deg, rgba(255,255,255,.2) 0 2px, transparent 2px 11px), rgba(10,30,20,.38); }
+.pk-zones { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); z-index: 3; }
+.pk-z { margin: 0; padding: 0; border: 0; background: none; font: inherit; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.pk-z span { width: 92%; min-height: 56px; padding: 4px 4px; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 800; font-size: .86rem; line-height: 1.2; word-break: break-word;
+  background: color-mix(in srgb, var(--card) 90%, transparent); color: var(--ink); border: 2px solid var(--line); border-radius: 14px; box-shadow: 0 3px 0 var(--line); transition: transform .12s, border-color .12s; }
+.pk-z:hover:not(:disabled) span { border-color: var(--accent); transform: translateY(-3px); }
+.pk-z:focus-visible span { outline: 3px solid var(--accent); }
+.pk-z:disabled { cursor: default; }
+.pk-z.right span { border-color: var(--good); background: color-mix(in srgb, var(--good) 28%, var(--card)); }
+.pk-z.wrong span { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 22%, var(--card)); }
+.pk-zones.keepmode { pointer-events: none; }
+.pk-zones.keepmode .pk-z span { opacity: .0; }
+.pk-keeper { position: absolute; left: 50%; bottom: 0; width: 60px; margin-left: -30px; height: 78px; z-index: 2; transform-origin: 50% 85%; transition: transform .38s cubic-bezier(.2,.9,.3,1); text-align: center; }
+.pk-keeper .hd { font-size: 2rem; line-height: 1; display: block; }
+.pk-keeper .bd { display: block; margin: -4px auto 0; width: 36px; height: 42px; border-radius: 12px 12px 6px 6px; background: linear-gradient(#ffe066, #f5b301); border: 2px solid #b98300; position: relative; }
+.pk-keeper .gl { position: absolute; top: 4px; font-size: 1.5rem; }
+.pk-keeper .gl.l { left: -22px; } .pk-keeper .gl.r { right: -22px; }
+.pk-keeper .lg { display: block; width: 26px; height: 12px; margin: 0 auto; background: #1f2937; border-radius: 0 0 6px 6px; }
+.pk-ball { position: absolute; left: 50%; bottom: 14px; width: 40px; margin-left: -20px; font-size: 2.3rem; line-height: 1; z-index: 5; text-align: center; will-change: transform; filter: drop-shadow(0 4px 2px rgba(0,0,0,.35)); }
+.pk-striker { position: absolute; left: 22%; bottom: 6px; font-size: 2.8rem; line-height: 1; z-index: 4; transition: transform .25s; transform: scaleX(-1); }
+.pk-striker.kick { transform: scaleX(-1) translateX(-18px) rotate(14deg); }
+.pk-banner { position: absolute; left: 0; right: 0; top: 42%; text-align: center; font-weight: 900; font-size: clamp(2.4rem, 12vw, 3.6rem); letter-spacing: .04em; z-index: 8; pointer-events: none; color: #fff; -webkit-text-stroke: 2px rgba(0,0,0,.35); text-shadow: 0 5px 0 rgba(0,0,0,.3); display: none; }
+.pk-banner.on { display: block; animation: pkban 1.2s forwards; } .pk-banner.goal { color: #ffd43b; } .pk-banner.save { color: #74c0fc; } .pk-banner.miss { color: #ff8787; }
+@keyframes pkban { 0% { transform: scale(.2) rotate(-8deg); opacity: 0; } 25% { transform: scale(1.15) rotate(3deg); opacity: 1; } 75% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.1); opacity: 0; } }
+.pk-opts { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 10px; }
+@media (min-width: 480px) { .pk-opts { grid-template-columns: repeat(3, 1fr); } }
+.pk-msg { text-align: center; font-weight: 800; min-height: 3.4em; margin-top: 10px; line-height: 1.6; }
+.pk-msg.ok { color: var(--good); } .pk-msg.no { color: var(--bad); }
+@media (prefers-reduced-motion: reduce) { .pk-crowd.cheer, .pk-banner.on { animation: none; } .pk-banner.on { opacity: 1; } .pk-keeper, .pk-striker, .pk-z span { transition: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Penalty shoot-out: you shoot (pick the right answer to score) and you keep (answer right to save).
+const topic = getTopic(), LV = getLevel();
+renderBar("Penalty Kick · " + topic.name);
+const KICKS = 10;   // 5 each, alternating
+const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Kick: <b id="rn">1</b>/' + KICKS + '</span><span class="pk-score">YOU <b id="me">0</b> - <b id="cpu">0</b> CPU</span></div>' +
+  '<div class="pk-dots"><span>YOU <i id="d0"></i></span><span>CPU <i id="d1"></i></span></div>' +
+  '<div class="panel pk-q"><span class="pk-phase" id="phase"></span><div class="q-label" id="qlabel"></div><div class="q-text" id="qtext"></div>' +
+  '<button class="btn" id="say" style="min-height:44px;margin-top:2px">🔊 Listen</button></div>' +
+  '<div class="pk-pitch" id="pitch" style="margin-top:10px"><div class="pk-crowd" id="crowd"></div><div class="pk-line"></div><div class="pk-spot"></div>' +
+  '<div class="pk-goal" id="goal"><div class="pk-keeper" id="keeper"><span class="hd">🧑</span><span class="bd"><span class="gl l">🧤</span><span class="gl r">🧤</span></span><span class="lg"></span></div>' +
+  '<div class="pk-zones" id="zones"></div></div>' +
+  '<div class="pk-striker" id="striker">🏃</div><div class="pk-ball" id="ball">⚽</div><div class="pk-banner" id="banner"></div></div>' +
+  '<div class="pk-opts" id="opts"></div><div class="pk-msg" id="msg" aria-live="polite"></div>';
+
+let run = 0, qs, kick, me, cpu, right, q, mode, locked, shotZone, marks;
+const timers = new Set();
+function later(fn, ms) { const id = run; const t = setTimeout(() => { timers.delete(t); if (id === run) fn(); }, ms); timers.add(t); }
+function msg(t, c) { const m = $("#msg"); m.textContent = t; m.className = "pk-msg " + (c || ""); }
+function paint() {
+  $("#rn").textContent = Math.min(kick, KICKS); $("#me").textContent = me; $("#cpu").textContent = cpu;
+  [0, 1].forEach(s => { $("#d" + s).textContent = marks[s].join(" ") || "—"; });
+}
+function banner(t, cls) { const b = $("#banner"); b.textContent = t; b.className = "pk-banner"; void b.offsetWidth; b.className = "pk-banner on " + cls; later(() => { b.className = "pk-banner"; }, 1200); }
+function keeperTo(z, kind) {
+  const gw = $("#goal").clientWidth, k = $("#keeper");
+  if (kind === "stay") { k.style.transform = "translateY(-6px) scale(1.08)"; return; }
+  const dx = (z - 1) * gw / 3 * 0.92;
+  k.style.transform = z === 1 ? "translateY(-26px) scale(1.15)" : "translate(" + dx + "px,-14px) rotate(" + ((z - 1) * 62) + "deg)";
+}
+function ballTo(z, wide) {
+  const b = $("#ball"), zr = $("#zones").getBoundingClientRect(), br = b.getBoundingClientRect(), gw = zr.width / 3;
+  let tx = zr.left + gw * (z + 0.5), ty = zr.top + zr.height * 0.45;
+  if (wide) { tx += (z === 1 ? (Math.random() < 0.5 ? -1 : 1) : (z - 1)) * gw * 0.95; ty = zr.top - 34; }
+  const dx = tx - (br.left + br.width / 2), dy = ty - (br.top + br.height / 2);
+  b.style.transition = still() ? "none" : "transform .62s cubic-bezier(.15,.75,.35,1)";
+  b.style.transform = "translate(" + dx + "px," + dy + "px) scale(.55) rotate(" + (z - 1 || 1) * 720 + "deg)";
+}
+function resetField() {
+  const b = $("#ball"), k = $("#keeper"); b.style.transition = "none"; b.style.transform = ""; k.style.transition = "none"; k.style.transform = ""; void k.offsetWidth; k.style.transition = "";
+  $("#crowd").className = "pk-crowd"; $("#striker").classList.remove("kick");
+}
+
+function play() {
+  run++; timers.forEach(clearTimeout); timers.clear();
+  const kinds = [Q.enMy, Q.myEn, Q.listen, Q.hear], off = Math.floor(Math.random() * 4);
+  qs = take(topic.words, KICKS).map((w, k) => {
+    const x = kinds[(k + off) % 4](topic, w);
+    x.options = shuffle([x.answer, ...shuffle(x.options.filter(o => o !== x.answer)).slice(0, 2)]);
+    return x;
+  });
+  kick = 0; me = 0; cpu = 0; right = 0; marks = [[], []]; resetField(); paint(); next();
+}
+function next() {
+  if (kick >= KICKS) return end();
+  q = qs[kick]; mode = kick % 2 === 0 ? "shoot" : "keep"; kick++; locked = false; paint(); resetField();
+  const ph = $("#phase"); ph.textContent = mode === "shoot" ? "⚽ YOU SHOOT" : "🧤 YOU KEEP"; ph.className = "pk-phase " + (mode === "shoot" ? "" : "keep");
+  $("#qlabel").textContent = q.label;
+  const qt = $("#qtext"); qt.textContent = q.text; qt.className = "q-text" + (q.my ? " my" : "");
+  qt.style.fontSize = "clamp(1.5rem, 6.5vw, 2rem)";
+  $("#say").hidden = !q.speak; $("#say").onclick = () => speak(q.speak);
+  const zones = $("#zones"), opts = $("#opts"); zones.innerHTML = ""; opts.innerHTML = "";
+  zones.className = "pk-zones" + (mode === "keep" ? " keepmode" : "");
+  if (mode === "shoot") {
+    msg("⚽ မှန်တဲ့အဖြေရှိတဲ့ ထောင့်ကို ကန်ပါ!");
+    q.options.forEach((t, i) => {
+      const z = document.createElement("button"); z.className = "pk-z"; z.innerHTML = "<span></span>"; $("span", z).textContent = t; z._t = t;
+      z.onclick = () => shoot(i, z); zones.appendChild(z);
+    });
+  } else {
+    shotZone = Math.floor(Math.random() * 3);
+    msg("🧤 CPU က ကန်တော့မယ်! မှန်တဲ့အဖြေကို ရွေးပြီး ဖမ်းပါ!");
+    for (let i = 0; i < 3; i++) { const z = document.createElement("div"); zones.appendChild(z); }
+    q.options.forEach(t => {
+      const b = document.createElement("button"); b.className = "opt"; b.textContent = t; b._t = t; b.onclick = () => keep(b); opts.appendChild(b);
+    });
+    $("#striker").classList.add("kick");
+  }
+  if (q.speak && q.auto) later(() => speak(q.speak), 250);
+}
+function afterKick(ms) { later(next, ms); }
+function mark(side, ok) { marks[side].push(ok ? "✅" : "❌"); }
+function shoot(i, zbtn) {
+  if (locked) return; locked = true;
+  const ok = zbtn._t === q.answer;
+  [...$("#zones").children].forEach(z => { z.disabled = true; if (z._t === q.answer) z.classList.add("right"); });
+  $("#striker").classList.add("kick");
+  later(() => {
+    const miss = !ok && Math.random() < 0.4;
+    ballTo(i, miss);
+    let kz = i; if (ok) { kz = (i + 1 + Math.floor(Math.random() * 2)) % 3; }
+    later(() => keeperTo(kz), 140);
+    later(() => {
+      if (ok) {
+        me++; right++; mark(0, true); sfx.ok(); banner("GOAL!", "goal"); $("#crowd").classList.add("cheer");
+        const p = fx.at($("#goal")); fx.confetti(p.x, p.y, 50); fx.rain(24); speak(q.explain.split(" = ")[0]);
+        msg("✓ GOAL! " + q.explain, "ok");
+      } else {
+        mark(0, false); sfx.bad(); zbtn.classList.add("wrong"); banner(miss ? "MISSED!" : "SAVED!", miss ? "miss" : "save"); $("#crowd").classList.add("groan");
+        msg("✗ " + (miss ? "ဘောလုံး ကျော်သွားတယ်! " : "ဂိုးသမားက ဖမ်းလိုက်တယ်! ") + q.explain, "no");
+      }
+      paint(); afterKick(ok ? 2400 : 3200);
+    }, 700);
+  }, 220);
+}
+function keep(btn) {
+  if (locked) return; locked = true;
+  const ok = btn._t === q.answer;
+  [...$("#opts").children].forEach(b => { b.disabled = true; if (b._t === q.answer) b.classList.add("right"); });
+  if (!ok) btn.classList.add("wrong");
+  later(() => {
+    ballTo(shotZone, false);
+    later(() => keeperTo(ok ? shotZone : (shotZone + 1 + Math.floor(Math.random() * 2)) % 3), 150);
+    later(() => {
+      if (ok) {
+        right++; mark(1, false); sfx.ok(); banner("SAVED!", "save"); $("#crowd").classList.add("cheer");
+        const p = fx.at($("#keeper")); fx.confetti(p.x, p.y, 40); speak(q.explain.split(" = ")[0]);
+        msg("✓ ဖမ်းလိုက်ပြီ! " + q.explain, "ok");
+      } else {
+        cpu++; mark(1, true); sfx.bad(); banner("GOAL!", "miss"); $("#crowd").classList.add("groan");
+        msg("✗ ဂိုးဝင်သွားတယ်! " + q.explain, "no");
+      }
+      paint(); afterKick(ok ? 2400 : 3200);
+    }, 700);
+  }, 250);
+}
+function end() {
+  const r = right / KICKS, res = me > cpu ? "win" : me < cpu ? "lose" : "draw";
+  if (res === "win") fx.rain(70);
+  const title = res === "win" ? "🏆 You win! အနိုင်ရပြီ!" : res === "draw" ? "🤝 Draw! သရေကျတယ်" : "😅 CPU အနိုင်ရတယ်";
+  showResult({ title, stars: starsFor(r), text: "YOU " + me + " - " + cpu + " CPU · မေးခွန်း " + right + " / " + KICKS + " ခု မှန်တယ်", onAgain: play });
+}
+play.gameId = "penalty";
+play();
+</script>
+</body>
+</html>

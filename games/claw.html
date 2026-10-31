@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claw Machine</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.cl-q { padding: 12px 16px; }
+.cl-cab { margin-top: 10px; border-radius: 26px 26px 16px 16px; padding: 10px 10px 12px; background: linear-gradient(160deg, #ff6aa8, #c2347f 60%, #8f1f66); box-shadow: 0 8px 0 #6d1450, 0 14px 22px rgba(0,0,0,.28); user-select: none; -webkit-user-select: none; }
+.cl-top { text-align: center; color: #fff; font-weight: 900; letter-spacing: .12em; font-size: 1rem; padding: 4px 0 8px; text-shadow: 0 2px 0 rgba(0,0,0,.3); }
+.cl-bulbs { display: flex; justify-content: space-around; padding: 0 6px 6px; }
+.cl-bulbs i { width: 10px; height: 10px; border-radius: 50%; background: #ffe066; box-shadow: 0 0 8px #ffd43b; animation: clblink 1s infinite; }
+.cl-bulbs i:nth-child(even) { animation-delay: -.5s; background: #8ce99a; box-shadow: 0 0 8px #51cf66; }
+@keyframes clblink { 50% { opacity: .25; } }
+.cl-glass { position: relative; height: 310px; border-radius: 14px; overflow: hidden; border: 5px solid #5c1244; cursor: pointer;
+  background: linear-gradient(#bfe4ff, #e9f6ff 55%, #ffdcee); box-shadow: inset 0 0 22px rgba(0,0,0,.25); touch-action: manipulation; }
+.cl-glass::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 9; background: linear-gradient(115deg, rgba(255,255,255,.4) 0 12%, transparent 12% 20%, rgba(255,255,255,.22) 20% 24%, transparent 24%); }
+.cl-rail { position: absolute; top: 0; left: 0; right: 0; height: 12px; background: linear-gradient(#6b7280, #374151); z-index: 3; }
+.cl-claw { position: absolute; top: 0; left: 0; width: 60px; margin-left: -30px; z-index: 4; will-change: transform; }
+.cl-trolley { position: absolute; left: 50%; top: 4px; width: 26px; height: 14px; margin-left: -13px; border-radius: 5px; background: #ef4444; border: 2px solid #991b1b; }
+.cl-rope { width: 4px; margin: 0 auto; height: var(--rope, 30px); background: repeating-linear-gradient(#cbd5e1 0 4px, #64748b 4px 6px); transition: height .8s ease-in-out; margin-top: 12px; }
+.cl-hand { display: block; width: 60px; height: 50px; margin-top: -2px; overflow: visible; }
+.cl-hand .arm { fill: none; stroke: #e2e8f0; stroke-width: 5; stroke-linecap: round; transition: transform .3s; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+.cl-hand .al { transform-origin: 24px 10px; transform: rotate(-24deg); } .cl-hand .ar { transform-origin: 36px 10px; transform: rotate(24deg); }
+.cl-claw.closed .al { transform: rotate(10deg); } .cl-claw.closed .ar { transform: rotate(-10deg); }
+.cl-hand .hub { fill: #94a3b8; stroke: #475569; stroke-width: 2; }
+.cl-carry { position: absolute; left: 50%; top: calc(var(--rope, 30px) + 36px); transform: translateX(-50%); font-size: 2.6rem; line-height: 1; display: none; transition: top .8s ease-in-out; filter: drop-shadow(0 3px 2px rgba(0,0,0,.3)); }
+.cl-claw.has .cl-carry { display: block; }
+.cl-prize { position: absolute; bottom: 8px; display: flex; flex-direction: column; align-items: center; width: 70px; margin-left: -35px; transition: transform .2s; z-index: 2; }
+.cl-prize .em { font-size: 3rem; line-height: 1.1; filter: drop-shadow(0 4px 2px rgba(0,0,0,.25)); }
+.cl-prize.tight .tag { font-size: .66rem; padding: 0 1px; overflow-wrap: anywhere; }
+.cl-prize.tight .em { font-size: 2.6rem; }
+.cl-prize.hot { transform: scale(1.12) translateY(-3px); }
+.cl-prize.hot .tag { border-color: #f59f00; background: #fff3bf; }
+.cl-prize .tag { margin-top: 2px; height: 42px; width: 100%; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 800; font-size: .74rem; line-height: 1.15; padding: 0 3px; border-radius: 10px; background: #fff; color: #3b0f2d; border: 2px solid #c2347f; word-break: break-word; overflow: hidden; }
+.cl-prize.gone .em, .cl-prize.gone .tag { visibility: hidden; }
+.cl-prize.fall .em { animation: clfall .6s cubic-bezier(.3,1.4,.5,1); }
+@keyframes clfall { from { transform: translateY(-120px) rotate(-30deg); } to { transform: none; } }
+.cl-floor { position: absolute; left: 0; right: 0; bottom: 0; height: 52px; background: linear-gradient(#e2c9a0, #b8956a); z-index: 1; }
+.cl-chute { position: absolute; left: 0; bottom: 0; width: 56px; height: 100px; z-index: 2; background: repeating-linear-gradient(45deg, #fcc419 0 8px, #212529 8px 16px); border-top-right-radius: 14px; }
+.cl-chute::before { content: "🎁"; position: absolute; inset: 8px 6px 0; border-radius: 10px 10px 0 0; background: #1f2937; color: #fff; display: flex; align-items: flex-start; justify-content: center; font-size: 1.2rem; padding-top: 4px; }
+.cl-chute.win::before { animation: clglow .6s 3; }
+@keyframes clglow { 50% { background: #f59f00; } }
+.cl-drop { display: flex; justify-content: center; align-items: center; gap: 14px; margin: 14px 0 4px; }
+.cl-btn { width: 112px; height: 112px; border-radius: 50%; border: 0; cursor: pointer; font: inherit; font-weight: 900; font-size: 1.1rem; color: #fff; line-height: 1.2;
+  background: radial-gradient(circle at 35% 28%, #ff8787, #e03131 60%, #a61e1e); box-shadow: 0 8px 0 #7a1414, 0 12px 16px rgba(0,0,0,.3); transition: transform .08s, box-shadow .08s; }
+.cl-btn:active:not(:disabled) { transform: translateY(6px); box-shadow: 0 2px 0 #7a1414; }
+.cl-btn:disabled { filter: grayscale(.7); opacity: .6; cursor: default; }
+.cl-won { font-weight: 800; text-align: center; min-height: 2.2rem; font-size: 1.6rem; letter-spacing: 2px; }
+.cl-msg { text-align: center; font-weight: 800; min-height: 3.4em; line-height: 1.6; }
+.cl-msg.ok { color: var(--good); } .cl-msg.no { color: var(--bad); }
+@media (prefers-reduced-motion: reduce) { .cl-bulbs i, .cl-prize.fall .em, .cl-chute.win::before { animation: none; } .cl-rope, .cl-carry, .cl-hand .arm { transition: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Swing the claw, hit DROP above the prize that answers the question.
+const topic = getTopic(), LV = getLevel();
+renderBar("Claw Machine · " + topic.name);
+const TRIES = 8, PLUSH = ["🧸", "🐰", "🐼", "🦊", "🐯", "🐸", "🐵", "🦄", "🐻", "🐱", "🐶", "🐷"];
+const ROPE_UP = 30, ROPE_DOWN = 178, CHUTE = 54;
+const PERIOD = 3300 * LV.pace;   // ms for one full left-right-left swing
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Try: <b id="rn">1</b>/' + TRIES + '</span><span>Prizes: <b id="won">0</b> 🎁</span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="panel cl-q"><div class="q-label" id="qlabel"></div><div class="q-text" id="qtext" style="margin:0"></div>' +
+  '<button class="btn" id="say" style="min-height:44px;margin-top:4px">🔊 Listen</button></div>' +
+  '<div class="cl-cab"><div class="cl-top">★ CLAW MACHINE ★</div><div class="cl-bulbs">' + "<i></i>".repeat(9) + '</div>' +
+  '<div class="cl-glass" id="glass"><div class="cl-rail"></div><div class="cl-floor"></div><div class="cl-chute" id="chute"></div>' +
+  '<div class="cl-claw closed" id="claw" style="--rope:' + ROPE_UP + 'px"><div class="cl-trolley"></div><div class="cl-rope"></div>' +
+  '<svg class="cl-hand" viewBox="0 0 60 50" aria-hidden="true"><g class="arm al"><path d="M24 10 Q6 20 9 44"/></g><g class="arm ar"><path d="M36 10 Q54 20 51 44"/></g>' +
+  '<path d="M30 8 V36" stroke="#cbd5e1" stroke-width="5" stroke-linecap="round"/><rect class="hub" x="18" y="2" width="24" height="14" rx="5"/></svg><div class="cl-carry" id="carry"></div></div>' +
+  '</div></div>' +
+  '<div class="cl-drop"><button class="cl-btn" id="drop">DROP<br>🕹️</button></div>' +
+  '<div class="cl-won" id="tray" aria-label="Prizes won"></div><div class="cl-msg" id="msg" aria-live="polite"></div>';
+
+let run = 0, qs, round, won, score, q, state, cx, raf, t0, prizes, tray;
+const timers = new Set();
+function later(fn, ms) { const id = run; const t = setTimeout(() => { timers.delete(t); if (id === run) fn(); }, ms); timers.add(t); }
+function msg(t, c) { const m = $("#msg"); m.textContent = t; m.className = "cl-msg " + (c || ""); }
+const geo = () => { const W = $("#glass").clientWidth, L = CHUTE + 6, R = W - 6, n = q.options.length, sw = (R - L) / n; return { W, L, R, n, sw }; };
+
+function play() {
+  run++; timers.forEach(clearTimeout); timers.clear(); cancelAnimationFrame(raf);
+  const kinds = [Q.myEn, Q.enMy, Q.hear, Q.listen], off = Math.floor(Math.random() * 4);
+  qs = take(topic.words, TRIES).map((w, k) => kinds[(k + off) % 4](topic, w));
+  round = 0; won = 0; score = 0; tray = [];
+  $("#tray").textContent = ""; paint(); next();
+}
+function paint() { $("#won").textContent = won; $("#score").textContent = score; }
+function next() {
+  if (round >= TRIES) return end();
+  q = qs[round]; round++; state = "reset";
+  $("#rn").textContent = round;
+  $("#qlabel").textContent = q.label;
+  const qt = $("#qtext"); qt.textContent = q.text; qt.className = "q-text" + (q.my ? " my" : "");
+  qt.style.fontSize = "clamp(1.6rem, 7vw, 2.2rem)";
+  $("#say").hidden = !q.speak; $("#say").onclick = () => speak(q.speak);
+  if (q.speak && q.auto) speak(q.speak);
+  msg("🕹️ ခြေသည်းက မှန်တဲ့ ဆုပေါ်ရောက်တဲ့အချိန် DROP ကို နှိပ်ပါ");
+  const g = geo(), glass = $("#glass");
+  glass.querySelectorAll(".cl-prize").forEach(p => p.remove());
+  const toys = shuffle(PLUSH).slice(0, g.n);
+  prizes = q.options.map((t, i) => {
+    const p = document.createElement("div");
+    const pw = Math.min(72, Math.floor(g.sw - 4)); p.className = "cl-prize"; p.style.left = (g.L + g.sw * (i + 0.5)) + "px"; p.style.width = pw + "px"; p.style.marginLeft = (-pw / 2) + "px"; if (pw < 66) p.classList.add("tight");
+    p.innerHTML = '<span class="em"></span><span class="tag"></span>';
+    $(".em", p).textContent = toys[i]; $(".tag", p).textContent = t; p._t = t; p._e = toys[i];
+    glass.appendChild(p); return p;
+  });
+  const claw = $("#claw"); claw.classList.remove("has", "closed"); claw.style.setProperty("--rope", ROPE_UP + "px");
+  $("#drop").disabled = false;
+  t0 = performance.now() - Math.random() * PERIOD; state = "sway";
+  cancelAnimationFrame(raf); raf = requestAnimationFrame(sway);
+}
+function posAt(now) {
+  const g = geo(), f = ((now - t0) / PERIOD) % 1, tri = f < 0.5 ? f * 2 : 2 - f * 2;
+  return g.L + 12 + tri * (g.R - g.L - 24);
+}
+function sway(now) {
+  if (state !== "sway") return;
+  cx = posAt(now); place(cx);
+  const g = geo(), i = Math.min(g.n - 1, Math.max(0, Math.floor((cx - g.L) / g.sw)));
+  prizes.forEach((p, k) => p.classList.toggle("hot", k === i));
+  raf = requestAnimationFrame(sway);
+}
+function place(x, anim) { const c = $("#claw"); c.style.transition = anim ? "transform .7s ease-in-out" : "none"; c.style.transform = "translateX(" + x + "px)"; }
+
+function drop() {
+  if (state !== "sway") return;
+  state = "drop"; cancelAnimationFrame(raf); $("#drop").disabled = true;
+  const g = geo(), idx = Math.min(g.n - 1, Math.max(0, Math.floor((cx - g.L) / g.sw))), prize = prizes[idx];
+  const claw = $("#claw"), ok = prize._t === q.answer;
+  prizes.forEach(p => p.classList.remove("hot")); prize.classList.add("hot");
+  claw.classList.remove("closed"); claw.style.setProperty("--rope", ROPE_DOWN + "px"); sfx.ok();
+  later(() => {
+    claw.classList.add("closed"); beep([300, 240], 0.07);
+    prize.classList.add("gone"); prize.classList.remove("hot");
+    $("#carry").textContent = prize._e; claw.classList.add("has");
+    claw.style.setProperty("--rope", ROPE_UP + "px");
+  }, 950);
+  later(() => ok ? win(prize, g) : slip(prize), 1900);
+}
+function win(prize, g) {
+  place(CHUTE / 2 + 2, true); msg("🎉 ဆုကို လက်ထဲထည့်ပြီ! ယူသွားတယ်...", "ok");
+  later(() => {
+    const claw = $("#claw"), carry = $("#carry");
+    claw.classList.remove("closed"); claw.classList.remove("has");
+    const r = carry.getBoundingClientRect(), gl = $("#glass").getBoundingClientRect();
+    const f = document.createElement("div"); f.textContent = prize._e; f.style.cssText = "position:absolute;z-index:6;font-size:2.6rem;line-height:1;left:" + (r.left - gl.left) + "px;top:" + (r.top - gl.top) + "px";
+    $("#glass").appendChild(f);
+    f.animate([{ transform: "translateY(0)" }, { transform: "translateY(" + (gl.height - (r.top - gl.top) - 62) + "px) rotate(25deg)" }], { duration: 520, easing: "cubic-bezier(.5,0,1,.6)", fill: "forwards" }).onfinish = () => f.remove();
+    later(() => {
+      won++; score += 10; addPoints(10); tray.push(prize._e); $("#tray").textContent = tray.join(" "); paint();
+      const c = fx.at($("#chute")); fx.confetti(c.x, c.y - 30, 44); fx.pop($("#chute"), "+10"); speak(q.explain.split(" = ")[0]);
+      $("#chute").classList.add("win"); later(() => $("#chute").classList.remove("win"), 1900);
+      msg("✓ မှန်ပါတယ်! " + q.explain, "ok");
+    }, 480);
+    later(() => { place(g.W / 2, true); }, 900);
+    later(next, 2800);
+  }, 800);
+}
+function slip(prize) {
+  const claw = $("#claw");
+  claw.classList.remove("closed"); claw.classList.remove("has"); sfx.bad();
+  $("#carry").textContent = "";
+  prize.classList.remove("gone"); prize.classList.add("fall"); later(() => prize.classList.remove("fall"), 700);
+  const right = prizes.find(p => p._t === q.answer);
+  right.classList.add("hot");
+  msg("✗ ဆုက ချော်ကျသွားတယ်။ " + q.explain, "no"); fx.shake($("#glass"));
+  later(next, 3000);
+}
+function end() {
+  const r = won / TRIES; fx.rain(60);
+  showResult({ title: cheer(r), stars: starsFor(r), text: "ဆု " + won + " / " + TRIES + " ခု ရခဲ့တယ် · " + score + " points", onAgain: play });
+}
+$("#drop").onclick = drop;
+$("#glass").addEventListener("click", drop);
+addEventListener("keydown", e => { if (e.code === "Space" || e.code === "ArrowDown") { if (state === "sway") e.preventDefault(); drop(); } });
+play.gameId = "claw";
+play();
+</script>
+</body>
+</html>

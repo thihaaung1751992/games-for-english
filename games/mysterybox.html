@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mystery Box</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.mb-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.mb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 14px; border-radius: 22px; border: 2px solid var(--line);
+  background: radial-gradient(circle at 50% 0, color-mix(in srgb, var(--star) 24%, transparent), transparent 70%), linear-gradient(color-mix(in srgb, #8b5cf6 12%, var(--card)), var(--card)); }
+.mb-cell { position: relative; aspect-ratio: 1 / 1; }
+.mb-box { position: absolute; inset: 0; border: 0; background: none; padding: 0; cursor: pointer; font: inherit; --c: #ef4444; transition: transform .15s; }
+.mb-box:hover:not(:disabled) { transform: translateY(-3px) rotate(-2deg); }
+.mb-box:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 14px; }
+.mb-box .body { position: absolute; left: 8%; right: 8%; top: 30%; bottom: 4%; border-radius: 8px 8px 14px 14px; box-shadow: inset 0 -8px 0 rgba(0,0,0,.18), 0 6px 10px rgba(0,0,0,.22);
+  background: linear-gradient(90deg, rgba(0,0,0,.14), rgba(255,255,255,.18) 30%, rgba(0,0,0,0) 60%, rgba(0,0,0,.14)), var(--c); }
+.mb-box .body::after { content: ""; position: absolute; top: 0; bottom: 0; left: 43%; width: 14%; background: linear-gradient(90deg, rgba(255,255,255,.55), rgba(255,255,255,.9), rgba(255,255,255,.55)); }
+.mb-box .lid { position: absolute; left: 3%; right: 3%; top: 17%; height: 20%; border-radius: 10px; z-index: 2; transition: transform .45s cubic-bezier(.3,1.4,.5,1), opacity .4s;
+  background: linear-gradient(90deg, rgba(0,0,0,.14), rgba(255,255,255,.2) 30%, rgba(0,0,0,0) 60%, rgba(0,0,0,.14)), var(--c); box-shadow: 0 4px 6px rgba(0,0,0,.2); }
+.mb-box .lid::after { content: ""; position: absolute; top: 0; bottom: 0; left: 45%; width: 12%; background: rgba(255,255,255,.9); }
+.mb-box .bow { position: absolute; left: 50%; top: -34%; width: 46%; height: 50%; transform: translateX(-50%); z-index: 3; }
+.mb-box .bow::before, .mb-box .bow::after { content: ""; position: absolute; top: 18%; width: 52%; height: 70%; border: 5px solid #fff; border-radius: 50% 50% 50% 8%; background: color-mix(in srgb, var(--c) 60%, #fff); box-shadow: 0 2px 3px rgba(0,0,0,.2); }
+.mb-box .bow::before { left: 0; transform: rotate(-20deg); } .mb-box .bow::after { right: 0; transform: scaleX(-1) rotate(-20deg); }
+.mb-box .q { position: absolute; left: 0; right: 0; top: 46%; text-align: center; font-weight: 900; font-size: 1.5rem; color: #fff; text-shadow: 0 2px 2px rgba(0,0,0,.35); z-index: 2; }
+.mb-box.shake { animation: mbshake .5s; }
+@keyframes mbshake { 20% { transform: translateX(-9px) rotate(-5deg); } 40% { transform: translateX(9px) rotate(5deg); } 60% { transform: translateX(-6px) rotate(-3deg); } 80% { transform: translateX(5px); } }
+.mb-box.wiggle { animation: mbwig 1.8s ease-in-out infinite; animation-delay: var(--d, 0s); }
+@keyframes mbwig { 0%, 85%, 100% { transform: rotate(0); } 90% { transform: rotate(-4deg); } 95% { transform: rotate(4deg); } }
+.mb-box.sealed { filter: grayscale(1) brightness(.8); cursor: default; }
+.mb-box.sealed .q { font-size: 1.4rem; }
+.mb-box.open .lid { transform: translateY(-60px) rotate(-24deg); opacity: 0; }
+.mb-box.open .body { opacity: 0; transition: opacity .3s .15s; }
+.mb-box.open .q { display: none; }
+.mb-card { position: absolute; inset: 2px; border-radius: 16px; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden;
+  background: var(--card); border: 3px solid var(--line); }
+.mb-card .em { font-size: 2.6rem; line-height: 1.1; }
+.mb-card .nm { font-weight: 800; font-size: .82rem; line-height: 1.2; }
+.mb-card .rar { font-size: .62rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; padding: 0 8px; border-radius: 99px; margin-top: 2px; background: var(--line); color: var(--ink); }
+.mb-card .new { position: absolute; top: 2px; right: 4px; font-size: .6rem; font-weight: 900; color: #fff; background: var(--bad); border-radius: 99px; padding: 0 6px; }
+.mb-cell.done .mb-card { display: flex; animation: mbpop .6s cubic-bezier(.3,1.6,.5,1); }
+.mb-cell.done .mb-box { pointer-events: none; }
+@keyframes mbpop { from { transform: scale(.2) rotate(-25deg); opacity: 0; } }
+.r-rare, .r-epic { position: relative; }
+.r-rare { border-color: #3b82f6 !important; box-shadow: 0 0 14px rgba(59,130,246,.55); background: linear-gradient(160deg, color-mix(in srgb, #3b82f6 18%, var(--card)), var(--card)) !important; }
+.r-epic { border-color: #f5b301 !important; box-shadow: 0 0 18px rgba(245,179,1,.75), 0 0 8px rgba(139,92,246,.6); background: linear-gradient(160deg, color-mix(in srgb, #8b5cf6 24%, var(--card)), color-mix(in srgb, #f5b301 16%, var(--card))) !important; }
+.r-rare::after, .r-epic::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%) -150% 0 / 250% 100% no-repeat; animation: mbshine 2.6s infinite; }
+@keyframes mbshine { to { background-position: 150% 0; } }
+.mb-card .rar.rare { background: #3b82f6; color: #fff; } .mb-card .rar.epic { background: linear-gradient(90deg, #8b5cf6, #f5b301); color: #fff; }
+.mb-msg { text-align: center; font-weight: 800; min-height: 3.4em; margin-top: 10px; line-height: 1.6; }
+.mb-msg.ok { color: var(--good); } .mb-msg.no { color: var(--bad); }
+/* gallery */
+.mb-gal { max-width: 480px; max-height: 90vh; overflow: auto; padding: 18px 14px; }
+.mb-gal h2 { margin: 0 0 8px; }
+.mb-gg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0 14px; }
+@media (min-width: 440px) { .mb-gg { grid-template-columns: repeat(6, 1fr); } }
+.mb-t { position: relative; border-radius: 12px; border: 2px solid var(--line); padding: 4px 2px 3px; text-align: center; background: var(--bg); min-height: 76px; }
+.mb-t .em { font-size: 1.9rem; line-height: 1.2; }
+.mb-t .nm { font-size: .62rem; font-weight: 800; line-height: 1.15; word-break: break-word; }
+.mb-t .ct { position: absolute; top: 1px; right: 4px; font-size: .62rem; font-weight: 800; color: var(--muted); }
+.mb-t.lock .em { filter: brightness(0) opacity(.45); }
+.mb-t.lock .nm { color: var(--muted); font-size: .9rem; }
+@media (prefers-color-scheme: dark) { .mb-t.lock .em { filter: brightness(0) invert(1) opacity(.2); } }
+.mb-t.rare { border-color: #3b82f6; background: color-mix(in srgb, #3b82f6 14%, var(--card)); }
+.mb-t.epic { border-color: #f5b301; background: linear-gradient(160deg, color-mix(in srgb, #8b5cf6 20%, var(--card)), color-mix(in srgb, #f5b301 14%, var(--card))); }
+@media (prefers-reduced-motion: reduce) { .mb-box, .mb-box .lid { transition: none; } .mb-box.shake, .mb-box.wiggle, .mb-cell.done .mb-card, .r-rare::after, .r-epic::after { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Answer a question to open a gift box and win a creature for your collection.
+const topic = getTopic(), LV = getLevel();
+renderBar("Mystery Box · " + topic.name);
+const MAXMISS = 3, COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ec4899"];
+const C = (r, list) => list.map(([e, n]) => ({ e, n, r }));
+const CREATURES = [
+  ...C("common", [["🐶", "Puppy"], ["🐱", "Kitten"], ["🐰", "Bunny"], ["🐹", "Hamster"], ["🐥", "Chick"], ["🐸", "Froggy"], ["🐷", "Piglet"], ["🐮", "Cow"],
+    ["🐵", "Monkey"], ["🐢", "Turtle"], ["🐟", "Fish"], ["🐞", "Ladybug"], ["🐝", "Bee"], ["🦆", "Duck"], ["🐑", "Lamb"], ["🐔", "Hen"]]),
+  ...C("rare", [["🦊", "Fox"], ["🐼", "Panda"], ["🐨", "Koala"], ["🦁", "Lion"], ["🐯", "Tiger"], ["🐧", "Penguin"], ["🦉", "Owl"], ["🐬", "Dolphin"],
+    ["🦋", "Butterfly"], ["🐙", "Octopus"], ["🦒", "Giraffe"], ["🐘", "Elephant"]]),
+  ...C("epic", [["🦄", "Unicorn"], ["🐉", "Dragon"], ["🦖", "T-Rex"], ["🦕", "Dino"], ["🦚", "Peacock"], ["🦈", "Shark"], ["🦩", "Flamingo"], ["🐳", "Whale"]])
+];
+const WEIGHT = { common: 60, rare: 28, epic: 12 }, RAR_MM = { common: "COMMON", rare: "RARE ✨", epic: "EPIC 🌟" };
+const getCol = () => { const c = Store.get("collection", {}); return c && typeof c === "object" && !Array.isArray(c) ? c : {}; };
+const rollCreature = () => {
+  const col = getCol();
+  const ws = CREATURES.map(c => WEIGHT[c.r] * (col[c.n] ? 1 : 1.6));
+  let x = Math.random() * ws.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < ws.length; i++) { x -= ws[i]; if (x <= 0) return CREATURES[i]; }
+  return CREATURES[0];
+};
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Opened: <b id="op">0</b>/9</span><span class="hearts" id="lives"></span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="mb-top"><button class="btn" id="colbtn" style="min-height:46px"></button><span class="muted" style="font-size:.85rem">🎁 ဘောက်စ်တစ်ခုကို နှိပ်ပါ</span></div>' +
+  '<div class="mb-grid" id="grid"></div><div class="mb-msg" id="msg" aria-live="polite"></div>';
+
+let run = 0, boxes, opened, misses, score, busy, newOnes, timers = new Set();
+function later(fn, ms) { const id = run; const t = setTimeout(() => { timers.delete(t); if (id === run) fn(); }, ms); timers.add(t); }
+function msg(t, c) { const m = $("#msg"); m.textContent = t; m.className = "mb-msg " + (c || ""); }
+function paint() {
+  $("#op").textContent = opened; $("#score").textContent = score; $("#lives").textContent = hearts(MAXMISS - misses, MAXMISS);
+  $("#colbtn").textContent = "📖 My Collection " + Object.keys(getCol()).filter(k => CREATURES.some(c => c.n === k)).length + "/" + CREATURES.length;
+}
+function play() {
+  run++; timers.forEach(clearTimeout); timers.clear();
+  opened = 0; misses = 0; score = 0; busy = false; newOnes = [];
+  const grid = $("#grid"); grid.innerHTML = "";
+  boxes = COLORS.concat(shuffle(COLORS).slice(0, 3)).map((col, i) => {
+    const cell = document.createElement("div"); cell.className = "mb-cell";
+    cell.innerHTML = '<button class="mb-box wiggle" style="--c:' + col + ';--d:' + (i * 0.23) + 's" aria-label="Gift box ' + (i + 1) + '"><span class="body"></span><span class="lid"><i class="bow"></i></span><span class="q">?</span></button><div class="mb-card"></div>';
+    grid.appendChild(cell);
+    const b = { cell, btn: $(".mb-box", cell), tries: 0, st: "closed" };
+    b.btn.onclick = () => pick(b);
+    return b;
+  });
+  msg("🎁 ဘောက်စ်တစ်ခုကို နှိပ်ပြီး မေးခွန်းဖြေရင် သတ္တဝါအသစ် ရမယ်!"); paint();
+}
+async function pick(b) {
+  if (busy || b.st !== "closed") return;
+  busy = true; const id = run;
+  const ok = await ask(Q.mixed(topic, 1)[0]);
+  if (id !== run) return;
+  if (ok) {
+    b.st = "open"; opened++; const c = rollCreature(), col = getCol(), isNew = !col[c.n];
+    col[c.n] = (col[c.n] || 0) + 1; Store.set("collection", col); if (isNew) newOnes.push(c);
+    const pts = 10 + (c.r === "rare" ? 5 : c.r === "epic" ? 15 : 0); score += pts; addPoints(pts);
+    sfx.ok(); open(b, c, isNew); paint();
+    msg("🎉 " + c.e + " " + c.n + " (" + RAR_MM[c.r] + ")" + (isNew ? " — အသစ်!" : " — ရှိပြီးသား ×" + col[c.n]), "ok");
+  } else {
+    misses++; b.tries++; sfx.bad(); b.btn.classList.remove("wiggle", "shake"); void b.btn.offsetWidth; b.btn.classList.add("shake");
+    if (b.tries >= 2) { b.st = "sealed"; b.btn.classList.add("sealed"); $(".q", b.btn).textContent = "🔒"; msg("🔒 ဒီဘောက်စ် ပိတ်သွားပြီ။ တခြားဟာကို ကြိုးစားပါ", "no"); }
+    else { later(() => b.btn.classList.add("wiggle"), 600); msg("📦 ဘောက်စ် မပွင့်သေးဘူး။ တစ်ခါ ထပ်ကြိုးစားလို့ရတယ်!", "no"); }
+    paint();
+  }
+  busy = false;
+  const left = boxes.filter(x => x.st === "closed").length;
+  if (misses >= MAXMISS || !left) { busy = true; later(end, 1700); }
+}
+function open(b, c, isNew) {
+  b.btn.classList.remove("wiggle"); b.btn.classList.add("open");
+  const card = $(".mb-card", b.cell);
+  card.className = "mb-card r-" + c.r;
+  card.innerHTML = (isNew ? '<span class="new">NEW</span>' : "") + '<span class="em"></span><span class="nm"></span><span class="rar ' + c.r + '">' + RAR_MM[c.r] + '</span>';
+  $(".em", card).textContent = c.e; $(".nm", card).textContent = c.n;
+  b.cell.classList.add("done");
+  const p = fx.at(b.cell); fx.confetti(p.x, p.y, c.r === "common" ? 26 : 48); fx.pop(b.cell, "+" + (10 + (c.r === "rare" ? 5 : c.r === "epic" ? 15 : 0)));
+  if (c.r === "epic") fx.rain(30);
+  later(() => speak(c.n), 350);
+}
+function end() {
+  const stars = opened >= 7 ? 3 : opened >= 4 ? 2 : 1;
+  const nw = newOnes.length ? " · အသစ် " + newOnes.map(c => c.e).join("") : "";
+  showResult({ title: opened >= 9 ? "ဘောက်စ်အားလုံး ဖွင့်ပြီး! 🎁🎉" : cheer(opened / 9), stars, text: "ဘောက်စ် " + opened + " / 9 ခု ဖွင့်နိုင်တယ်" + nw + " · " + score + " points", onAgain: play });
+}
+function gallery() {
+  if (busy || $(".overlay")) return;
+  const col = getCol(), o = document.createElement("div");
+  o.className = "overlay";
+  const got = CREATURES.filter(c => col[c.n]).length;
+  o.innerHTML = '<div class="dialog mb-gal" role="dialog" aria-modal="true"><h2>📖 My Collection ' + got + '/' + CREATURES.length + '</h2><div class="muted" style="font-size:.85rem">common · rare ✨ · epic 🌟</div><div class="mb-gg"></div><button class="btn primary" id="gclose" style="width:100%">Close</button></div>';
+  const gg = $(".mb-gg", o);
+  CREATURES.forEach(c => {
+    const t = document.createElement("div"), has = col[c.n];
+    t.className = "mb-t " + (has ? c.r : "lock");
+    t.innerHTML = '<span class="em"></span><div class="nm"></div>' + (has > 1 ? '<span class="ct">×' + has + '</span>' : "");
+    $(".em", t).textContent = c.e; $(".nm", t).textContent = has ? c.n : "?";
+    gg.appendChild(t);
+  });
+  document.body.appendChild(o);
+  const close = () => { o.remove(); document.removeEventListener("keydown", esc); }, esc = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", esc);
+  $("#gclose", o).onclick = close; $("#gclose", o).focus({ preventScroll: true });
+  o.addEventListener("click", e => { if (e.target === o) close(); });
+}
+$("#colbtn").onclick = gallery;
+play.gameId = "mysterybox";
+play();
+</script>
+</body>
+</html>

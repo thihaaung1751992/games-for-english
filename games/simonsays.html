@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simon Says</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.sm-scene { position: relative; display: flex; align-items: flex-start; gap: 10px; padding: 16px 12px 14px; border-radius: 22px; border: 2px solid var(--line); overflow: hidden;
+  background: radial-gradient(circle at 15% 20%, color-mix(in srgb, #ffd43b 30%, transparent), transparent 50%), linear-gradient(color-mix(in srgb, var(--accent) 12%, var(--card)), var(--card)); }
+.sm-scene::before { content: ""; position: absolute; inset: 0; opacity: .35; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg at 15% 55%, color-mix(in srgb, var(--star) 40%, transparent) 0 6deg, transparent 6deg 18deg); }
+.sm-guy { position: relative; flex: 0 0 104px; width: 104px; text-align: center; z-index: 1; }
+.sm-hat { position: absolute; left: 50%; top: -24px; font-size: 2.1rem; transform: translateX(-50%) rotate(-8deg); z-index: 2; }
+.sm-face { width: 96px; height: 96px; margin: 0 auto; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3.4rem; line-height: 1;
+  background: radial-gradient(circle at 35% 28%, #ffe9a8, #ffc933 70%, #e8a800); box-shadow: 0 6px 0 #b98300, 0 10px 16px rgba(0,0,0,.2); animation: smbob 2s ease-in-out infinite; }
+.sm-face.yes { animation: smhop .5s; } .sm-face.no { animation: smshake .5s; }
+.sm-suit { margin-top: 4px; height: 30px; width: 74px; margin-left: auto; margin-right: auto; border-radius: 18px 18px 8px 8px; background: linear-gradient(#e5484d, #b02a30); position: relative; }
+.sm-suit::after { content: "🎀"; position: absolute; left: 50%; top: -6px; transform: translateX(-50%); font-size: 1.1rem; }
+@keyframes smbob { 50% { transform: translateY(-5px); } } @keyframes smhop { 40% { transform: translateY(-18px) scale(1.12); } } @keyframes smshake { 25% { transform: translateX(-8px) rotate(-6deg); } 75% { transform: translateX(8px) rotate(6deg); } }
+.sm-bubble { position: relative; flex: 1; z-index: 1; background: var(--card); color: var(--ink); border: 3px solid var(--ink); border-radius: 22px; padding: 12px 14px; min-height: 108px; display: flex; flex-direction: column; justify-content: center; text-align: center; animation: smpop .35s; }
+.sm-bubble::before { content: ""; position: absolute; left: -17px; top: 34px; border: 10px solid transparent; border-right: 14px solid var(--ink); border-left: 0; }
+.sm-bubble::after { content: ""; position: absolute; left: -11px; top: 36px; border: 8px solid transparent; border-right: 11px solid var(--card); border-left: 0; }
+@keyframes smpop { from { transform: scale(.6); opacity: 0; } }
+.sm-cmd { font-weight: 900; font-size: clamp(1.25rem, 5.6vw, 1.7rem); line-height: 1.35; }
+.sm-cmd .says { color: var(--warn); }
+.sm-my { font-size: .95rem; color: var(--muted); margin-top: 4px; min-height: 1.6em; }
+.sm-timer { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; margin: 10px 0 0; }
+.sm-timer i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--warn), var(--bad)); transform-origin: left; }
+.sm-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.sm-tile { font: inherit; font-size: 2.8rem; line-height: 1; min-height: 84px; border-radius: 20px; border: 3px solid var(--line); background: var(--card); cursor: pointer; box-shadow: 0 5px 0 var(--line); transition: transform .1s, box-shadow .1s, border-color .15s; }
+.sm-tile:hover:not(:disabled) { border-color: var(--accent); }
+.sm-tile:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 var(--line); }
+.sm-tile.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 22%, var(--card)); box-shadow: 0 5px 0 var(--good); }
+.sm-tile.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 18%, var(--card)); animation: smshake .4s; }
+.sm-tile:disabled { cursor: default; }
+.sm-tile small { display: block; font-size: .72rem; font-weight: 800; line-height: 1.2; margin-top: 4px; color: var(--ink); }
+.sm-freeze { width: 100%; margin-top: 14px; min-height: 68px; border-radius: 22px; border: 3px solid #1c7ed6; cursor: pointer; font: inherit; font-weight: 900; font-size: 1.3rem; color: #fff; letter-spacing: .04em;
+  background: linear-gradient(#74c0fc, #339af0 55%, #1c7ed6); box-shadow: 0 6px 0 #1864ab, 0 10px 14px rgba(0,0,0,.2); transition: transform .08s, box-shadow .08s; }
+.sm-freeze:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 1px 0 #1864ab; }
+.sm-freeze:disabled { opacity: .55; cursor: default; }
+.sm-freeze.right { background: linear-gradient(#69db7c, #2f9e44); border-color: #2f9e44; box-shadow: 0 6px 0 #1b6b2b; opacity: 1; }
+.sm-freeze.wrong { animation: smshake .4s; }
+.sm-msg { text-align: center; font-weight: 800; min-height: 3.4em; margin-top: 10px; line-height: 1.6; }
+.sm-msg.ok { color: var(--good); } .sm-msg.no { color: var(--bad); }
+@media (max-width: 400px) { .sm-guy { flex-basis: 84px; width: 84px; } .sm-face { width: 78px; height: 78px; font-size: 2.8rem; } .sm-tile { font-size: 2.4rem; } }
+@media (prefers-reduced-motion: reduce) { .sm-face, .sm-bubble, .sm-tile.wrong, .sm-freeze.wrong { animation: none !important; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Simon Says: obey only when the command starts with "Simon says". Otherwise hit FREEZE!
+const topic = getTopic(), LV = getLevel(), lvl = topic.level;
+renderBar("Simon Says · " + topic.name);
+const ROUNDS = 12, MAXL = 3;
+const CMDS = [
+  ["touch your nose", "နှာခေါင်းကို ထိပါ", "👃"], ["clap your hands", "လက်ခုပ်တီးပါ", "👏"], ["jump", "ခုန်ပါ", "🦘"], ["sit down", "ထိုင်ပါ", "🪑"],
+  ["stand up", "ထရပ်ပါ", "🧍"], ["open the door", "တံခါးဖွင့်ပါ", "🚪"], ["wave your hand", "လက်ပြပါ", "👋"], ["smile", "ပြုံးပါ", "😊"],
+  ["close your eyes", "မျက်လုံးမှိတ်ပါ", "😌"], ["drink water", "ရေသောက်ပါ", "🥤"], ["brush your teeth", "သွားတိုက်ပါ", "🪥"], ["touch your ears", "နားကို ထိပါ", "👂"],
+  ["raise your hand", "လက်မြှောက်ပါ", "✋"], ["turn around", "လှည့်ပါ", "🔄"], ["stamp your feet", "ခြေထောက်ဖြင့် ဆောင့်ပါ", "🦶"], ["read a book", "စာအုပ်ဖတ်ပါ", "📖"],
+  ["write your name", "နာမည်ရေးပါ", "✏️"], ["eat an apple", "ပန်းသီးစားပါ", "🍎"], ["dance", "ကပါ", "💃"], ["sing a song", "သီချင်းဆိုပါ", "🎤"],
+  ["blow a balloon", "ပူဖောင်းမှုတ်ပါ", "🎈"], ["shake your head", "ခေါင်းခါပါ", "🙅"], ["hug yourself", "ကိုယ့်ကိုယ်ကို ဖက်ပါ", "🤗"], ["run", "ပြေးပါ", "🏃"],
+  ["walk", "လမ်းလျှောက်ပါ", "🚶"], ["point up", "အပေါ်ကို ညွှန်ပါ", "☝️"], ["turn on the light", "မီးဖွင့်ပါ", "💡"], ["wash your hands", "လက်ဆေးပါ", "🧼"],
+  ["cover your mouth", "ပါးစပ်ကို ဖုံးပါ", "🤭"], ["touch your head", "ခေါင်းကို ထိပါ", "🧢"]
+].map(([en, my, e]) => ({ en, my, e }));
+const NOPTS = LV.opts + (lvl >= 3 ? 2 : 0);
+const SECS = [0, 0, 11, 7, 5][lvl];          // seconds per command (level 1: no timer)
+const cap = s => s[0].toUpperCase() + s.slice(1);
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Round: <b id="rn">1</b>/' + ROUNDS + '</span><span class="hearts" id="lives"></span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="sm-scene"><div class="sm-guy"><span class="sm-hat">🎩</span><div class="sm-face" id="face">😃</div><div class="sm-suit"></div></div>' +
+  '<div class="sm-bubble" id="bubble"><div class="sm-cmd" id="cmd"></div><div class="sm-my" id="cmy"></div></div></div>' +
+  (SECS ? '<div class="sm-timer"><i id="tbar"></i></div>' : '') +
+  '<div class="sm-tiles" id="tiles"></div><button class="sm-freeze" id="freeze">🤫 FREEZE!</button><div class="sm-msg" id="msg" aria-live="polite"></div>';
+
+let run = 0, order, round, lives, score, right, cur, locked, tick;
+const timers = new Set();
+function later(fn, ms) { const id = run; const t = setTimeout(() => { timers.delete(t); if (id === run) fn(); }, ms); timers.add(t); }
+function msg(t, c) { const m = $("#msg"); m.textContent = t; m.className = "sm-msg " + (c || ""); }
+function face(e, cls) { const f = $("#face"); f.textContent = e; f.className = "sm-face " + (cls || ""); }
+function paint() { $("#lives").textContent = hearts(lives, MAXL); $("#score").textContent = score; $("#rn").textContent = Math.min(round, ROUNDS); }
+
+function play() {
+  run++; timers.forEach(clearTimeout); timers.clear(); clearInterval(tick);
+  const cmds = take(CMDS, ROUNDS);
+  const flags = shuffle([...Array(8).fill(true), ...Array(4).fill(false)]);
+  if (!flags[0]) { const j = flags.indexOf(true); flags[0] = true; flags[j] = false; }
+  order = cmds.map((c, i) => ({ c, says: flags[i] }));
+  round = 0; lives = MAXL; score = 0; right = 0; paint(); next();
+}
+function next() {
+  clearInterval(tick);
+  if (round >= ROUNDS || lives <= 0) return end();
+  cur = order[round]; round++; locked = false; paint();
+  const c = cur.c, text = (cur.says ? "Simon says " : "") + c.en;
+  face("😃");
+  const cmd = $("#cmd"); cmd.innerHTML = "";
+  if (cur.says) { const s = document.createElement("span"); s.className = "says"; s.textContent = "Simon says "; cmd.appendChild(s); cmd.appendChild(document.createTextNode(c.en + "!")); }
+  else cmd.textContent = cap(c.en) + "!";
+  $("#cmy").textContent = lvl <= 2 ? c.my : "";
+  const b = $("#bubble"); b.style.animation = "none"; void b.offsetWidth; b.style.animation = "";
+  later(() => speak(cur.says ? "Simon says, " + c.en : cap(c.en)), 350);
+  const others = shuffle(CMDS.filter(x => x.en !== c.en)).slice(0, NOPTS - 1);
+  const tiles = $("#tiles"); tiles.innerHTML = "";
+  shuffle([c, ...others]).forEach(o => {
+    const t = document.createElement("button");
+    t.className = "sm-tile"; t.textContent = o.e; t._en = o.en; t.setAttribute("aria-label", o.en);
+    t.onclick = () => answer(t, cur.says && o.en === c.en);
+    tiles.appendChild(t);
+  });
+  tiles.style.gridTemplateColumns = "repeat(" + (NOPTS > 4 ? 3 : Math.min(NOPTS, 4)) + ",1fr)";
+  const fz = $("#freeze"); fz.className = "sm-freeze"; fz.disabled = false;
+  msg(cur.says ? "👂 နားထောင်ပါ။ Simon says ပါရင် ပုံကို ရွေးပါ" : "👂 နားထောင်ပါ။ Simon says ပါရင် ပုံကို ရွေးပါ၊ မပါရင် 🤫 FREEZE!");
+  if (SECS) {
+    const t0 = Date.now();
+    tick = setInterval(() => {
+      const left = Math.max(0, 1 - (Date.now() - t0) / (SECS * 1000));
+      $("#tbar").style.transform = "scaleX(" + left + ")";
+      if (left === 0) { clearInterval(tick); answer(null, false, true); }
+    }, 80);
+  } else if ($("#tbar")) $("#tbar").style.transform = "";
+}
+function answer(btn, ok, timeout) {
+  if (locked) return;
+  locked = true; clearInterval(tick);
+  const c = cur.c;
+  if (btn === "freeze") ok = !cur.says;
+  [...$("#tiles").children].forEach(t => { t.disabled = true; if (cur.says && t._en === c.en) t.classList.add("right"); });
+  const fz = $("#freeze"); fz.disabled = true;
+  if (!cur.says) fz.classList.add("right");
+  if (ok) {
+    right++; score += 10; addPoints(10); sfx.ok(); face("🤩", "yes");
+    const el = btn === "freeze" ? fz : btn;
+    fx.confetti(...Object.values(fx.at(el)), 24); fx.pop(el, "+10");
+    msg(cur.says ? "✓ တော်လိုက်တာ! " + c.en + " = " + c.my : "✓ ဟုတ်တယ်! Simon မပြောဘူး၊ အောင်မြင်စွာ ရပ်လိုက်တယ် 🤫 (" + c.en + ")", "ok");
+    later(next, 1500);
+  } else {
+    lives--; sfx.bad(); face("😵", "no"); paint();
+    if (btn && btn !== "freeze") btn.classList.add("wrong"); else if (btn === "freeze") fz.classList.add("wrong");
+    fx.shake($("#bubble"));
+    msg(timeout ? "⏱ အချိန်ကုန်ပြီ! " + (cur.says ? "Simon says လို့ ပြောခဲ့တာ — " + c.en + " ကို ရွေးရမယ်" : "Simon မပြောဘူး — 🤫 FREEZE နှိပ်ရမယ်")
+      : cur.says ? (btn === "freeze" ? "✗ Simon says လို့ ပြောခဲ့တာ! " : "✗ ပုံမမှန်ဘူး။ ") + c.en + " = " + c.my
+      : "✗ Simon မပြောဘူး! \"Simon says\" မပါရင် ရပ်နေရမယ် 🤫 (" + c.en + " = " + c.my + ")", "no");
+    later(next, 2600);
+  }
+}
+function end() {
+  const r = right / ROUNDS, dead = lives <= 0;
+  if (!dead) fx.rain(50);
+  showResult({ title: dead ? "နောက်တစ်ခါ ကြိုးစားပါ 💪" : cheer(r), stars: dead ? 1 : Math.max(1, starsFor(r)),
+    text: dead ? "❤️ ကုန်သွားပြီ။ " + right + " / " + ROUNDS + " ခု မှန်ခဲ့တယ် · " + score + " points" : right + " / " + ROUNDS + " ခု မှန်တယ် · " + score + " points", onAgain: play });
+}
+$("#freeze").onclick = () => answer("freeze");
+play.gameId = "simonsays";
+play();
+</script>
+</body>
+</html>

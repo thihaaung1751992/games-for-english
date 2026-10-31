@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cup Shuffle</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.cs-q { padding: 12px 16px; }
+.cs-q .q-text { margin: 2px 0; }
+.cs-table { position: relative; height: 272px; margin-top: 10px; border-radius: 22px; overflow: hidden; border: 2px solid var(--line); user-select: none; -webkit-user-select: none;
+  background: radial-gradient(ellipse at 50% 0, color-mix(in srgb, #ffd43b 28%, transparent), transparent 70%), linear-gradient(color-mix(in srgb, #7c5cff 14%, var(--card)), color-mix(in srgb, var(--accent) 16%, var(--card))); }
+.cs-table::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 88px; z-index: 0;
+  background: repeating-linear-gradient(90deg, rgba(0,0,0,0) 0 38px, rgba(0,0,0,.12) 38px 40px), linear-gradient(#c98f55, #9c6532); box-shadow: inset 0 6px 8px rgba(0,0,0,.25); }
+.cs-unit { position: absolute; top: 102px; left: 0; height: 96px; z-index: 1; padding: 0; border: 0; background: none; font: inherit; cursor: default; will-change: transform; }
+.cs-unit::after { content: ""; position: absolute; left: 6%; right: 6%; bottom: -8px; height: 12px; border-radius: 50%; background: rgba(0,0,0,.28); filter: blur(2px); z-index: -1; }
+.cs-card { position: absolute; left: 4%; right: 4%; bottom: 2px; height: 78px; border-radius: 12px; background: var(--card); color: var(--ink); border: 2px solid var(--line); box-shadow: 0 3px 0 var(--line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2px 3px; overflow: hidden; }
+.cs-card b { font-size: .95rem; line-height: 1.15; word-break: break-word; }
+.cs-card small { font-size: .7rem; line-height: 1.25; color: var(--muted); font-weight: 700; word-break: break-word; }
+.cs-unit.good .cs-card { border-color: var(--good); background: color-mix(in srgb, var(--good) 20%, var(--card)); }
+.cs-unit.bad .cs-card { border-color: var(--bad); }
+.cs-cup { position: absolute; left: 0; right: 0; top: -4px; height: 98px; clip-path: polygon(14% 0, 86% 0, 100% 100%, 0 100%); transition: transform .5s cubic-bezier(.3,1.35,.5,1);
+  background: linear-gradient(90deg, rgba(0,0,0,.2), rgba(255,255,255,.28) 22%, rgba(255,255,255,0) 40%, rgba(0,0,0,.18)), var(--cc, #ef4444); }
+.cs-cup::before { content: ""; position: absolute; left: 0; right: 0; top: 34%; height: 18%; background: rgba(255,255,255,.55); }
+.cs-cup::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 12px; background: rgba(0,0,0,.28); }
+.cs-unit.up .cs-cup { transform: translateY(-96px); }
+.cs-unit.pick { cursor: pointer; }
+.cs-unit.pick:hover .cs-cup, .cs-unit.pick:focus-visible .cs-cup { transform: translateY(-10px); }
+.cs-unit:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; border-radius: 10px; }
+.cs-unit.shake { animation: csshake .4s; }
+@keyframes csshake { 25% { margin-left: -6px; } 75% { margin-left: 6px; } }
+.cs-msg { text-align: center; font-weight: 800; min-height: 3.4em; margin-top: 10px; line-height: 1.6; }
+.cs-msg.ok { color: var(--good); } .cs-msg.no { color: var(--bad); }
+.cs-ready { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 3; min-height: 44px; }
+@media (prefers-reduced-motion: reduce) { .cs-cup { transition: none; } .cs-unit.shake { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Memorise the cards, watch the cups shuffle, then find the right one.
+const topic = getTopic(), LV = getLevel(), lvl = topic.level;
+renderBar("Cup Shuffle · " + topic.name);
+const ROUNDS = 8, N = [3, 3, 4, 5][lvl - 1], SWAPS = [4, 6, 8, 10][lvl - 1];
+const SWAP_MS = Math.round(640 * LV.pace), PREVIEW = Math.round((1800 + 700 * N) * LV.pace);
+const COLORS = lvl <= 2 ? ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7"] : Array(5).fill("#ef4444");
+const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+$("#app").innerHTML =
+  '<div class="stats"><span>Round: <b id="rn">1</b>/' + ROUNDS + '</span><span>Found: <b id="ok">0</b> 🥤</span><span>Score: <b id="score">0</b></span></div>' +
+  '<div class="panel cs-q"><div class="q-label" id="qlabel"></div><div class="q-text" id="qtext"></div><button class="btn" id="say" style="min-height:44px" hidden>🔊 Listen</button></div>' +
+  '<div class="cs-table" id="table"><button class="btn primary cs-ready" id="ready">👍 Ready!</button></div><div class="cs-msg" id="msg" aria-live="polite"></div>';
+
+let run = 0, round, found, score, units, at, target, state, mode, lastPair;
+const timers = new Set();
+function later(fn, ms) { const id = run; const t = setTimeout(() => { timers.delete(t); if (id === run) fn(); }, ms); timers.add(t); }
+function msg(t, c) { const m = $("#msg"); m.textContent = t; m.className = "cs-msg " + (c || ""); }
+function head(label, text, small, my) {
+  $("#qlabel").textContent = label; const t = $("#qtext"); t.textContent = text; t.className = "q-text" + (my ? " my" : "");
+  t.style.fontSize = small ? "clamp(1.1rem, 4.8vw, 1.5rem)" : "clamp(1.6rem, 7vw, 2.2rem)";
+}
+const geo = () => { const W = $("#table").clientWidth, sw = W / N, uw = Math.min(104, sw - 10); return { sw, uw, x: i => sw * i + (sw - uw) / 2 }; };
+
+function play() {
+  run++; timers.forEach(clearTimeout); timers.clear();
+  round = 0; found = 0; score = 0; mode = Math.floor(Math.random() * 2);
+  $("#ok").textContent = 0; $("#score").textContent = 0; next();
+}
+function next() {
+  if (round >= ROUNDS) return end();
+  round++; $("#rn").textContent = round; state = "preview"; lastPair = "";
+  const g = geo(), words = take(topic.words, N), table = $("#table");
+  table.querySelectorAll(".cs-unit").forEach(u => u.remove());
+  units = words.map((w, k) => {
+    const u = document.createElement("button");
+    u.className = "cs-unit up"; u.style.width = g.uw + "px"; u.style.transform = "translateX(" + g.x(k) + "px)"; u.style.setProperty("--cc", COLORS[k]);
+    u.setAttribute("aria-label", w.en);
+    u.innerHTML = '<span class="cs-card"><b></b><small></small></span><span class="cs-cup"></span>';
+    $("b", u).textContent = w.en; $("small", u).textContent = w.my; u._w = w;
+    u.onclick = () => state === "preview" ? speak(w.en) : state === "pick" ? choose(u) : 0;
+    table.insertBefore(u, $("#ready")); return u;
+  });
+  at = units.map((_, k) => k);
+  target = units[Math.floor(Math.random() * N)]._w; mode = 1 - mode;
+  head("👀 မှတ်ထားပါ!", "Remember the words", true);
+  $("#say").hidden = true; msg("ကတ်တစ်ခုချင်းစီကို နှိပ်ရင် အသံကြားရမယ်။ အဲ့ဒါပြီးရင် ခွက်တွေက ဖုံးမယ်!");
+  $("#ready").hidden = false; $("#ready").onclick = () => { if (state === "preview") cover(); };
+  const r = round;
+  later(() => { if (state === "preview" && r === round) cover(); }, PREVIEW + 1500);
+}
+function cover() {
+  state = "cover"; $("#ready").hidden = true; msg("🥤 ခွက်တွေ ဖုံးနေပြီ...");
+  units.forEach(u => u.classList.remove("up"));
+  later(() => { state = "shuffle"; head("🌀 ကြည့်ပါ!", "Watch the cups!", true); msg(""); swap(SWAPS); }, 750);
+}
+function swap(left) {
+  if (left <= 0) return ask();
+  const g = geo(); let a, b, key;
+  do { a = Math.floor(Math.random() * N); b = Math.floor(Math.random() * (N - 1)); if (b >= a) b++; key = Math.min(a, b) + "-" + Math.max(a, b); } while (key === lastPair && N > 2);
+  lastPair = key;
+  const ua = units[at[a]], ub = units[at[b]], xa = g.x(a), xb = g.x(b), ms = still() ? 120 : SWAP_MS;
+  const mv = (u, x0, x1, dy) => { u.style.zIndex = dy < 0 ? 3 : 2; u.style.transform = "translateX(" + x1 + "px)";
+    u.animate([{ transform: "translateX(" + x0 + "px)" }, { transform: "translateX(" + (x0 + x1) / 2 + "px) translateY(" + (still() ? 0 : dy) + "px)", offset: 0.5 }, { transform: "translateX(" + x1 + "px)" }], { duration: ms, easing: "ease-in-out" }); };
+  mv(ua, xa, xb, -34); mv(ub, xb, xa, 18);
+  [at[a], at[b]] = [at[b], at[a]];
+  later(() => { ua.style.zIndex = ""; ub.style.zIndex = ""; swap(left - 1); }, ms + 70);
+}
+function ask() {
+  state = "pick";
+  const w = target;
+  if (mode === 0) { head("ဘယ်ခွက်အောက်မှာ ရှိသလဲ?", w.my, false, true); $("#say").hidden = true; }
+  else { head("ကြားပြီး ခွက်ကို ရွေးပါ", "🎧", false); $("#say").hidden = false; $("#say").onclick = () => speak(w.en); speak(w.en); }
+  msg("👆 ကတ်ရှိတယ်လို့ ထင်တဲ့ ခွက်ကို နှိပ်ပါ");
+  units.forEach(u => u.classList.add("pick"));
+}
+function choose(u) {
+  if (state !== "pick") return;
+  state = "reveal"; units.forEach(x => x.classList.remove("pick"));
+  const ok = u._w === target, w = target;
+  u.classList.add("up", ok ? "good" : "bad");
+  if (ok) {
+    found++; score += 10; addPoints(10); sfx.ok(); const c = fx.at(u); fx.confetti(c.x, c.y - 40, 36); fx.pop(u, "+10"); speak(w.en);
+    $("#ok").textContent = found; $("#score").textContent = score;
+    msg("✓ မှန်ပါတယ်! " + w.en + " = " + w.my, "ok");
+    later(() => units.forEach(x => x.classList.add("up")), 700);
+    later(next, 2300);
+  } else {
+    sfx.bad(); u.classList.add("shake"); later(() => u.classList.remove("shake"), 450);
+    msg("✗ ဒီခွက်အောက်မှာ " + u._w.en + " ပါ။ " + w.en + " = " + w.my + " က ဒီဘက်မှာ", "no");
+    const right = units.find(x => x._w === target);
+    later(() => { right.classList.add("up", "good"); speak(w.en); }, 800);
+    later(() => units.forEach(x => x.classList.add("up")), 1700);
+    later(next, 3300);
+  }
+}
+function end() {
+  const r = found / ROUNDS; fx.rain(50);
+  showResult({ title: cheer(r), stars: starsFor(r), text: found + " / " + ROUNDS + " ကြိမ် မှန်တယ် · " + score + " points", onAgain: play });
+}
+play.gameId = "cupshuffle";
+play();
+</script>
+</body>
+</html>
