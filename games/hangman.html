@@ -51,7 +51,10 @@ body {
 .say { position: relative; z-index: 1; text-align: center; }
 .say .q-label { color: var(--star); }
 .say .q-text { font-size: clamp(1.5rem, 7vw, 2.1rem); margin: 2px 0; line-height: 1.5; }
-.say .tip { color: var(--muted); font-size: .85rem; }
+.say .tip { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+.say .ctx { font-size: .9rem; line-height: 1.5; margin: 4px 0 6px; padding: 6px 10px; border-radius: 12px; background: rgba(0,0,0,.25); }
+.say .ctx .my { display: block; color: var(--muted); font-size: .8rem; }
+.say .chip { min-height: 32px; font-size: .8rem; }
 
 .mask { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin: 18px 0 6px; min-height: 58px; }
 .lt {
@@ -109,6 +112,8 @@ body {
     <div class="say">
       <div class="q-label">အဓိပ္ပါယ်ကို ကြည့်ပြီး စာလုံးရှာပါ</div>
       <div class="q-text my" id="meaning"></div>
+      <div class="ctx" id="ctx"></div>
+      <button class="chip" id="say" type="button">🔊 Listen</button>
       <div class="tip" id="tip"></div>
     </div>
   </div>
@@ -119,7 +124,9 @@ body {
 </main>
 <script src="js/data.js"></script>
 <script src="js/common.js"></script>
+<script src="js/choice.js"></script>
 <script src="js/fx.js"></script>
+<script src="js/learn.js"></script>
 <script>
 const topic = getTopic();
 const LV = getLevel();
@@ -127,7 +134,7 @@ renderBar("Hangman · " + topic.name);
 const kbBtns = {};
 const PARTS = [...document.querySelectorAll("#gal .p, #gal .headc, #gal .fig")];   // 10 pieces, drawn in this DOM order
 const DRAW = PARTS;   // base, pole, beam, rope, head, body, arms, legs
-let list, i, word, guessed, lives, solved, score, done, reveal, results, hinted;
+let list, i, word, guessed, lives, solved, score, done, reveal, results, hinted, items;
 
 ["qwertyuiop", "asdfghjkl", "zxcvbnm"].forEach(r => {
   const d = document.createElement("div");
@@ -144,13 +151,17 @@ document.addEventListener("keydown", e => {
   if (/^[a-z]$/i.test(e.key)) guess(e.key.toLowerCase());
 });
 
-function play() { list = shuffle(topic.words).slice(0, 5); i = 0; solved = 0; score = 0; results = []; load(); }
+function play() { list = shuffle(topic.words).slice(0, 5); i = 0; solved = 0; score = 0; results = []; items = []; load(); }
 function load() {
   word = list[i].en.toLowerCase(); guessed = new Set(); lives = LV.lives; done = false; reveal = false; hinted = false;
   $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
   $("#hint").hidden = !LV.hint; $("#hint").disabled = false;
   $("#tip").textContent = "စာလုံး " + word.replace(/[^a-z]/g, "").length + " လုံး";
   $("#meaning").textContent = list[i].my;
+  // a sentence with the word blanked out, plus its Burmese translation, as a reading clue
+  $("#ctx").innerHTML = ""; $("#ctx").append(document.createTextNode("“" + blankOut(list[i]) + "”"));
+  const cm = document.createElement("span"); cm.className = "my"; cm.textContent = list[i].exMy || ""; $("#ctx").appendChild(cm);
+  $("#say").onclick = () => speak(list[i].en);
   $("#gal").classList.remove("swing", "safe"); $("#face").classList.remove("on");
   const mk = $("#mask"); mk.innerHTML = "";
   [...word].forEach(c => { const s = document.createElement("span"); s.className = "lt" + (/[a-z]/.test(c) ? "" : " sp"); s.textContent = /[a-z]/.test(c) ? c : ""; if (!/[a-z]/.test(c)) s.textContent = c === " " ? "" : c; mk.appendChild(s); });
@@ -214,18 +225,19 @@ function finishWord(win) {
   done = true;
   const w = list[i], fb = $("#fb");
   results[i] = win ? "win" : "lose";
-  const info = '<span class="exm">' + w.ex + '</span><span class="exm">' + (w.exMy || "") + "</span>";
+  items.push({ w, ok: win });
+  fb.innerHTML = ""; fb.appendChild(wordCard(w, win));
   if (win) {
     solved++; const p = 10 + lives * 2; score += p; addPoints(p);
-    fb.className = "fb ok"; fb.innerHTML = "✓ <b></b> " + info; $("b", fb).textContent = w.en;
+    fb.className = "fb ok";
     $("#gal").classList.add("safe"); $("#gal").classList.remove("swing");
     DRAW.slice(4).forEach(el => el.classList.add("on")); DRAW[3].classList.remove("on");
     speak(w.en); fx.confetti(); fx.pop($("#mask"), "+" + p);
   } else {
     reveal = true;
     $("#face").classList.add("on"); DRAW.forEach(el => el.classList.add("on")); $("#gal").classList.add("swing");
-    fb.className = "fb no"; fb.innerHTML = "စာလုံးက <b></b> ပါ " + info; $("b", fb).textContent = w.en;
-    fx.shake($(".scene"));
+    fb.className = "fb no";
+    speak(w.en); fx.shake($(".scene"));
   }
   render();
   const n = $("#next");
@@ -233,13 +245,15 @@ function finishWord(win) {
 }
 $("#next").onclick = () => {
   if (i < list.length - 1) { i++; load(); return; }
-  if (solved === 5) fx.rain(90);
-  showResult({
-    title: solved === 5 ? "အရမ်းတော်တယ်! 🎉" : "ပြီးပါပြီ!",
-    stars: solved === 5 ? 3 : solved >= 3 ? 2 : 1,
-    text: solved + " / 5 လုံး ရှာတွေ့တယ် · " + score + " points",
-    onAgain: play
-  });
+  showRecap({ items, onClose: () => {
+    if (solved === 5) fx.rain(90);
+    showResult({
+      title: solved === 5 ? "အရမ်းတော်တယ်! 🎉" : "ပြီးပါပြီ!",
+      stars: solved === 5 ? 3 : solved >= 3 ? 2 : 1,
+      text: solved + " / 5 လုံး ရှာတွေ့တယ် · " + score + " points",
+      onAgain: play
+    });
+  } });
 };
 play.gameId = "hangman";
 play();
