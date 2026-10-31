@@ -5,78 +5,235 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hangman</title>
 <link rel="stylesheet" href="css/style.css">
+<style>
+:root { --bg: #0b1020; --card: #151d36; --ink: #f1f5ff; --muted: #9aa8c7; --line: #2b3858; --accent: #2dd4bf; --good: #34d399; --bad: #fb7185; --star: #fbbf24; }
+body {
+  background: radial-gradient(600px 420px at 85% -5%, rgba(251,191,36,.18), transparent 60%), radial-gradient(700px 500px at 0% 100%, rgba(99,102,241,.2), transparent 60%), var(--bg);
+  background-attachment: fixed;
+}
+.wrap { max-width: 560px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.rounds { display: flex; gap: 6px; }
+.rd { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+.rd.cur { background: var(--accent); animation: beat 1.4s infinite; } .rd.win { background: var(--good); } .rd.lose { background: var(--bad); }
+@keyframes beat { 50% { transform: scale(1.35); } }
+.hearts { display: flex; gap: 3px; font-size: 1.2rem; }
+.hearts span { transition: transform .3s, filter .3s; }
+.hearts .gone { filter: grayscale(1) brightness(.5); transform: scale(.8); }
+.hearts .hit { animation: heartbreak .5s; }
+@keyframes heartbreak { 30% { transform: scale(1.6) rotate(-12deg); } }
+.score { font-weight: 800; }
+.chip { font: inherit; font-size: .85rem; font-weight: 700; min-height: 36px; padding: 0 12px; border-radius: 99px; border: 1.5px solid var(--line); background: rgba(255,255,255,.05); color: var(--ink); cursor: pointer; }
+.chip:hover:not(:disabled) { border-color: var(--accent); } .chip:disabled { opacity: .4; cursor: default; }
+
+.scene {
+  position: relative; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255,255,255,.12);
+  background: linear-gradient(180deg, #1b2550 0%, #2a2f66 55%, #3b2f5c 100%);
+  display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 8px; padding: 10px 14px 10px 6px; min-height: 190px;
+}
+.scene::before { content: ""; position: absolute; right: 18px; top: 12px; width: 44px; height: 44px; border-radius: 50%; background: #fef3c7; box-shadow: 0 0 40px 8px rgba(254,243,199,.35); opacity: .9; }
+.scene::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(1.5px 1.5px at 20% 30%, #fff, transparent), radial-gradient(1.5px 1.5px at 60% 18%, #fff, transparent), radial-gradient(1px 1px at 78% 55%, #fff, transparent), radial-gradient(1px 1px at 40% 70%, #fff, transparent), radial-gradient(1.5px 1.5px at 90% 80%, #fff, transparent); opacity: .7; pointer-events: none; }
+.gal { width: 150px; height: 180px; position: relative; z-index: 1; overflow: visible; }
+.gal .p { stroke: #e2c28b; stroke-width: 6; stroke-linecap: round; fill: none; stroke-dasharray: 200; stroke-dashoffset: 200; transition: stroke-dashoffset .5s ease-out; }
+.gal .p.on { stroke-dashoffset: 0; }
+.gal .fig { stroke: #f8fafc; stroke-width: 4.5; stroke-linecap: round; fill: none; stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset .45s ease-out; }
+.gal .fig.on { stroke-dashoffset: 0; }
+.gal .headc { fill: #1b2550; stroke: #f8fafc; stroke-width: 4.5; transform-origin: 98px 56px; transform: scale(0); transition: transform .45s cubic-bezier(.3,1.6,.5,1); }
+.gal .headc.on { transform: scale(1); }
+.gal .face { opacity: 0; transition: opacity .3s; stroke: #f8fafc; stroke-width: 2.5; stroke-linecap: round; fill: none; }
+.gal .face.on { opacity: 1; }
+.gal .man { transform-origin: 98px 70px; }
+.gal.swing .man { animation: swing 1.4s ease-in-out infinite; }
+@keyframes swing { 50% { transform: rotate(5deg); } 0%, 100% { transform: rotate(-5deg); } }
+.gal.safe .man { animation: hopj .6s ease-in-out infinite alternate; }
+@keyframes hopj { to { transform: translateY(-12px); } }
+.gal.safe .fig, .gal.safe .headc { stroke: #86efac; }
+.say { position: relative; z-index: 1; text-align: center; }
+.say .q-label { color: var(--star); }
+.say .q-text { font-size: clamp(1.5rem, 7vw, 2.1rem); margin: 2px 0; line-height: 1.5; }
+.say .tip { color: var(--muted); font-size: .85rem; }
+
+.mask { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin: 18px 0 6px; min-height: 58px; }
+.lt {
+  width: clamp(30px, 10vw, 46px); height: clamp(42px, 13vw, 58px); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;
+  font-weight: 900; font-size: clamp(1.3rem, 6vw, 1.9rem); text-transform: uppercase; background: rgba(255,255,255,.05); border: 2px solid var(--line); color: transparent;
+}
+.lt::after { content: ""; position: absolute; left: 20%; right: 20%; bottom: 8px; height: 3px; border-radius: 3px; background: var(--line); }
+.lt.show { color: #fff; background: linear-gradient(160deg, #0f766e, #14b8a6); border-color: #5eead4; animation: lflip .5s; box-shadow: 0 0 18px rgba(45,212,191,.4); }
+.lt.show::after { display: none; }
+.lt.lost { color: #fecdd3; background: rgba(251,113,133,.14); border-color: var(--bad); }
+.lt.lost::after { display: none; }
+@keyframes lflip { 0% { transform: rotateX(90deg) scale(.8); } 60% { transform: rotateX(-12deg) scale(1.1); } 100% { transform: rotateX(0); } }
+.lt.sp { width: 14px; background: none; border: 0; box-shadow: none; } .lt.sp::after { display: none; }
+
+.kb { display: flex; flex-direction: column; gap: 7px; margin: 14px 0 8px; align-items: center; }
+.kb div { display: flex; gap: 5px; justify-content: center; width: 100%; }
+.kb button {
+  flex: 1 1 0; min-width: 0; max-width: 42px; height: 50px; border-radius: 9px; border: 0; background: #2a3658; color: var(--ink); font: inherit; font-weight: 800;
+  text-transform: uppercase; cursor: pointer; padding: 0; box-shadow: 0 4px 0 rgba(0,0,0,.35); transition: transform .08s, box-shadow .08s, background .25s;
+}
+.kb button:hover:not(:disabled) { background: #36456f; }
+.kb button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.35); }
+.kb button.hit { background: #15803d; color: #fff; opacity: 1; box-shadow: 0 4px 0 #0b4a24; }
+.kb button.miss { background: #2a1830; color: #fb7185; text-decoration: line-through; box-shadow: none; transform: translateY(3px); animation: kmiss .35s; }
+@keyframes kmiss { 25% { transform: translate(-4px, 3px); } 75% { transform: translate(4px, 3px); } }
+.kb button:disabled { cursor: default; }
+.kb button:disabled:not(.hit):not(.miss) { opacity: .45; }
+.fb { min-height: 3.4em; text-align: center; margin: 8px 0; }
+.fb.ok { color: var(--good); } .fb.no { color: var(--bad); }
+.fb b { font-size: 1.15rem; letter-spacing: .12em; text-transform: uppercase; }
+.fb .exm { display: block; color: var(--muted); font-size: .9rem; }
+.nextrow { text-align: center; }
+@media (max-width: 420px) { .scene { grid-template-columns: 112px 1fr; } .gal { width: 112px; height: 140px; } }
+@media (prefers-reduced-motion: reduce) { .rd.cur, .gal.swing .man, .gal.safe .man, .lt.show, .kb button.miss, .hearts .hit { animation: none; } .gal .p, .gal .fig, .gal .headc { transition: none; } }
+</style>
 </head>
 <body>
 <header id="bar" class="bar"></header>
 <main class="wrap">
-  <div class="stats"><span>Word: <b id="wn">1</b>/5</span><span class="hearts" id="lives"></span><span>Score: <b id="score">0</b></span></div>
-  <div class="panel">
-    <div class="q-label">အဓိပ္ပါယ်ကို ကြည့်ပြီး စာလုံးရှာပါ</div>
-    <div class="q-text my" id="meaning"></div>
-    <div class="mask" id="mask" aria-live="polite"></div>
-    <div class="kb" id="kb"></div>
-    <div class="fb" id="fb" aria-live="polite"></div>
-    <button class="btn primary" id="next" hidden>Next →</button>
+  <div class="top">
+    <div class="rounds" id="rounds" aria-label="Rounds"></div>
+    <div class="hearts" id="lives" aria-live="polite"></div>
+    <span class="score">⭐ <span id="score">0</span></span>
+    <button class="chip" id="hint" type="button">💡 Hint</button>
   </div>
+  <div class="scene">
+    <svg class="gal" id="gal" viewBox="0 0 150 180" aria-hidden="true">
+      <path class="p" d="M10 172 H100"/><path class="p" d="M30 172 V14"/><path class="p" d="M26 16 H98"/><path class="p" d="M98 16 V40" style="stroke:#f5d9a8;stroke-width:3.5"/>
+      <g class="man">
+        <circle class="headc" cx="98" cy="56" r="16"/>
+        <g class="face" id="face"><path d="M91 52 l5 5 M96 52 l-5 5 M100 52 l5 5 M105 52 l-5 5"/><path d="M92 65 q6 -6 12 0"/></g>
+        <path class="fig" d="M98 72 V118"/><path class="fig" d="M98 84 L78 104"/><path class="fig" d="M98 84 L118 104"/><path class="fig" d="M98 118 L82 148"/><path class="fig" d="M98 118 L114 148"/>
+      </g>
+    </svg>
+    <div class="say">
+      <div class="q-label">အဓိပ္ပါယ်ကို ကြည့်ပြီး စာလုံးရှာပါ</div>
+      <div class="q-text my" id="meaning"></div>
+      <div class="tip" id="tip"></div>
+    </div>
+  </div>
+  <div class="mask" id="mask" aria-live="polite"></div>
+  <div class="kb" id="kb"></div>
+  <div class="fb" id="fb" aria-live="polite"></div>
+  <div class="nextrow"><button class="btn primary" id="next" hidden>Next →</button></div>
 </main>
 <script src="js/data.js"></script>
 <script src="js/common.js"></script>
+<script src="js/fx.js"></script>
 <script>
 const topic = getTopic();
 const LV = getLevel();
 renderBar("Hangman · " + topic.name);
 const kbBtns = {};
-let list, i, word, guessed, lives, solved, score, done, reveal;
+const PARTS = [...document.querySelectorAll("#gal .p, #gal .headc, #gal .fig")];   // 10 pieces, drawn in this DOM order
+const DRAW = PARTS;   // base, pole, beam, rope, head, body, arms, legs
+let list, i, word, guessed, lives, solved, score, done, reveal, results, hinted;
 
-[..."abcdefghijklmnopqrstuvwxyz"].forEach(c => {
-  const b = document.createElement("button");
-  b.textContent = c; b.onclick = () => guess(c);
-  kbBtns[c] = b; $("#kb").appendChild(b);
+["qwertyuiop", "asdfghjkl", "zxcvbnm"].forEach(r => {
+  const d = document.createElement("div");
+  [...r].forEach(c => {
+    const b = document.createElement("button");
+    b.textContent = c; b.onclick = () => guess(c);
+    kbBtns[c] = b; d.appendChild(b);
+  });
+  $("#kb").appendChild(d);
 });
+$("#kb").addEventListener("mousedown", e => e.preventDefault());
 document.addEventListener("keydown", e => {
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector(".overlay")) return;
   if (/^[a-z]$/i.test(e.key)) guess(e.key.toLowerCase());
 });
 
-function play() { list = shuffle(topic.words).slice(0, 5); i = 0; solved = 0; score = 0; load(); }
+function play() { list = shuffle(topic.words).slice(0, 5); i = 0; solved = 0; score = 0; results = []; load(); }
 function load() {
-  word = list[i].en.toLowerCase(); guessed = new Set(); lives = LV.lives; done = false; reveal = false;
+  word = list[i].en.toLowerCase(); guessed = new Set(); lives = LV.lives; done = false; reveal = false; hinted = false;
   $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
-  render();
-}
-function render() {
-  $("#wn").textContent = i + 1; $("#score").textContent = score;
+  $("#hint").hidden = !LV.hint; $("#hint").disabled = false;
+  $("#tip").textContent = "စာလုံး " + word.replace(/[^a-z]/g, "").length + " လုံး";
   $("#meaning").textContent = list[i].my;
-  $("#mask").textContent = [...word].map(c => (guessed.has(c) || reveal) ? c : "_").join(" ");
-  $("#lives").textContent = "❤️".repeat(lives) + "🖤".repeat(LV.lives - lives);
+  $("#gal").classList.remove("swing", "safe"); $("#face").classList.remove("on");
+  const mk = $("#mask"); mk.innerHTML = "";
+  [...word].forEach(c => { const s = document.createElement("span"); s.className = "lt" + (/[a-z]/.test(c) ? "" : " sp"); s.textContent = /[a-z]/.test(c) ? c : ""; if (!/[a-z]/.test(c)) s.textContent = c === " " ? "" : c; mk.appendChild(s); });
+  // non-letters (spaces, hyphens) count as already guessed
+  [...word].forEach(c => { if (!/[a-z]/.test(c)) guessed.add(c); });
+  render(true);
+}
+function paintFig() {
+  const missed = LV.lives - lives, n = Math.round(missed * DRAW.length / LV.lives);
+  DRAW.forEach((el, k) => el.classList.toggle("on", k < n));
+  $("#gal").classList.toggle("swing", n >= 5 && !done);
+}
+function render(first) {
+  $("#score").textContent = score;
+  $("#rounds").innerHTML = list.map((_, k) => '<span class="rd ' + (results[k] || (k === i ? "cur" : "")) + '"></span>').join("");
+  $("#lives").innerHTML = Array.from({ length: LV.lives }, (_, k) => '<span class="' + (k >= lives ? "gone" : "") + '">❤️</span>').join("");
+  const letters = [...$("#mask").children];
+  [...word].forEach((c, k) => {
+    const el = letters[k];
+    if (!/[a-z]/.test(c)) return;
+    const shown = guessed.has(c);
+    if (shown && !el.classList.contains("show")) { el.classList.add("show"); el.style.animationDelay = ""; }
+    if (!shown && reveal) el.classList.add("lost");
+    if (!shown && !reveal) el.classList.remove("show");
+  });
   for (const c in kbBtns) {
     const b = kbBtns[c], g = guessed.has(c);
     b.disabled = g || done;
     b.className = g ? (word.includes(c) ? "hit" : "miss") : "";
   }
+  paintFig();
 }
 function guess(c) {
   if (done || guessed.has(c)) return;
   guessed.add(c);
   if (word.includes(c)) {
     sfx.ok();
+    const hits = [...$("#mask").children].filter((el, k) => word[k] === c);
+    render();
+    hits.forEach(el => { const r = el.getBoundingClientRect(); fx.confetti(r.left + r.width / 2, r.top + r.height / 2, 6); });
     if ([...word].every(ch => guessed.has(ch))) finishWord(true);
   } else {
     sfx.bad(); lives--;
+    const hs = $("#lives").children[lives]; if (hs) hs.classList.add("hit");
+    render();
     if (lives === 0) finishWord(false);
   }
-  render();
 }
+$("#hint").onclick = () => {
+  if (done || hinted || lives < 2) { if (lives < 2) $("#tip").textContent = "Hint မသုံးနိုင်တော့ဘူး — အသက်နည်းနေပြီ"; return; }
+  const left = [...new Set([...word])].filter(c => /[a-z]/.test(c) && !guessed.has(c));
+  if (!left.length) return;
+  hinted = true; $("#hint").disabled = true;
+  const c = left[Math.floor(Math.random() * left.length)];
+  lives--; guessed.add(c); sfx.ok();
+  $("#tip").textContent = "💡 “" + c.toUpperCase() + "” ပါတယ် (အသက် ၁ ခု ပေးလိုက်တယ်)";
+  render();
+  if ([...word].every(ch => guessed.has(ch))) finishWord(true);
+};
 function finishWord(win) {
   done = true;
   const w = list[i], fb = $("#fb");
-  if (win) { solved++; const p = 10 + lives * 2; score += p; addPoints(p); fb.className = "fb ok"; fb.textContent = "✓ " + w.en + " — " + w.ex; speak(w.en); }
-  else { reveal = true; fb.className = "fb no"; fb.textContent = "စာလုံးက " + w.en + " ပါ — " + w.ex; }
+  results[i] = win ? "win" : "lose";
+  const info = '<span class="exm">' + w.ex + '</span><span class="exm">' + (w.exMy || "") + "</span>";
+  if (win) {
+    solved++; const p = 10 + lives * 2; score += p; addPoints(p);
+    fb.className = "fb ok"; fb.innerHTML = "✓ <b></b> " + info; $("b", fb).textContent = w.en;
+    $("#gal").classList.add("safe"); $("#gal").classList.remove("swing");
+    DRAW.slice(4).forEach(el => el.classList.add("on")); DRAW[3].classList.remove("on");
+    speak(w.en); fx.confetti(); fx.pop($("#mask"), "+" + p);
+  } else {
+    reveal = true;
+    $("#face").classList.add("on"); DRAW.forEach(el => el.classList.add("on")); $("#gal").classList.add("swing");
+    fb.className = "fb no"; fb.innerHTML = "စာလုံးက <b></b> ပါ " + info; $("b", fb).textContent = w.en;
+    fx.shake($(".scene"));
+  }
+  render();
   const n = $("#next");
   n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
 }
 $("#next").onclick = () => {
   if (i < list.length - 1) { i++; load(); return; }
+  if (solved === 5) fx.rain(90);
   showResult({
     title: solved === 5 ? "အရမ်းတော်တယ်! 🎉" : "ပြီးပါပြီ!",
     stars: solved === 5 ? 3 : solved >= 3 ? 2 : 1,
