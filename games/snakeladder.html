@@ -6,53 +6,166 @@
 <title>Snakes &amp; Ladders</title>
 <link rel="stylesheet" href="css/style.css">
 <style>
-.sl-board { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); aspect-ratio: 6 / 5; border: 2px solid var(--line); border-radius: 14px; overflow: hidden; margin: 8px 0; background: var(--card); }
-.sl-sq { position: relative; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: clamp(1.1rem, 6vw, 1.7rem); min-width: 0; }
-.sl-sq:nth-child(odd) { background: color-mix(in srgb, var(--accent) 7%, var(--card)); }
-.sl-sq i { position: absolute; top: 1px; left: 3px; font-style: normal; font-size: .62rem; font-weight: 800; color: var(--muted); }
-.sl-sq.fin { background: color-mix(in srgb, var(--star) 30%, var(--card)); }
-.sl-sq .mk { position: absolute; right: 2px; bottom: 0; font-size: .6rem; font-weight: 800; }
-.sl-sq .mk.up { color: var(--good); } .sl-sq .mk.dn { color: var(--bad); }
-.sl-sq .tk { z-index: 2; text-shadow: 0 1px 3px rgba(0,0,0,.35); line-height: 1; white-space: nowrap; }
-.sl-sq.you { box-shadow: inset 0 0 0 3px var(--accent); }
-.sl-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
-.sl-die { display: inline-flex; width: 56px; height: 56px; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; border: 2px solid var(--line); border-radius: 14px; background: var(--card); }
-.sl-die.roll { animation: shake .3s infinite; }
-.sl-info { text-align: center; min-height: 3.4em; margin: 6px 0; }
-@media (prefers-reduced-motion: reduce) { .sl-die.roll { animation: none; } }
+:root { --bg: #0c1424; --card: #16213a; --ink: #f1f5ff; --muted: #9db0cf; --line: #2a3a5e; --accent: #2dd4bf; --good: #34d399; --bad: #fb7185; --star: #fbbf24; }
+body {
+  background: radial-gradient(800px 480px at 50% -10%, rgba(251,191,36,.18), transparent 60%), radial-gradient(700px 500px at 0% 100%, rgba(45,212,191,.16), transparent 60%), var(--bg);
+  background-attachment: fixed;
+}
+.wrap { max-width: 600px; }
+
+.players { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.pl {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 18px; background: rgba(255,255,255,.05); border: 2px solid rgba(255,255,255,.1);
+  transition: border-color .3s, box-shadow .3s, background .3s;
+}
+.pl.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: 0 0 22px color-mix(in srgb, var(--c) 45%, transparent); }
+.pl .av { width: 40px; height: 40px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; background: var(--c); box-shadow: inset 0 -4px 0 rgba(0,0,0,.25); }
+.pl .nm { font-weight: 800; font-size: .9rem; line-height: 1.2; }
+.pl .ps { font-size: .78rem; color: var(--muted); }
+.pl .bar2 { height: 6px; border-radius: 99px; background: rgba(255,255,255,.12); margin-top: 4px; overflow: hidden; }
+.pl .bar2 i { display: block; height: 100%; width: 0; background: var(--c); border-radius: 99px; transition: width .4s; }
+.pl > div { flex: 1; min-width: 0; }
+
+/* board */
+.frame { padding: 8px; border-radius: 22px; background: linear-gradient(145deg, #b7791f, #7c4a12 60%, #a16207); box-shadow: 0 16px 40px rgba(0,0,0,.5), inset 0 2px 0 rgba(255,255,255,.35); }
+.stage { position: relative; aspect-ratio: 600 / 540; border-radius: 14px; overflow: hidden; background: #fff7e6; }
+.sl-board { position: absolute; left: 0; top: 0; width: 100%; height: 92.593%; display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(5, 1fr); }
+.sl-sq { position: relative; min-width: 0; color: #3b4a68; transition: filter .3s; }
+.sl-sq i { position: absolute; top: 5%; left: 7%; font-style: normal; font-size: clamp(.62rem, 2.6vw, .95rem); font-weight: 900; opacity: .75; }
+.sl-sq.c0 { background: #ffe1e8; } .sl-sq.c1 { background: #fff0bd; } .sl-sq.c2 { background: #d4f5e2; } .sl-sq.c3 { background: #d5eaff; }
+.sl-sq.fin { background: radial-gradient(circle, #fff1a8, #fbbf24); display: flex; align-items: center; justify-content: center; font-size: clamp(1.4rem, 7vw, 2.3rem); }
+.sl-sq.fin i { color: #7c4a12; }
+.sl-sq.flash { animation: sqflash .7s; }
+@keyframes sqflash { 30% { filter: brightness(1.25) saturate(1.5); box-shadow: inset 0 0 0 4px #fff; } }
+.sl-art { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.pawn {
+  position: absolute; width: 9.4%; aspect-ratio: 1; margin: -9.4% 0 0 -4.7%; z-index: 3; transition: left .2s linear, top .2s linear; pointer-events: none;
+}
+.pawn .pw {
+  width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: clamp(.9rem, 4.2vw, 1.6rem);
+  background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.65), var(--c) 55%); border: 2.5px solid #fff; box-shadow: 0 5px 10px rgba(0,0,0,.45), inset 0 -4px 0 rgba(0,0,0,.2);
+}
+.pawn::after { content: ""; position: absolute; left: 14%; right: 14%; bottom: -14%; height: 18%; border-radius: 50%; background: rgba(0,0,0,.35); filter: blur(2px); z-index: -1; }
+
+.dock { display: flex; align-items: center; justify-content: center; gap: 22px; margin: 16px 0 6px; }
+.scene { width: 64px; height: 64px; perspective: 600px; }
+.scene.toss { animation: toss 1s cubic-bezier(.3,.7,.4,1); }
+@keyframes toss { 0% { transform: translateY(0) scale(1); } 35% { transform: translateY(-34px) scale(1.25); } 70% { transform: translateY(0) scale(1); } 82% { transform: translateY(-8px); } 100% { transform: translateY(0); } }
+.cube { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 1s cubic-bezier(.2,.8,.2,1); }
+.face {
+  position: absolute; inset: 0; border-radius: 12px; background: linear-gradient(145deg, #fff, #e7edf7); border: 2px solid #cbd5e1; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  padding: 9px; box-shadow: inset 0 -3px 0 rgba(0,0,0,.08);
+}
+.face span { width: 11px; height: 11px; border-radius: 50%; background: #1e293b; place-self: center; }
+.face.f1 span { background: #e11d48; width: 14px; height: 14px; }
+.f1 { transform: translateZ(32px); } .f2 { transform: rotateY(90deg) translateZ(32px); } .f3 { transform: rotateX(90deg) translateZ(32px); }
+.f4 { transform: rotateX(-90deg) translateZ(32px); } .f5 { transform: rotateY(-90deg) translateZ(32px); } .f6 { transform: rotateY(180deg) translateZ(32px); }
+.rollbtn { font-size: 1.1rem; min-height: 60px; padding: 0 28px; border-radius: 18px; box-shadow: 0 5px 0 rgba(0,0,0,.3), 0 10px 24px rgba(13,127,114,.45); }
+.rollbtn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.3); }
+
+.msg { text-align: center; min-height: 3em; margin: 8px 0; font-weight: 700; padding: 8px 14px; border-radius: 14px; background: rgba(255,255,255,.06); }
+.rule { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { .scene.toss, .sl-sq.flash { animation: none; } .cube, .pawn { transition: none; } }
 </style>
 </head>
 <body>
 <header id="bar" class="bar"></header>
 <main class="wrap" id="app">
-  <div class="stats"><span>🧑 သင်: <b id="pa">0</b></span><span>Turn: <b id="tn">1</b></span><span>🤖 ကွန်ပျူတာ: <b id="pb">0</b></span></div>
-  <div class="sl-board" id="board"></div>
-  <div class="sl-info" id="msg" aria-live="polite"></div>
-  <div class="row" style="align-items:center"><span class="sl-die" id="die" aria-label="Dice">🎲</span><button class="btn primary" id="roll">🎲 Roll</button></div>
-  <p class="muted" style="text-align:center">Roll လုပ်ပြီး မေးခွန်းမှန်အောင်ဖြေရင် အကွက်တက်မယ်။ မှားရင် နေရာမရွှေ့ဘူး။ 🪜 တက်ရင် ခုန်တက်၊ 🐍 ကိုက်ရင် ပြန်ချော်ကျမယ်။ ၃၀ ကိုအရင်ရောက်သူ နိုင်မယ်။</p>
+  <div class="players">
+    <div class="pl" id="plA" style="--c:#14b8a6"><span class="av">🧑</span><div><div class="nm">သင်</div><div class="ps">ကွက် <b id="pa">0</b> / 30 · Turn <b id="tn">1</b></div><div class="bar2"><i id="ba"></i></div></div></div>
+    <div class="pl" id="plB" style="--c:#f97316"><span class="av">🤖</span><div><div class="nm">ကွန်ပျူတာ</div><div class="ps">ကွက် <b id="pb">0</b> / 30</div><div class="bar2"><i id="bb"></i></div></div></div>
+  </div>
+  <div class="frame"><div class="stage" id="stage"><div class="sl-board" id="board"></div></div></div>
+  <div class="msg" id="msg" aria-live="polite"></div>
+  <div class="dock">
+    <div class="scene" id="scene" aria-label="Dice"><div class="cube" id="cube"></div></div>
+    <button class="btn primary rollbtn" id="roll">🎲 Roll</button>
+  </div>
+  <p class="rule">Roll လုပ်ပြီး မေးခွန်းမှန်အောင်ဖြေရင် အကွက်တက်မယ်။ မှားရင် နေရာမရွှေ့ဘူး။ 🪜 တက်ရင် ခုန်တက်၊ 🐍 ကိုက်ရင် ပြန်ချော်ကျမယ်။ ၃၀ ကိုအရင်ရောက်သူ နိုင်မယ်။</p>
 </main>
 <script src="js/data.js"></script>
 <script src="js/common.js"></script>
 <script src="js/choice.js"></script>
 <script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
 <script>
 const topic = getTopic(), LV = getLevel();
 renderBar("Snakes & Ladders · " + topic.name);
 const END = 30, COLS = 6, ROWS = 5;
 const LADDERS = { 4: 14, 9: 21, 20: 27 };
 const SNAKES = { 16: 6, 24: 12, 28: 18 };
+const SNAKE_COLORS = [["#2f9e44", "#b2f2bb"], ["#7048e8", "#d0bfff"], ["#e8590c", "#ffd8a8"]];
 const CPU_OK = [0.45, 0.62, 0.72, 0.8][topic.level - 1];   // chance the computer "answers" correctly
 const KINDS = [Q.enMy, Q.myEn, Q.blank, Q.sentence];
-let bag = [], pos, turn, busy, over, wrongs;
+const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+let bag = [], pos, turn, busy, over, wrongs, pawns = [], rx = 0, ry = 0;
 
 function nextQ() {
   if (!bag.length) bag = shuffle(topic.words);
   return KINDS[Math.floor(Math.random() * KINDS.length)](topic, bag.pop());
 }
-// square n (1..30) -> grid cell centre in a 600x500 box; row 0 is the bottom and runs left to right, row 1 right to left ...
+// square n (1..30) -> centre in the 600x540 stage; row 0 is the bottom and runs left to right, row 1 right to left ...
 function cellOf(n) {
   const r = Math.floor((n - 1) / COLS), c0 = (n - 1) % COLS, c = r % 2 ? COLS - 1 - c0 : c0;
-  return { r, c, x: c * 100 + 50, y: (ROWS - 1 - r) * 100 + 50 };
+  return { x: c * 100 + 50, y: (ROWS - 1 - r) * 100 + 50 };
+}
+function spot(p, n) {   // where pawn p stands when on square n (0 = the start pad)
+  const off = p === 0 ? -16 : 16;
+  if (n === 0) return { x: 70 + (p === 0 ? 0 : 70), y: 524 };
+  const c = cellOf(n); return { x: c.x + off, y: c.y + 12 };
+}
+
+// ---- dice ----
+const PIPS = [null, [4], [0, 8], [0, 4, 8], [0, 2, 6, 8], [0, 2, 4, 6, 8], [0, 2, 3, 5, 6, 8]];
+function buildDice() {
+  $("#cube").innerHTML = [1, 2, 3, 4, 5, 6].map(f => '<div class="face f' + f + '">' + Array.from({ length: 9 }, (_, k) => PIPS[f].includes(k) ? "<span></span>" : "<b></b>").join("") + "</div>").join("");
+}
+const FACE_ROT = { 1: [0, 0], 2: [0, -90], 3: [-90, 0], 4: [90, 0], 5: [0, 90], 6: [0, 180] };
+function turnTo(n) {
+  const [tx, ty] = FACE_ROT[n], fwd = (cur, t) => cur + 720 + (((t - cur) % 360) + 360) % 360;
+  rx = fwd(rx, tx); ry = fwd(ry, ty);
+  $("#cube").style.transform = "rotateX(" + rx + "deg) rotateY(" + ry + "deg)";
+}
+
+// ---- art ----
+function ladderSvg(a, z, id) {
+  const p = cellOf(a), q = cellOf(z), dx = q.x - p.x, dy = q.y - p.y, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len, nx = -uy, ny = ux, w = 11;
+  const x1 = p.x + ux * 14, y1 = p.y + uy * 14, x2 = q.x - ux * 14, y2 = q.y - uy * 14, L = len - 28;
+  let s = '<g class="ladder">';
+  for (const sh of [1, 0]) {
+    const o = sh ? 'transform="translate(3 5)" opacity=".25"' : "", col = sh ? "#000" : "url(#wood)", rc = sh ? "#000" : "#a8650f";
+    s += "<g " + o + ">";
+    for (const sd of [-1, 1]) s += '<line x1="' + (x1 + nx * w * sd) + '" y1="' + (y1 + ny * w * sd) + '" x2="' + (x2 + nx * w * sd) + '" y2="' + (y2 + ny * w * sd) + '" stroke="' + (sh ? "#000" : "#7c4a12") + '" stroke-width="10" stroke-linecap="round"/>';
+    for (const sd of [-1, 1]) s += '<line x1="' + (x1 + nx * w * sd) + '" y1="' + (y1 + ny * w * sd) + '" x2="' + (x2 + nx * w * sd) + '" y2="' + (y2 + ny * w * sd) + '" stroke="' + (sh ? "#000" : "#d9902f") + '" stroke-width="6" stroke-linecap="round"/>';
+    for (let t = 16; t < L; t += 26) {
+      const cx = x1 + ux * t, cy = y1 + uy * t;
+      s += '<line x1="' + (cx - nx * w) + '" y1="' + (cy - ny * w) + '" x2="' + (cx + nx * w) + '" y2="' + (cy + ny * w) + '" stroke="' + (sh ? "#000" : "#8a5314") + '" stroke-width="7" stroke-linecap="round"/>';
+      if (!sh) s += '<line x1="' + (cx - nx * w) + '" y1="' + (cy - ny * w) + '" x2="' + (cx + nx * w) + '" y2="' + (cy + ny * w) + '" stroke="#f0b35a" stroke-width="3.5" stroke-linecap="round"/>';
+    }
+    s += "</g>";
+  }
+  return s + "</g>";
+}
+function snakeSvg(a, z, k) {
+  const [dark, light] = SNAKE_COLORS[k % 3], h = cellOf(a), t = cellOf(z), dx = t.x - h.x, dy = t.y - h.y, len = Math.hypot(dx, dy), nx = -dy / len, ny = dx / len;
+  const waves = Math.max(2, Math.round(len / 85)), N = 56, amp = 20, pts = [];
+  for (let i = 0; i <= N; i++) {
+    const u = i / N, off = Math.sin(u * waves * Math.PI * 2) * amp * Math.min(1, u * 6);
+    pts.push({ x: h.x + dx * u + nx * off, y: h.y + dy * u + ny * off, w: 17 * (1 - 0.65 * u) + 3 });
+  }
+  let s = '<g class="snake"><g transform="translate(3 5)" opacity=".25">';
+  for (let i = 0; i < N; i++) s += '<line x1="' + pts[i].x + '" y1="' + pts[i].y + '" x2="' + pts[i + 1].x + '" y2="' + pts[i + 1].y + '" stroke="#000" stroke-width="' + (pts[i].w + 4) + '" stroke-linecap="round"/>';
+  s += "</g>";
+  for (let i = 0; i < N; i++) s += '<line x1="' + pts[i].x + '" y1="' + pts[i].y + '" x2="' + pts[i + 1].x + '" y2="' + pts[i + 1].y + '" stroke="#1a2233" stroke-width="' + (pts[i].w + 4) + '" stroke-linecap="round"/>';
+  for (let i = 0; i < N; i++) s += '<line x1="' + pts[i].x + '" y1="' + pts[i].y + '" x2="' + pts[i + 1].x + '" y2="' + pts[i + 1].y + '" stroke="' + dark + '" stroke-width="' + pts[i].w + '" stroke-linecap="round"/>';
+  for (let i = 1; i < N; i += 3) s += '<circle cx="' + pts[i].x + '" cy="' + pts[i].y + '" r="' + Math.max(1.5, pts[i].w * 0.2) + '" fill="' + light + '"/>';
+  // head, pointing back along the first segment
+  const a0 = pts[0], a1 = pts[2], ang = Math.atan2(a0.y - a1.y, a0.x - a1.x) * 180 / Math.PI;
+  s += '<g transform="translate(' + a0.x + " " + a0.y + ") rotate(" + ang + ')">' +
+    '<path d="M12 0 L26 -4 M12 0 L26 4" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round" fill="none"/>' +
+    '<ellipse cx="2" cy="0" rx="17" ry="13" fill="' + dark + '" stroke="#1a2233" stroke-width="2.5"/>' +
+    '<circle cx="5" cy="-6" r="4.6" fill="#fff"/><circle cx="5" cy="6" r="4.6" fill="#fff"/><circle cx="6.5" cy="-6" r="2.2" fill="#111"/><circle cx="6.5" cy="6" r="2.2" fill="#111"/></g>';
+  return s + "</g>";
 }
 function build() {
   const b = $("#board"); b.innerHTML = "";
@@ -60,57 +173,67 @@ function build() {
   for (let r = ROWS - 1; r >= 0; r--) for (let c = 0; c < COLS; c++) order.push(r % 2 ? r * COLS + (COLS - c) : r * COLS + c + 1);
   order.forEach(n => {
     const d = document.createElement("div");
-    d.className = "sl-sq" + (n === END ? " fin" : ""); d.dataset.n = n;
-    d.innerHTML = "<i>" + n + "</i>" + (LADDERS[n] ? '<span class="mk up">↗' + LADDERS[n] + "</span>" : "") + (SNAKES[n] ? '<span class="mk dn">↘' + SNAKES[n] + "</span>" : "") + '<span class="tk"></span>';
-    if (n === END) d.firstChild.textContent = "🏁 30";
+    d.className = "sl-sq c" + (n % 4) + (n === END ? " fin" : ""); d.dataset.n = n;
+    d.innerHTML = "<i>" + n + "</i>" + (n === END ? "🏆" : "");
     b.appendChild(d);
   });
-  // ladders and snakes as lines
-  let s = '<svg class="sl-lines" viewBox="0 0 600 500" preserveAspectRatio="none" aria-hidden="true">';
-  Object.entries(LADDERS).forEach(([a, z]) => {
-    const p = cellOf(+a), q = cellOf(z), dx = 7;
-    s += '<g style="stroke:var(--good);stroke-width:5;stroke-linecap:round;opacity:.8"><line x1="' + (p.x - dx) + '" y1="' + p.y + '" x2="' + (q.x - dx) + '" y2="' + q.y + '"/><line x1="' + (p.x + dx) + '" y1="' + p.y + '" x2="' + (q.x + dx) + '" y2="' + q.y + '"/></g>';
-    for (let t = 0.15; t < 0.95; t += 0.14) s += '<line style="stroke:var(--good);stroke-width:4;opacity:.8" x1="' + (p.x - dx + (q.x - p.x) * t) + '" y1="' + (p.y + (q.y - p.y) * t) + '" x2="' + (p.x + dx + (q.x - p.x) * t) + '" y2="' + (p.y + (q.y - p.y) * t) + '"/>';
+  let s = '<svg class="sl-art" viewBox="0 0 600 540" aria-hidden="true"><defs><linearGradient id="wood" x1="0" x2="1"><stop offset="0" stop-color="#d9902f"/><stop offset="1" stop-color="#a8650f"/></linearGradient></defs>' +
+    '<rect x="0" y="500" width="600" height="40" fill="#0f766e"/><rect x="0" y="500" width="600" height="5" fill="#2dd4bf"/><text x="300" y="526" text-anchor="middle" font-size="20" font-weight="900" fill="#ccfbf1" letter-spacing="6">START ▶ ▶ ▶</text>';
+  Object.entries(LADDERS).forEach(([a, z]) => { s += ladderSvg(+a, z); });
+  Object.entries(SNAKES).forEach(([a, z], k) => { s += snakeSvg(+a, z, k); });
+  $("#stage").insertAdjacentHTML("beforeend", s + "</svg>");
+  pawns = [["🧑", "#14b8a6"], ["🤖", "#f97316"]].map(([e, c]) => {
+    const el = document.createElement("div");
+    el.className = "pawn"; el.style.setProperty("--c", c); el.innerHTML = '<div class="pw">' + e + "</div>";
+    $("#stage").appendChild(el); return el;
   });
-  Object.entries(SNAKES).forEach(([a, z]) => {
-    const p = cellOf(+a), q = cellOf(z), mx = (p.x + q.x) / 2 + (p.x < q.x ? 40 : -40), my = (p.y + q.y) / 2;
-    s += '<path d="M' + p.x + " " + p.y + " Q" + mx + " " + my + " " + q.x + " " + q.y + '" style="fill:none;stroke:var(--bad);stroke-width:7;stroke-linecap:round;opacity:.7;stroke-dasharray:14 7"/>';
-  });
-  b.insertAdjacentHTML("beforeend", s + "</svg>");
+}
+function place(p) {
+  const s = spot(p, pos[p]);
+  pawns[p].style.left = s.x / 6 + "%"; pawns[p].style.top = s.y / 5.4 + "%";
+  pawns[p].style.zIndex = 3 + p;
 }
 function paint() {
   $("#pa").textContent = pos[0]; $("#pb").textContent = pos[1]; $("#tn").textContent = turn;
-  [...$("#board").querySelectorAll(".sl-sq")].forEach(sq => {
-    const n = +sq.dataset.n;
-    $(".tk", sq).textContent = (pos[0] === n ? "🧑" : "") + (pos[1] === n ? "🤖" : "");
-    sq.classList.toggle("you", pos[0] === n);
-  });
+  $("#ba").style.width = pos[0] / END * 100 + "%"; $("#bb").style.width = pos[1] / END * 100 + "%";
+  place(0); place(1);
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
 function say(t) { $("#msg").textContent = t; }
+function turnGlow(p) { $("#plA").classList.toggle("on", p === 0); $("#plB").classList.toggle("on", p === 1); }
+function hop(p) {
+  if (still()) return;
+  $(".pw", pawns[p]).animate([{ transform: "translateY(0) scale(1)" }, { transform: "translateY(-16px) scale(1.12,.92)" }, { transform: "translateY(0) scale(1.1,.9)" }, { transform: "translateY(0) scale(1)" }], { duration: 200 });
+}
+function flashSq(n) { const sq = $('.sl-sq[data-n="' + n + '"]'); if (sq) { sq.classList.remove("flash"); void sq.offsetWidth; sq.classList.add("flash"); } }
 async function rollDie() {
-  const d = $("#die"), faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
-  d.classList.add("roll");
-  const n = 1 + Math.floor(Math.random() * 6);
-  for (let k = 0; k < 6; k++) { d.textContent = faces[Math.floor(Math.random() * 6)]; await wait(80); }
-  d.classList.remove("roll"); d.textContent = faces[n - 1];
+  const n = 1 + Math.floor(Math.random() * 6), sc = $("#scene");
+  sc.classList.remove("toss"); void sc.offsetWidth; if (!still()) sc.classList.add("toss");
+  beep([300, 360, 420, 360], 0.06);
+  turnTo(n);
+  await wait(still() ? 100 : 1050);
   return n;
 }
 // move player p forward n squares one step at a time, then snake / ladder
 async function move(p, n) {
-  for (let k = 0; k < n && pos[p] < END; k++) { pos[p]++; paint(); await wait(170); }
+  for (let k = 0; k < n && pos[p] < END; k++) { pos[p]++; paint(); hop(p); beep([440 + pos[p] * 12], 0.04); await wait(210); }
   if (pos[p] >= END) { pos[p] = END; paint(); return; }
+  flashSq(pos[p]);
   const to = LADDERS[pos[p]] || SNAKES[pos[p]];
   if (to) {
-    const up = !!LADDERS[pos[p]];
+    const up = !!LADDERS[pos[p]], el = pawns[p];
     say(up ? "🪜  လှေကားတက်ပြီး " + to + " ကို ခုန်တက်တယ်!" : "🐍  မြွေကိုက်လို့ " + to + " ကို ပြန်ချော်ကျတယ်!");
     up ? sfx.ok() : sfx.bad();
-    await wait(600); pos[p] = to; paint(); await wait(400);
+    await wait(450);
+    el.style.transition = "left .95s cubic-bezier(.5,0,.3,1), top .95s cubic-bezier(.5,0,.3,1)";
+    pos[p] = to; paint();
+    if (up) { const pt = fx.at(el); fx.confetti(pt.x, pt.y, 24); } else fx.shake($(".frame"));
+    await wait(1050); el.style.transition = ""; flashSq(to);
   }
 }
 async function mine() {
   if (busy || over) return;
-  busy = true; $("#roll").disabled = true;
+  busy = true; $("#roll").disabled = true; turnGlow(0);
   const n = await rollDie();
   const q = nextQ();
   q.label = "🎲 " + n + " ကွက် — " + q.label;
@@ -120,10 +243,10 @@ async function mine() {
   if (finished()) return;
   await cpuTurn();
   if (finished()) return;
-  turn++; paint(); say("သင့်အလှည့် — Roll နှိပ်ပါ"); busy = false; $("#roll").disabled = false; $("#roll").focus();
+  turn++; paint(); turnGlow(0); say("သင့်အလှည့် — Roll နှိပ်ပါ"); busy = false; $("#roll").disabled = false; $("#roll").focus();
 }
 async function cpuTurn() {
-  say("🤖 ကွန်ပျူတာ အလှည့်…");
+  turnGlow(1); say("🤖 ကွန်ပျူတာ အလှည့်…");
   await wait(500);
   const n = await rollDie(), ok = Math.random() < CPU_OK;
   if (ok) { say("🤖 မှန်အောင်ဖြေတယ် — " + n + " ကွက်တက်မယ်"); await move(1, n); }
@@ -135,19 +258,22 @@ function finished() {
   const won = pos[0] >= END;
   const close = !won && pos[0] >= 22;
   say(won ? "🏁 သင်နိုင်ပြီ! 🎉" : "🏁 ကွန်ပျူတာ နိုင်သွားတယ်");
+  if (won) { fx.rain(100); const pt = fx.at(pawns[0]); fx.confetti(pt.x, pt.y, 60); }
   setTimeout(() => showResult({
     title: won ? "နိုင်ပါတယ်! 🎉" : close ? "နည်းနည်းလေး ကွာသွားတယ် 💪" : "ကွန်ပျူတာ နိုင်သွားတယ် 💪",
     stars: won ? 3 : close ? 2 : 1,
     text: "Turn " + turn + " ခုအတွင်း · မှားခဲ့တာ " + wrongs + " ခု",
     onAgain: play
-  }), 900);
+  }), 1100);
   return true;
 }
 function play() {
   pos = [0, 0]; turn = 1; busy = false; over = false; wrongs = 0;
-  paint(); say("သင့်အလှည့် — Roll နှိပ်ပါ"); $("#die").textContent = "🎲"; $("#roll").disabled = false;
+  pawns.forEach(p => { p.style.transition = ""; });
+  paint(); turnGlow(0); say("သင့်အလှည့် — Roll နှိပ်ပါ"); $("#roll").disabled = false;
 }
 $("#roll").onclick = mine;
+buildDice();
 build();
 play.gameId = "snakeladder";
 play();

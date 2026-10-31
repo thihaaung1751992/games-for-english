@@ -5,75 +5,212 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Memory Match</title>
 <link rel="stylesheet" href="css/style.css">
+<style>
+/* Night-sky look for this game only */
+:root { --bg: #0a1020; --card: #16213a; --ink: #eaf2ff; --muted: #9db0cf; --line: #2a3a5e; --accent: #2dd4bf; --good: #34d399; --bad: #fb7185; --star: #fbbf24; }
+body {
+  background:
+    radial-gradient(900px 500px at 12% -10%, rgba(45,212,191,.22), transparent 60%),
+    radial-gradient(800px 520px at 100% 10%, rgba(99,102,241,.25), transparent 60%),
+    radial-gradient(700px 500px at 50% 120%, rgba(251,191,36,.12), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+.wrap { max-width: 560px; }
+.hint { margin: 0 0 12px; color: var(--muted); font-size: .92rem; }
+
+/* HUD */
+.hud { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.pill {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 4px; border-radius: 16px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.pill small { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); line-height: 1.3; }
+.pill b { font-size: 1.3rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.prog { height: 10px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; margin: 0 2px 14px; position: relative; }
+.prog i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #2dd4bf, #818cf8, #fbbf24); transition: width .5s cubic-bezier(.3,1.3,.5,1); }
+.combo {
+  position: absolute; right: 16px; top: 0; transform: translateY(-4px); opacity: 0; pointer-events: none; font-weight: 900; font-size: 1rem;
+  padding: 2px 12px; border-radius: 99px; background: linear-gradient(135deg, #f97316, #fbbf24); color: #1a1205;
+  box-shadow: 0 6px 20px rgba(249,115,22,.5);
+}
+.combo.show { animation: combo 1.1s ease-out; }
+@keyframes combo { 0% { opacity: 0; transform: translateY(8px) scale(.6); } 20% { opacity: 1; transform: translateY(-6px) scale(1.15); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px) scale(1); } }
+.stage { position: relative; }
+
+/* cards */
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; perspective: none; }
+.mcard {
+  position: relative; aspect-ratio: 3 / 4; border: 0; padding: 0; background: none; cursor: pointer; font: inherit; perspective: 700px;
+  animation: deal .55s cubic-bezier(.2,1.2,.4,1) backwards; animation-delay: calc(var(--i) * 45ms); border-radius: 16px;
+  transition: transform .2s;
+}
+@keyframes deal { from { opacity: 0; transform: translateY(-40px) rotate(-12deg) scale(.5); } }
+.mcard:hover:not(.open):not(.done):not(:disabled) { transform: translateY(-4px) rotate(-1.5deg); }
+.mcard:active:not(.open):not(.done) { transform: scale(.96); }
+.mcard .in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.3,1.35,.5,1); }
+.mcard.open .in, .mcard.done .in { transform: rotateY(180deg); }
+.mcard .f, .mcard .b {
+  position: absolute; inset: 0; border-radius: 16px; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; text-align: center; box-shadow: 0 8px 18px rgba(0,0,0,.35), inset 0 0 0 1.5px rgba(255,255,255,.18);
+}
+.mcard .f {
+  color: rgba(255,255,255,.9); font-size: 2.2rem;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,.35), transparent 45%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,.07) 0 8px, transparent 8px 16px),
+    linear-gradient(145deg, #14b8a6, #4f46e5);
+}
+.mcard .f::before { content: ""; position: absolute; inset: 6px; border: 1.5px solid rgba(255,255,255,.4); border-radius: 11px; }
+.mcard .f span { text-shadow: 0 2px 10px rgba(0,0,0,.35); transition: transform .3s; }
+.mcard:hover .f span { transform: scale(1.2) rotate(15deg); }
+.mcard .f::after, .mcard .b::after {
+  content: ""; position: absolute; top: -60%; left: -80%; width: 50%; height: 220%; transform: rotate(20deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); transition: left .7s;
+}
+.mcard:hover .f::after { left: 130%; }
+.mcard .b { transform: rotateY(180deg); flex-direction: column; gap: 4px; padding: 14px 6px 6px; color: #fff; font-weight: 800; line-height: 1.4; }
+.mcard .b.en { background: linear-gradient(160deg, #1d4ed8, #0ea5e9); }
+.mcard .b.my { background: linear-gradient(160deg, #b45309, #f59e0b); color: #1c1100; }
+.mcard .tag { position: absolute; top: 5px; left: 0; right: 0; font-size: .6rem; letter-spacing: .14em; opacity: .75; font-weight: 800; }
+.mcard .txt { font-size: clamp(.95rem, 4vw, 1.25rem); overflow-wrap: anywhere; }
+.mcard .txt.long { font-size: clamp(.78rem, 3.2vw, 1rem); }
+.mcard .tick {
+  position: absolute; bottom: 5px; right: 6px; width: 22px; height: 22px; border-radius: 50%; display: none; align-items: center; justify-content: center;
+  background: #10b981; color: #fff; font-size: .8rem; font-weight: 900; box-shadow: 0 0 0 2px rgba(255,255,255,.7);
+}
+.mcard.done .tick { display: flex; }
+.mcard.done .b { box-shadow: 0 0 0 3px #34d399, 0 0 24px rgba(52,211,153,.7); }
+.mcard.done { animation: matched .6s ease-out; }
+@keyframes matched { 0% { transform: scale(1); } 40% { transform: scale(1.1) rotate(-2deg); } 100% { transform: scale(1); } }
+.mcard.miss { animation: miss .45s; }
+.mcard.miss .b { box-shadow: 0 0 0 3px #fb7185, 0 0 22px rgba(251,113,133,.7); }
+@keyframes miss { 20% { transform: translateX(-7px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(4px); } }
+.mcard:disabled { cursor: default; }
+
+.peek { text-align: center; color: var(--star); font-weight: 800; min-height: 1.6em; margin: 8px 0 0; letter-spacing: .04em; }
+@media (prefers-reduced-motion: reduce) {
+  .mcard, .mcard.done, .mcard.miss, .combo.show { animation: none !important; }
+  .mcard .in { transition: none; }
+}
+</style>
 </head>
 <body>
 <header id="bar" class="bar"></header>
 <main class="wrap">
-  <p class="muted" style="margin-top:0">English စာလုံးနဲ့ မြန်မာအဓိပ္ပါယ်ကို တွဲပါ။ (ကတ်နှစ်ကတ်ကို တစ်ကြိမ်စီ ဖွင့်ပါ)</p>
-  <div class="stats"><span>Moves: <b id="moves">0</b></span><span>Pairs: <b id="pairs">0</b>/<span id="ptotal">6</span></span><span>Time: <b id="time">0</b>s</span></div>
-  <div class="grid" id="grid"></div>
+  <p class="hint">English စာလုံးနဲ့ မြန်မာအဓိပ္ပါယ်ကို တွဲပါ။ ကတ်နှစ်ကတ်ကို တစ်ကြိမ်စီ ဖွင့်ပါ။</p>
+  <div class="hud">
+    <div class="pill"><small>Moves</small><b id="moves">0</b></div>
+    <div class="pill"><small>Pairs</small><b><span id="pairs">0</span>/<span id="ptotal">6</span></b></div>
+    <div class="pill"><small>Time</small><b><span id="time">0</span>s</b></div>
+  </div>
+  <div class="prog" aria-hidden="true"><i id="prog"></i></div>
+  <div class="stage">
+    <div class="combo" id="combo" aria-live="polite"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+  <p class="peek" id="peek" aria-live="polite"></p>
 </main>
 <script src="js/data.js"></script>
 <script src="js/common.js"></script>
+<script src="js/fx.js"></script>
 <script>
 const topic = getTopic();
 const LV = getLevel();
 renderBar("Memory Match · " + topic.name);
-let cards, first, lock, moves, pairs, t0, timer;
+let cards, first, lock, moves, pairs, t0, timer, combo, run = 0;
+const wait = ms => new Promise(r => setTimeout(r, ms));
 
-function play() {
+async function play() {
+  const my = ++run;
   const words = shuffle(topic.words).slice(0, LV.pairs);
   cards = shuffle(words.flatMap((w, i) => [{ id: i, t: w.en, lang: "en" }, { id: i, t: w.my, lang: "my" }]));
   $("#ptotal").textContent = words.length;
-  first = null; lock = false; moves = 0; pairs = 0; t0 = Date.now();
+  first = null; lock = true; moves = 0; pairs = 0; combo = 0;
   clearInterval(timer);
-  timer = setInterval(() => { $("#time").textContent = Math.floor((Date.now() - t0) / 1000); }, 500);
   const grid = $("#grid");
   grid.innerHTML = "";
   cards.forEach((c, i) => {
     const b = document.createElement("button");
-    b.className = "mcard";
-    b.setAttribute("aria-label", "Card " + (i + 1));
-    b.innerHTML = '<span class="f">?</span><span class="b"></span>';
-    $(".b", b).textContent = c.t;
+    b.className = "mcard"; b.style.setProperty("--i", i);
+    b.setAttribute("aria-label", "Card " + (i + 1) + ", face down");
+    b.innerHTML = '<span class="in"><span class="f"><span>✦</span></span><span class="b ' + c.lang + '"><span class="tag">' + (c.lang === "en" ? "ENGLISH" : "မြန်မာ") +
+      '</span><span class="txt"></span><span class="tick">✓</span></span></span>';
+    const tx = $(".txt", b); tx.textContent = c.t; if (c.t.length > 9) tx.classList.add("long");
     b.onclick = () => flip(b, c);
     c.el = b;
     grid.appendChild(b);
   });
   update();
+  $("#time").textContent = 0;
+  // a short peek so the player can glimpse the cards, then they flip back
+  await wait(cards.length * 45 + 500);
+  if (my !== run) return;
+  const ms = Math.round(1800 * LV.pace);
+  $("#peek").textContent = "👀 မှတ်ထားလိုက်ပါ…";
+  cards.forEach(c => c.el.classList.add("open"));
+  await wait(ms);
+  if (my !== run) return;
+  cards.forEach(c => c.el.classList.remove("open"));
+  $("#peek").textContent = "";
+  await wait(500);
+  if (my !== run) return;
+  lock = false; t0 = Date.now();
+  timer = setInterval(() => { $("#time").textContent = Math.floor((Date.now() - t0) / 1000); }, 500);
 }
 function update() {
   $("#moves").textContent = moves;
   $("#pairs").textContent = pairs;
-  $("#time").textContent = Math.floor((Date.now() - t0) / 1000);
+  $("#prog").style.width = (cards.length ? pairs / (cards.length / 2) * 100 : 0) + "%";
 }
+function setLabel(c, open) { c.el.setAttribute("aria-label", open ? c.t : "Card, face down"); }
 function flip(b, c) {
   if (lock || b.classList.contains("open") || b.classList.contains("done")) return;
-  b.classList.add("open");
+  b.classList.add("open"); setLabel(c, true);
+  beep([520 + Math.random() * 120], 0.05);
   if (c.lang === "en") speak(c.t);
   if (!first) { first = c; return; }
   moves++;
   const a = first; first = null;
   if (a.id === c.id) {
-    a.el.classList.replace("open", "done"); b.classList.replace("open", "done");
-    pairs++; sfx.ok(); addPoints(10);
-    update();
-    if (pairs === cards.length / 2) finish();
+    pairs++; combo++;
+    lock = true;
+    setTimeout(() => {
+      a.el.classList.replace("open", "done"); b.classList.replace("open", "done");
+      sfx.ok();
+      const pts = 10 + (combo - 1) * 5; addPoints(pts);
+      const p = fx.at(b), q = fx.at(a.el);
+      fx.confetti(p.x, p.y, 16); fx.confetti(q.x, q.y, 16); fx.pop(b, "+" + pts);
+      if (combo >= 2) { const cb = $("#combo"); cb.textContent = "🔥 Combo x" + combo; cb.classList.remove("show"); void cb.offsetWidth; cb.classList.add("show"); }
+      lock = false;
+      update();
+      if (pairs === cards.length / 2) finish();
+    }, 350);
   } else {
-    lock = true; sfx.bad();
-    setTimeout(() => { a.el.classList.remove("open"); b.classList.remove("open"); lock = false; }, Math.round(900 * LV.pace));
-    update();
+    combo = 0; lock = true; sfx.bad();
+    setTimeout(() => {
+      a.el.classList.add("miss"); b.classList.add("miss");
+      setTimeout(() => {
+        a.el.classList.remove("open", "miss"); b.classList.remove("open", "miss");
+        setLabel(a, false); setLabel(c, false);
+        lock = false;
+      }, 450);
+    }, 600);
   }
+  update();
 }
 function finish() {
   clearInterval(timer);
   const secs = Math.floor((Date.now() - t0) / 1000);
   const stars = moves <= pairs * 1.5 ? 3 : moves <= pairs * 2.2 ? 2 : 1;
-  setTimeout(() => showResult({
-    title: "ကောင်းပါတယ်! 🎉", stars,
-    text: moves + " moves · " + secs + " စက္ကန့်",
-    onAgain: play
-  }), 500);
+  setTimeout(() => {
+    fx.rain(90);
+    showResult({
+      title: "ကောင်းပါတယ်! 🎉", stars,
+      text: moves + " moves · " + secs + " စက္ကန့်",
+      onAgain: play
+    });
+  }, 600);
 }
 play.gameId = "memory";
 play();
