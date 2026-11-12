@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snack Machine</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+:root { --bg: #140b2e; --card: #221447; --ink: #fdf4ff; --muted: #b9a8e0; --line: #3d2a70; --accent: #ff4d8d; --good: #4ade80; --bad: #fb7185; --warn: #ffb020; --star: #ffd23f; }
+[hidden] { display: none !important; }
+body {
+  background: radial-gradient(520px 360px at 10% 0%, rgba(255,77,141,.3), transparent 60%), radial-gradient(620px 440px at 100% 100%, rgba(56,189,248,.24), transparent 60%), var(--bg);
+  background-attachment: fixed;
+}
+.wrap { max-width: 520px; }
+.vm-hud { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 2px 10px; }
+.vm-dots { display: flex; gap: 5px; }
+.vm-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.vm-dots i.cur { background: var(--star); box-shadow: 0 0 8px var(--star); animation: vmbeat 1.2s infinite; }
+.vm-dots i.ok { background: var(--good); } .vm-dots i.no { background: var(--bad); }
+@keyframes vmbeat { 50% { transform: scale(1.4); } }
+.vm-coins span { display: inline-block; font-size: 1.25rem; line-height: 1; transition: transform .3s, filter .3s; }
+.vm-coins .gone { filter: grayscale(1) brightness(.45); transform: scale(.8); }
+.vm-score { font-weight: 800; }
+
+/* the machine */
+.vm {
+  position: relative; border-radius: 28px 28px 18px 18px; padding: 10px 8px 12px;
+  background: linear-gradient(160deg, #ff6b9a 0%, #e11d74 46%, #9d174d 100%);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.5), inset 0 -7px 0 rgba(0,0,0,.25), 0 0 0 3px #4a0d2e, 0 18px 40px rgba(0,0,0,.55);
+}
+.vm::after { content: ""; position: absolute; left: 6%; right: 6%; bottom: -20px; height: 18px; background: radial-gradient(ellipse, rgba(255,77,141,.5), transparent 70%); pointer-events: none; }
+.vm-sign {
+  position: relative; text-align: center; font-weight: 900; letter-spacing: .2em; font-size: .95rem; line-height: 1.3; color: #fff7d6; padding: 10px 0; margin: 0 4px 8px;
+  border-radius: 14px; background: #3b0764; border: 2px solid #ffd23f; text-shadow: 0 0 8px #ffd23f, 0 0 18px #ff8a00;
+  box-shadow: 0 0 14px rgba(255,210,63,.45), inset 0 0 12px rgba(255,210,63,.25);
+}
+.vm-sign::before, .vm-sign::after { content: ""; position: absolute; left: 10px; right: 10px; height: 6px; background: radial-gradient(circle, #fff3b0 0 2px, transparent 2.6px) 0 0 / 14px 6px repeat-x; filter: drop-shadow(0 0 3px #ffd23f); }
+.vm-sign::before { top: 2px; animation: vmbulb 1s steps(1) infinite; }
+.vm-sign::after { bottom: 2px; animation: vmbulb 1s steps(1) infinite .5s; }
+@keyframes vmbulb { 0% { opacity: 1; } 50% { opacity: .25; } }
+
+/* order screen */
+.vm-led {
+  position: relative; margin: 0 4px 8px; padding: 6px 60px 12px 12px; min-height: 92px; border-radius: 12px; overflow: hidden;
+  background: #07100a; border: 3px solid #2a0a1c; box-shadow: inset 0 0 18px rgba(0,0,0,.95), 0 1px 0 rgba(255,255,255,.3);
+  color: #ffc233; text-shadow: 0 0 7px rgba(255,176,32,.65);
+}
+.vm-led.nosay { padding-right: 12px; }
+.vm-led::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,.3) 0 1px, transparent 1px 3px); pointer-events: none; }
+.vm-led-top { display: flex; justify-content: space-between; font: 700 .7rem/1.6 ui-monospace, Menlo, monospace; letter-spacing: .14em; color: #7dffb0; text-shadow: 0 0 6px rgba(125,255,176,.6); }
+.vm-order { font-weight: 800; font-size: clamp(1.15rem, 5.4vw, 1.5rem); line-height: 1.55; min-height: 1.55em; }
+.vm-order.en { font-size: clamp(1rem, 4.5vw, 1.2rem); }
+.vm-sub { font-size: .78rem; line-height: 1.55; color: #e0b050; }
+.vm-say { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); z-index: 1; width: 46px; height: 46px; border-radius: 50%; border: 2px solid #ffc233; background: rgba(255,194,51,.14); font-size: 1.15rem; cursor: pointer; padding: 0; }
+.vm-time { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(255,255,255,.08); }
+.vm-time i { display: block; height: 100%; background: linear-gradient(90deg, #ff4d4d, #ffc233 45%, #7dffb0); transform-origin: left; }
+.vm-led.good { color: #7dffb0; text-shadow: 0 0 7px rgba(125,255,176,.65); }
+.vm-led.good .vm-sub { color: #b9f5d0; }
+.vm-led.bad { color: #ff8585; text-shadow: 0 0 7px rgba(255,90,90,.7); animation: vmblink .25s 3; }
+.vm-led.bad .vm-sub { color: #ffb4b4; }
+@keyframes vmblink { 50% { opacity: .35; } }
+
+/* glass front and products */
+.vm-glass {
+  position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 10px 8px 8px; margin: 0 4px; border-radius: 12px; overflow: hidden;
+  background: linear-gradient(180deg, #0b2447 0%, #1b3a73 55%, #0b2447 100%); border: 3px solid #2a0a1c;
+  box-shadow: inset 0 0 26px rgba(0,0,0,.75), inset 0 0 0 1px rgba(160,220,255,.25);
+}
+.vm-glass::after {
+  content: ""; position: absolute; inset: 0 -40%; pointer-events: none; z-index: 3;
+  background: linear-gradient(115deg, transparent 0 34%, rgba(255,255,255,.13) 34% 39%, transparent 39% 45%, rgba(255,255,255,.07) 45% 47.5%, transparent 47.5%);
+  animation: vmsheen 7s ease-in-out infinite;
+}
+@keyframes vmsheen { 0%, 100% { transform: translateX(-14%); } 50% { transform: translateX(14%); } }
+.vm-slot { position: relative; font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; min-width: 0; border-radius: 10px; transition: opacity .25s, filter .25s; }
+.vm-slot::after { content: ""; position: absolute; left: -4px; right: -4px; top: 47px; height: 4px; border-radius: 2px; background: linear-gradient(#d3deea, #66788f); }
+.vm-coil { position: absolute; top: 31px; left: 50%; width: 58px; height: 18px; margin-left: -29px; border: 2.5px solid #a9b8c9; border-radius: 50%; opacity: .75; }
+.vm-pack {
+  position: relative; z-index: 1; width: 52px; height: 46px; border-radius: 10px 10px 8px 8px; display: flex; align-items: center; justify-content: center; font-size: 1.55rem; line-height: 1;
+  background: linear-gradient(160deg, var(--c1, #ff9a3c), var(--c2, #ff5e62)); box-shadow: inset 0 2px 0 rgba(255,255,255,.55), inset 0 -4px 0 rgba(0,0,0,.2), 0 4px 6px rgba(0,0,0,.45); transition: transform .2s;
+}
+.vm-pack::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 7px; border-radius: 10px 10px 0 0; background: rgba(255,255,255,.35); }
+.vm-tag { position: relative; z-index: 1; margin-top: 10px; width: 100%; display: flex; flex-direction: column; align-items: center; background: #fffbea; color: #1f1235; border-radius: 7px; padding: 1px 2px 3px; line-height: 1.3; box-shadow: 0 2px 0 rgba(0,0,0,.4); transition: box-shadow .2s, background .2s; }
+.vm-tag b { font: 800 .62rem/1.5 ui-monospace, Menlo, monospace; color: #be123c; letter-spacing: .1em; padding: 0 5px; border-radius: 4px; }
+.vm-tag span { font-weight: 800; font-size: clamp(.74rem, 3.6vw, .92rem); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.vm-tag span.long { font-size: clamp(.62rem, 3vw, .8rem); letter-spacing: -.02em; }
+@media (hover: hover) { .vm-slot:hover .vm-pack { transform: translateY(-3px) rotate(-4deg); } }
+.vm-slot.rowon .vm-tag { box-shadow: 0 0 0 2px #ffd23f, 0 2px 0 rgba(0,0,0,.4); }
+.vm-slot.rowon .vm-tag b { background: #be123c; color: #fff; }
+.vm-slot.stock .vm-pack { animation: vmstock .45s cubic-bezier(.3,1.5,.5,1) both; }
+@keyframes vmstock { from { transform: translateY(-16px) scale(.3); opacity: 0; } }
+.vm-slot.empty .vm-pack { visibility: hidden; }
+.vm-slot.turn .vm-coil { animation: vmcoil .9s linear; }
+@keyframes vmcoil { 0%, 50%, 100% { transform: scaleX(1); } 25%, 75% { transform: scaleX(.25); } }
+.vm-slot.nope { opacity: .4; filter: grayscale(.9); }
+.vm-slot.want .vm-tag { background: #ffd23f; animation: vmwant .5s ease-in-out infinite alternate; }
+.vm-slot.want .vm-pack { animation: vmhop .5s ease-in-out infinite alternate; }
+@keyframes vmwant { from { box-shadow: 0 0 0 2px #ffd23f, 0 0 6px #ffd23f; } to { box-shadow: 0 0 0 4px #ffd23f, 0 0 22px #ffd23f; } }
+@keyframes vmhop { to { transform: translateY(-6px) scale(1.08); } }
+.vm-fly { position: fixed; z-index: 30; margin: 0; pointer-events: none; }
+
+/* tray and keypad */
+.vm-bottom { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 8px 4px 0; align-items: stretch; }
+.vm-tray { position: relative; min-height: 116px; border-radius: 12px; overflow: hidden; background: #16040f; border: 3px solid #2a0a1c; box-shadow: inset 0 10px 18px rgba(0,0,0,.95); display: flex; align-items: flex-end; justify-content: center; }
+.vm-flap {
+  position: absolute; left: 8px; right: 8px; top: 6px; height: 44px; border-radius: 8px; z-index: 2; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(#64748b, #2c3644); color: #cbd5e1; font: 800 .7rem ui-monospace, Menlo, monospace; letter-spacing: .3em;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 3px 5px rgba(0,0,0,.6); transform-origin: top; transition: transform .25s;
+}
+.vm-tray.open .vm-flap { transform: perspective(220px) rotateX(-62deg); }
+.vm-got { display: flex; flex-wrap: wrap-reverse; justify-content: center; padding: 0 6px 7px; font-size: 1.35rem; line-height: 1.15; max-height: 62px; overflow: hidden; }
+.vm-got span { margin: 0 -2px; animation: vmland .35s cubic-bezier(.3,1.6,.5,1); }
+@keyframes vmland { from { transform: translateY(-10px) scale(1.4); } }
+.vm-pad { display: grid; grid-template-columns: repeat(3, 46px); gap: 7px; padding: 9px; border-radius: 12px; background: linear-gradient(#3a4656, #1f2733); border: 3px solid #2a0a1c; box-shadow: inset 0 1px 0 rgba(255,255,255,.25); align-content: center; }
+.vm-pad button {
+  height: 46px; border-radius: 10px; border: 0; padding: 0; cursor: pointer; font: 800 1.1rem ui-monospace, Menlo, monospace; color: #0b1220;
+  background: linear-gradient(#f8fafc, #cbd5e1); box-shadow: 0 4px 0 #64748b; transition: transform .08s, box-shadow .08s;
+}
+.vm-pad button:active { transform: translateY(3px); box-shadow: 0 1px 0 #64748b; }
+.vm-pad button.on { background: linear-gradient(#ffe98a, #ffc233); box-shadow: 0 4px 0 #b45309, 0 0 14px rgba(255,210,63,.8); }
+.vm-fb { min-height: 3.4em; text-align: center; margin: 22px 4px 0; font-size: .95rem; line-height: 1.7; color: var(--muted); }
+.vm-fb.ok { color: var(--good); font-weight: 700; } .vm-fb.no { color: var(--bad); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) {
+  .vm-dots i.cur, .vm-sign::before, .vm-sign::after, .vm-glass::after, .vm-led.bad, .vm-slot.stock .vm-pack, .vm-slot.turn .vm-coil, .vm-slot.want .vm-tag, .vm-slot.want .vm-pack, .vm-got span { animation: none; }
+  .vm-flap, .vm-pack { transition: none; }
+}
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap">
+  <div class="vm-hud">
+    <div class="vm-dots" id="dots" aria-label="Orders"></div>
+    <div class="vm-coins" id="coins" aria-live="polite"></div>
+    <span class="vm-score">⭐ <span id="score">0</span></span>
+  </div>
+  <div class="vm" id="vm">
+    <div class="vm-sign">SNACK-O-MATIC</div>
+    <div class="vm-led" id="led">
+      <div class="vm-led-top"><span id="ordn">ORDER</span><span id="code">__</span></div>
+      <div class="vm-order" id="order" aria-live="polite"></div>
+      <div class="vm-sub my" id="sub"></div>
+      <button class="vm-say" id="say" type="button" aria-label="Listen again" hidden>🔊</button>
+      <div class="vm-time" id="timebar"><i id="time"></i></div>
+    </div>
+    <div class="vm-glass" id="glass"></div>
+    <div class="vm-bottom">
+      <div class="vm-tray" id="tray"><div class="vm-flap">PUSH</div><div class="vm-got" id="got" aria-hidden="true"></div></div>
+      <div class="vm-pad" id="pad" aria-label="Keypad"></div>
+    </div>
+  </div>
+  <div class="vm-fb" id="fb" aria-live="polite"></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/learn.js"></script>
+<script>
+// A vending machine stocked with the lesson's words. Each order (a Burmese meaning, a spoken word, or a sentence
+// with a gap) names one product: tap it, or key in its code (letter, then number). A wrong product costs a coin.
+const topic = getTopic(), LV = getLevel();
+renderBar("Snack Machine · " + topic.name);
+const POOL = [...new Map(topic.words.map(w => [w.en, w])).values()];
+const COLS = 3, ROWS = (LV.opts >= 4 && POOL.length >= 11) ? 3 : 2, N = ROWS * COLS, ROUNDS = 10, MAXC = 3;
+const SECS = LV.secs ? Math.round(LV.secs * 1.5) : 0;      // more to scan than a 4-option question
+const LETTERS = "ABC".slice(0, ROWS), KINDS = ["my", "hear", "blank"];
+const SNACKS = ["🥤", "🧃", "🍫", "🍬", "🍭", "🍪", "🍩", "🧁", "🍿", "🥨", "🍙", "🧋", "🥛", "🍡", "🍘", "🍦", "🥜", "🍌"];
+const PACKS = [["#ff9a3c", "#ff5e62"], ["#5ee7df", "#3b82f6"], ["#c084fc", "#7c3aed"], ["#fde047", "#f59e0b"], ["#86efac", "#16a34a"], ["#f9a8d4", "#db2777"], ["#7dd3fc", "#0ea5e9"], ["#fca5a5", "#dc2626"]];
+const still = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const codeOf = k => LETTERS[Math.floor(k / COLS)] + (k % COLS + 1);
+let shelf, spare, target, lastT, kind, round, coins, score, solved, streak, busy, sel, items, asked, marks, kindOff, snackQ, packQ = [], tick, runId = 0;
+
+const slots = [], keys = {};
+for (let k = 0; k < N; k++) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "vm-slot";
+  b.innerHTML = '<span class="vm-coil"></span><span class="vm-pack"></span><span class="vm-tag"><b></b><span></span></span>';
+  $("b", b).textContent = codeOf(k);
+  b.onclick = () => pick(k);
+  $("#glass").appendChild(b); slots.push(b);
+}
+[...LETTERS, ...(ROWS < 3 ? ["🔊"] : []), "1", "2", "3"].forEach(c => {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = c;
+  if (c === "🔊") { b.setAttribute("aria-label", "Listen again"); b.onclick = () => { if (kind === "hear" && target) speak(target.en); }; }
+  else b.onclick = () => key(c);
+  keys[c] = b; $("#pad").appendChild(b);
+});
+$("#timebar").hidden = !SECS;
+$("#say").onclick = () => { if (target) speak(target.en); };
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector(".overlay")) return;
+  const c = e.key.toUpperCase();
+  if (c.length === 1 && (LETTERS.includes(c) || /[1-3]/.test(c))) key(c);
+});
+
+function later(fn, ms) { const id = runId; setTimeout(() => { if (id === runId) fn(); }, ms); }
+function fb(t, cls) { const m = $("#fb"); m.textContent = t; m.className = "vm-fb " + (cls || ""); }
+function paint() {
+  $("#score").textContent = score;
+  $("#dots").innerHTML = Array.from({ length: ROUNDS }, (_, k) => '<i class="' + (marks[k] || (k === round - 1 ? "cur" : "")) + '"></i>').join("");
+  $("#coins").innerHTML = Array.from({ length: MAXC }, (_, k) => '<span class="' + (k >= coins ? "gone" : "") + '">🪙</span>').join("");
+}
+function stock(k, w, delay) {
+  shelf[k] = w;
+  if (!snackQ.length) snackQ = shuffle(SNACKS);
+  if (!packQ.length) packQ = shuffle(PACKS);
+  const b = slots[k], p = $(".vm-pack", b), c = packQ.pop(), t = $(".vm-tag span", b);
+  p.textContent = snackQ.pop(); p.style.setProperty("--c1", c[0]); p.style.setProperty("--c2", c[1]); p.style.animationDelay = (delay || 0) + "ms";
+  t.textContent = w.en; t.className = w.en.length > 8 ? "long" : "";
+  b.setAttribute("aria-label", codeOf(k) + " " + w.en);
+  b.classList.remove("empty", "want", "nope", "stock"); void b.offsetWidth; b.classList.add("stock");
+}
+function setSel(L) {
+  sel = L;
+  $("#code").textContent = L ? L + "_" : "__";
+  for (const c of LETTERS) keys[c].classList.toggle("on", c === L);
+  slots.forEach((b, k) => b.classList.toggle("rowon", !!L && codeOf(k)[0] === L));
+}
+function key(c) {
+  if (busy || !target) return;
+  if (LETTERS.includes(c)) { setSel(c); beep([1100], 0.04); return; }
+  if (!sel) { fb("အက္ခရာ (" + [...LETTERS].join(", ") + ") ကို အရင်နှိပ်ပါ၊ ပြီးမှ ဂဏန်းနှိပ်ပါ"); fx.shake($("#pad")); return; }
+  pick(LETTERS.indexOf(sel) * COLS + (+c - 1));
+}
+function startTimer() {
+  if (!SECS) return;
+  const t0 = performance.now(), bar = $("#time");
+  bar.style.transform = "scaleX(1)";
+  clearInterval(tick);
+  tick = setInterval(() => {
+    const left = Math.max(0, 1 - (performance.now() - t0) / (SECS * 1000));
+    bar.style.transform = "scaleX(" + left + ")";
+    if (left === 0 && !busy) { busy = true; clearInterval(tick); miss(-1); }
+  }, 100);
+}
+
+function play() {
+  runId++; clearInterval(tick);
+  const ws = shuffle(POOL);
+  shelf = []; spare = ws.slice(N); snackQ = [];
+  round = 0; coins = MAXC; score = 0; solved = 0; streak = 0; items = []; marks = []; asked = new Map(); lastT = null; target = null; busy = true;
+  kindOff = Math.floor(Math.random() * KINDS.length);
+  ws.slice(0, N).forEach((w, k) => stock(k, w, k * 55));
+  $("#got").innerHTML = ""; $("#led").className = "vm-led nosay"; $("#say").hidden = true;
+  $("#ordn").textContent = "READY"; $("#order").textContent = "· · ·"; $("#order").className = "vm-order"; $("#sub").textContent = "";
+  setSel(null); paint();
+  fb("ဝယ်သူ လိုချင်တဲ့ ပစ္စည်းကို နှိပ်ပါ — ဒါမှမဟုတ် ကုဒ် (ဥပမာ B2) ကို နှိပ်ပါ");
+  later(nextOrder, 900);
+}
+function nextOrder() {
+  if (round >= ROUNDS || coins <= 0) return end();
+  slots.forEach(b => b.classList.remove("want", "nope"));
+  // the least-asked word on the shelf, never the same one twice in a row
+  const cands = shelf.filter(w => w !== lastT), n = w => asked.get(w.en) || 0, min = Math.min(...cands.map(n));
+  target = shuffle(cands.filter(w => n(w) === min))[0];
+  asked.set(target.en, n(target) + 1); lastT = target;
+  kind = round === 0 ? "my" : KINDS[(round + kindOff) % KINDS.length];
+  round++; busy = false; setSel(null);
+  const o = $("#order"), s = $("#sub");
+  $("#ordn").textContent = "ORDER " + round + "/" + ROUNDS;
+  $("#led").className = "vm-led" + (kind === "hear" ? "" : " nosay"); $("#say").hidden = kind !== "hear";
+  if (kind === "my") { o.textContent = "« " + target.my + " »"; o.className = "vm-order my"; s.textContent = "ဝယ်သူ လိုချင်တာ — English စာလုံးကို ရှာပေးပါ"; }
+  else if (kind === "hear") { o.textContent = "🎧 ♪ ♪ ♪"; o.className = "vm-order"; s.textContent = "နားထောင်ပြီး ကြားတဲ့ စာလုံးကို ရွေးပါ"; speak(target.en); }
+  else { o.textContent = blankOut(target); o.className = "vm-order en"; s.textContent = target.exMy || "ကွက်လပ်မှာ ဖြည့်ရမယ့် စာလုံးကို ရွေးပါ"; }
+  paint(); startTimer();
+}
+function pick(k) {
+  if (busy || !target) return;
+  busy = true; clearInterval(tick);
+  const code = codeOf(k);
+  $("#code").textContent = code;
+  slots.forEach(b => b.classList.remove("rowon"));
+  [code[0], code[1]].forEach(c => { keys[c].classList.add("on"); later(() => keys[c].classList.remove("on"), 600); });
+  if (shelf[k] === target) good(k); else miss(k);
+}
+function good(k) {
+  const w = target;
+  solved++; streak++;
+  const pts = 10 + Math.min(streak - 1, 5) * 2; score += pts; addPoints(pts);
+  items.push({ w, ok: true }); marks[round - 1] = "ok";
+  sfx.ok(); speak(w.en);
+  $("#led").classList.add("good");
+  $("#order").textContent = "✓ " + w.en; $("#order").className = "vm-order en"; $("#sub").textContent = w.en + " = " + w.my;
+  fb(streak >= 3 ? "🔥 " + streak + " ခု ဆက်တိုက်မှန်တယ်!" : "ထွက်လာပြီ! ဝယ်သူ ကျေနပ်သွားတယ် 😋", "ok");
+  paint();
+  vend(k, pts, () => later(() => {
+    if (spare.length) { spare.push(w); stock(k, spare.shift()); } else stock(k, w);
+    later(nextOrder, 500);
+  }, 350));
+}
+function miss(k) {                       // k = the wrong slot, or -1 when the time ran out
+  const w = target, ti = shelf.indexOf(w);
+  coins--; streak = 0; items.push({ w, ok: false }); marks[round - 1] = "no";
+  sfx.bad(); fx.shake($("#vm"));
+  $("#led").classList.add("bad");
+  $("#order").className = "vm-order en";
+  if (k >= 0) { slots[k].classList.add("nope"); $("#order").textContent = "✗ " + shelf[k].en; $("#sub").textContent = shelf[k].en + " = " + shelf[k].my; }
+  else { $("#order").textContent = "⏱ TIME UP"; $("#sub").textContent = "အချိန်ကုန်သွားပြီ"; }
+  slots[ti].classList.add("want");
+  $("#code").textContent = codeOf(ti);
+  fb("မှန်တာက " + codeOf(ti) + " · " + w.en + " = " + w.my, "no");
+  later(() => speak(w.en), 500);
+  paint();
+  later(nextOrder, 3000);
+}
+// The product leaves its coil, falls behind the glass and lands in the tray.
+function vend(k, pts, done) {
+  const id = runId, b = slots[k], p = $(".vm-pack", b), tray = $("#tray"), emo = p.textContent;
+  const fin = () => {
+    if (id !== runId) return;
+    b.classList.add("empty"); b.classList.remove("turn"); tray.classList.remove("open");
+    const g = document.createElement("span"); g.textContent = emo;
+    const got = $("#got"); got.appendChild(g); if (got.children.length > 8) got.firstChild.remove();
+    const c = fx.at(tray); fx.confetti(c.x, c.y, 18); fx.pop(tray, "+" + pts);
+    done();
+  };
+  if (still() || !p.animate) return fin();
+  const r = p.getBoundingClientRect(), tr = tray.getBoundingClientRect();
+  const fly = p.cloneNode(true);
+  fly.className = "vm-pack vm-fly"; fly.style.left = r.left + "px"; fly.style.top = r.top + "px"; fly.style.animation = "none";
+  document.body.appendChild(fly);
+  b.classList.add("empty", "turn"); tray.classList.add("open");
+  const dx = tr.left + tr.width / 2 - (r.left + r.width / 2), dy = tr.bottom - r.height - 8 - r.top;
+  const a = fly.animate([
+    { transform: "translate(0,0) scale(1) rotate(0deg)" },
+    { transform: "translate(0,8px) scale(1.2) rotate(-8deg)", offset: 0.25 },
+    { transform: "translate(" + dx * 0.4 + "px," + dy * 0.55 + "px) scale(1.1) rotate(60deg)", offset: 0.62 },
+    { transform: "translate(" + dx + "px," + dy + "px) scale(1) rotate(175deg)", offset: 0.84 },
+    { transform: "translate(" + dx + "px," + (dy - 16) + "px) scale(1) rotate(186deg)", offset: 0.92 },
+    { transform: "translate(" + dx + "px," + dy + "px) scale(.9) rotate(180deg)" }
+  ], { duration: 950, easing: "ease-in" });
+  a.onfinish = () => { fly.remove(); fin(); };
+}
+function end() {
+  target = null; busy = true; clearInterval(tick);
+  const r = solved / ROUNDS, out = coins <= 0;
+  showRecap({ items, onClose: () => {
+    if (r >= 0.9) fx.rain(80);
+    showResult({
+      title: out ? "ဒင်္ဂါး ကုန်သွားပြီ 💪" : cheer(r), stars: out ? Math.min(2, starsFor(r)) : starsFor(r),
+      text: "ဝယ်သူ " + solved + " / " + ROUNDS + " ယောက်ကို မှန်မှန်ရောင်းပေးနိုင်တယ် · " + score + " points", onAgain: play
+    });
+  } });
+}
+play.gameId = "vending";
+play();
+</script>
+</body>
+</html>
