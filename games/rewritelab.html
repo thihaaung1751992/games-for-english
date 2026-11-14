@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rewrite Lab</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.rl-card { border-radius: 18px; border: 2px solid var(--line); padding: 16px; background: var(--card); box-shadow: 0 6px 14px rgba(0,0,0,.12); position: relative; overflow: hidden; }
+.rl-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 6px; background: linear-gradient(90deg, #06b6d4, #8b5cf6, #ec4899); }
+.rl-task { display: inline-block; margin-top: 4px; padding: 4px 12px; border-radius: 99px; font-weight: 800; font-size: .9rem; color: #fff; background: linear-gradient(120deg, #0891b2, #7c3aed); }
+.rl-src-l { font-size: .8rem; font-weight: 800; color: var(--muted); letter-spacing: .04em; margin-top: 12px; }
+.rl-src { font-size: 1.3rem; font-weight: 800; line-height: 1.7; }
+.rl-my { color: var(--muted); line-height: 1.8; }
+.rl-skel { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.02rem; line-height: 1.9; word-spacing: .25em; color: var(--muted); margin-top: 10px; min-height: 1.9em; }
+.rl-skel .ok { color: #1f8f4a; font-weight: 800; }
+.rl-in { width: 100%; box-sizing: border-box; margin-top: 10px; padding: 12px 14px; font: inherit; font-size: 1.12rem; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); }
+.rl-in:focus { outline: 3px solid color-mix(in srgb, #7c3aed 50%, transparent); border-color: #7c3aed; }
+.rl-in.good { border-color: #1f8f4a; } .rl-in.bad { border-color: #e5484d; }
+.rl-tries { text-align: center; letter-spacing: .2em; margin-top: 8px; font-size: 1.1rem; }
+.rl-model { margin-top: 10px; padding: 10px 12px; border-radius: 12px; line-height: 1.8; background: color-mix(in srgb, #1f8f4a 12%, var(--card)); border: 2px solid color-mix(in srgb, #1f8f4a 45%, var(--line)); }
+.rl-row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="rl-card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="rl-task" id="task"></span><span style="color:var(--muted);font-weight:800"><span id="n">1</span> / <span id="t">8</span></span></div>
+    <div class="rl-src-l">🧪 REWRITE THIS</div>
+    <div class="rl-src" id="src"></div>
+    <div class="rl-my" id="my"></div>
+    <div class="rl-skel" id="skel" hidden></div>
+    <input class="rl-in" id="in" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Type the new sentence…">
+    <div class="rl-tries" id="tries"></div>
+    <div class="fb" id="fb"></div>
+    <div class="rl-model" id="model" hidden></div>
+    <div class="rl-row"><button class="btn primary" id="check">Check ✓</button><button class="btn" id="hint">💡 Hint (−3)</button><button class="btn primary" id="next" hidden>Next →</button></div>
+  </div>
+  <div style="text-align:center;margin-top:10px;color:var(--muted)">Score: <b id="score">0</b></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Rewrite Lab: change a sentence with a given structure (passive, reported speech, although, if, who/which, not as…as, too…to).
+// No timer. After a wrong try the words you already have right stay on screen, the rest become blanks.
+(() => {
+  renderBar("Rewrite Lab · " + getTopic().name);
+  // R(task, source, Burmese hint, accepted answers (first is the model; no contractions), grammar note)
+  const R = (task, src, my, a, note) => ({ task, src, my, a, note });
+  const BANK = [
+    R("Make it passive", "The chef cooked the meal.", "စားဖိုမှူးက ထမင်းချက်ခဲ့တယ်။ → ထမင်းကို ချက်ခံရတယ်", ["The meal was cooked by the chef."], "was/were + past participle · by + လုပ်သူ"),
+    R("Make it passive", "People speak English all over the world.", "လူတွေက ကမ္ဘာတစ်ဝန်း အင်္ဂလိပ်လို ပြောတယ်။", ["English is spoken all over the world.", "English is spoken all around the world.", "English is spoken throughout the world."], "present passive: is/are + past participle"),
+    R("Make it passive", "Someone has stolen my bike.", "ကျွန်တော့်စက်ဘီး ခိုးခံရပြီ။", ["My bike has been stolen.", "My bike has been stolen by someone."], "present perfect passive: has/have been + past participle"),
+    R("Make it passive", "They are building a new bridge.", "တံတားအသစ် ဆောက်နေတယ်။", ["A new bridge is being built.", "A new bridge is being built by them."], "continuous passive: is/are being + past participle"),
+    R("Reported speech", "\"I am tired,\" she said.", "သူမက ပင်ပန်းတယ်လို့ ပြောတယ်။", ["She said that she was tired.", "She said she was tired."], "tense တစ်ဆင့်နောက်ဆုတ်: am → was"),
+    R("Reported speech", "\"I will call you tomorrow,\" he said.", "သူက မနက်ဖြန်ဖုန်းဆက်မယ်လို့ ပြောတယ်။", ["He said that he would call me the next day.", "He said he would call me the next day.", "He said that he would call me the following day.", "He said he would call me the following day.", "He said that he would call me tomorrow.", "He said he would call me tomorrow."], "will → would · you → me · tomorrow → the next day"),
+    R("Reported speech", "\"Do you like coffee?\" she asked me.", "ကော်ဖီ ကြိုက်လားလို့ မေးတယ်။", ["She asked me if I liked coffee.", "She asked me whether I liked coffee."], "yes/no မေးခွန်း → if / whether · စကားစီအစဉ်က ပုံမှန်"),
+    R("Reported speech", "\"Where do you live?\" he asked her.", "ဘယ်မှာနေလဲလို့ မေးတယ်။", ["He asked her where she lived."], "wh-word + စကားစီအစဉ်ပုံမှန် (do မပါ) + past"),
+    R("Use 'although'", "It was raining. We played football.", "မိုးရွာနေပေမယ့် ဘောလုံးကစားခဲ့တယ်။", ["Although it was raining, we played football.", "We played football although it was raining."], "although + အကြောင်းအရာတစ်ခု, ဆန့်ကျင်ဘက်ရလဒ်"),
+    R("Use 'even though'", "She was very tired. She finished the report.", "ပင်ပန်းပေမယ့် အစီရင်ခံစာ ပြီးအောင်လုပ်တယ်။", ["Even though she was very tired, she finished the report.", "She finished the report even though she was very tired."], "even though = although ထက် ပိုအားကောင်း"),
+    R("Join with 'so'", "He studied hard. He passed the exam.", "ကြိုးစားလို့ စာမေးပွဲအောင်တယ်။", ["He studied hard, so he passed the exam.", "He studied hard so he passed the exam."], "so + ရလဒ်"),
+    R("Join with 'because'", "I missed the bus. I was late.", "ကားလွတ်လို့ နောက်ကျတယ်။", ["I was late because I missed the bus.", "Because I missed the bus, I was late."], "because + အကြောင်းရင်း"),
+    R("Use 'if'", "Study hard or you will fail.", "ကြိုးစားစမ်း၊ မဟုတ်ရင် ကျမယ်။", ["If you do not study hard, you will fail.", "You will fail if you do not study hard."], "if + present, will + verb · မလုပ်ရင် = do not"),
+    R("Use 'unless'", "If you do not hurry, you will miss the train.", "မြန်မြန်မလုပ်ရင် ရထားလွတ်မယ်။", ["Unless you hurry, you will miss the train.", "You will miss the train unless you hurry."], "unless = if … not"),
+    R("Second conditional", "I do not have time, so I do not travel.", "အချိန်မရှိလို့ မခရီးသွားဘူး။", ["If I had time, I would travel.", "I would travel if I had time."], "မဖြစ်နိုင်တာ: if + past, would + verb"),
+    R("Use 'who'", "I met a man. He works at the bank.", "ဘဏ်မှာအလုပ်လုပ်တဲ့ လူကို တွေ့ခဲ့တယ်။", ["I met a man who works at the bank.", "I met a man who works in the bank."], "လူကို ဖော်ပြ → who"),
+    R("Use 'which'", "This is the book. I told you about it.", "ပြောပြခဲ့တဲ့ စာအုပ်ဒါပဲ။", ["This is the book which I told you about.", "This is the book that I told you about.", "This is the book I told you about.", "This is the book about which I told you."], "အရာဝတ္ထုကို ဖော်ပြ → which / that"),
+    R("Use 'not as … as'", "Tom is taller than Ben.", "Tom က Ben ထက် ပိုမြင့်တယ်။", ["Ben is not as tall as Tom."], "not as + adjective + as"),
+    R("Use 'not as … as'", "My phone is newer than yours.", "ငါ့ဖုန်းက မင်းဖုန်းထက် ပိုအသစ်။", ["Yours is not as new as mine.", "Your phone is not as new as mine.", "Your phone is not as new as my phone.", "Yours is not as new as my phone."], "newer than → not as new as (ဆန့်ကျင်ဘက်ပြောင်း)"),
+    R("Use 'too … to'", "The tea is so hot that I cannot drink it.", "လက်ဖက်ရည်က ပူလွန်းလို့ မသောက်နိုင်ဘူး။", ["The tea is too hot to drink.", "The tea is too hot for me to drink."], "too + adjective + to + verb"),
+    R("Use 'enough'", "He is so young that he cannot drive.", "သူက ငယ်လို့ ကားမောင်းလို့မရဘူး။", ["He is not old enough to drive."], "not + adjective + enough + to"),
+    R("Use 'used to'", "When I was a child, I played in the river every day.", "ငယ်ငယ်က မြစ်ထဲမှာ နေ့တိုင်းဆော့ခဲ့တယ်။", ["I used to play in the river every day when I was a child.", "When I was a child, I used to play in the river every day."], "used to + verb = အရင်က အကျင့်")
+  ];
+  const FULL = { "don't": "do not", "doesn't": "does not", "didn't": "did not", "can't": "can not", "cannot": "can not", "won't": "will not", "isn't": "is not", "i'm": "i am", "it's": "it is", "he's": "he is", "she's": "she is", "i'll": "i will", "i'd": "i would" };
+  const toks = s => s.toLowerCase().replace(/[’‘`]/g, "'").split(/\s+/).map(w => w.replace(/^[^a-z0-9']+|[^a-z0-9']+$/g, "")).filter(Boolean).flatMap(w => (FULL[w] || w).split(" "));
+  // marks[k] = model word k appears in order in what was typed (longest common subsequence)
+  function match(model, typed) {
+    const n = model.length, m = typed.length, L = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let a = n - 1; a >= 0; a--) for (let b = m - 1; b >= 0; b--) L[a][b] = model[a] === typed[b] ? L[a + 1][b + 1] + 1 : Math.max(L[a + 1][b], L[a][b + 1]);
+    const marks = new Array(n).fill(false);
+    for (let a = 0, b = 0; a < n && b < m;) { if (model[a] === typed[b]) { marks[a] = true; a++; b++; } else if (L[a + 1][b] >= L[a][b + 1]) a++; else b++; }
+    return marks;
+  }
+  const closest = typed => { let best = 0, bs = -1; items[i].a.forEach((s, k) => { const sc = match(toks(s), typed).filter(Boolean).length; if (sc > bs) { bs = sc; best = k; } }); return items[i].a[best]; };
+
+  let items, i, score, firsts, laters, tries, done, hints, shown, target;
+  const q = s => document.querySelector(s);
+  function play() { items = shuffle(BANK).slice(0, 8); i = 0; score = 0; firsts = 0; laters = 0; q("#t").textContent = items.length; show(); }
+  function show() {
+    const it = items[i];
+    done = false; tries = 0; hints = 0; shown = 0; target = it.a[0];
+    q("#n").textContent = i + 1; q("#score").textContent = score;
+    q("#task").textContent = it.task; q("#src").textContent = it.src; q("#my").textContent = it.my;
+    const inp = q("#in"); inp.value = ""; inp.disabled = false; inp.className = "rl-in";
+    q("#skel").hidden = true; q("#tries").textContent = "♥ ♥ ♥"; q("#fb").textContent = ""; q("#fb").className = "fb"; q("#model").hidden = true;
+    q("#check").hidden = false; q("#hint").hidden = false; q("#next").hidden = true; inp.focus();
+  }
+  function skeleton(marks) {
+    const mw = target.split(" "), el = q("#skel"); el.hidden = false; el.textContent = "";
+    mw.forEach((w, k) => {
+      const core = w.replace(/[^A-Za-z0-9']/g, ""), tail = w.slice(w.indexOf(core) + core.length), s = document.createElement("span");
+      const on = marks[k] || k < shown;
+      s.className = on ? "ok" : ""; s.textContent = on ? w : (core ? core[0] + "_".repeat(core.length - 1) + tail : w);
+      el.append(s, " ");
+    });
+  }
+  function finish() {
+    done = true; const it = items[i];
+    q("#in").disabled = true; q("#check").hidden = true; q("#hint").hidden = true;
+    const m = q("#model"); m.hidden = false; m.innerHTML = "<b></b><br><small></small>"; q("b", m).textContent = it.a[0]; q("small", m).textContent = "💡 " + it.note;
+    const n = q("#next"); n.hidden = false; n.textContent = i === items.length - 1 ? "Finish" : "Next →"; n.focus();
+    q("#score").textContent = score;
+  }
+  function check() {
+    if (done) return;
+    const inp = q("#in"), typed = toks(inp.value), fb = q("#fb");
+    if (typed.length < 2) { fb.className = "fb no"; fb.textContent = "စာကြောင်းအပြည့်အစုံ ရေးပါ"; return; }
+    const it = items[i];
+    if (it.a.some(s => toks(s).join(" ") === typed.join(" "))) {
+      const pts = Math.max(3, [10, 6, 3][tries] - hints * 3), clean = tries === 0 && hints === 0;
+      clean ? firsts++ : laters++;
+      score += pts; addPoints(pts); sfx.ok(); fx.pop(q("#check"), "+" + pts);
+      inp.className = "rl-in good"; fb.className = "fb ok"; fb.textContent = "✓ မှန်တယ်! +" + pts; return finish();
+    }
+    tries++; sfx.bad(); fx.shake(inp); inp.className = "rl-in bad";
+    target = closest(typed);
+    q("#tries").textContent = "♥ ".repeat(3 - tries).trim();
+    skeleton(match(toks(target), typed));
+    fb.className = "fb no";
+    if (tries >= 3) { fb.textContent = "ဒီတစ်ခါ မရသေးဘူး — အဖြေပုံစံကို ကြည့်ပါ"; return finish(); }
+    fb.textContent = "စိမ်းတဲ့စကားလုံးတွေ မှန်ပြီ၊ အောက်ကျတဲ့ နေရာတွေကို ပြင်ရေးပါ (" + (3 - tries) + " ကြိမ် ကျန်)";
+  }
+  function next() {
+    if (i < items.length - 1) { i++; show(); return; }
+    const r = score / (items.length * 10);
+    if (r >= 0.9) fx.confetti();
+    showResult({ title: cheer(r), stars: starsFor(r), onAgain: play,
+      text: (firsts + laters) + " / " + items.length + " ခု မှန်တယ် (ပထမအကြိမ်မှာ " + firsts + " ခု) · " + score + " points" });
+  }
+  play.gameId = "rewritelab";
+  q("#check").onclick = check;
+  q("#hint").onclick = () => {
+    if (done) return; hints++; shown++;
+    skeleton(match(toks(target), toks(q("#in").value)));
+    q("#fb").className = "fb"; q("#fb").textContent = "💡 စကားလုံး " + shown + " လုံးအထိ ပြထားတယ်";
+  };
+  q("#next").onclick = next;
+  q("#in").addEventListener("input", e => { e.target.className = "rl-in"; });
+  q("#in").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); done ? next() : check(); } });
+  play();
+})();
+</script>
+</body>
+</html>

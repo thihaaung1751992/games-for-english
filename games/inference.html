@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clue Detective</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.cd-paper { border-radius: 18px; border: 2px solid var(--line); padding: 16px; background: var(--card); box-shadow: 0 6px 14px rgba(0,0,0,.12); }
+.cd-tag { display: flex; justify-content: space-between; font-size: .8rem; font-weight: 800; letter-spacing: .05em; color: #7c3aed; }
+.cd-title { font-size: 1.2rem; font-weight: 800; margin: 4px 0 10px; }
+.cd-text { font-family: Georgia, "Times New Roman", serif; font-size: 1.06rem; line-height: 1.9; }
+.cd-text .clue { border-radius: 6px; padding: 1px 2px; transition: background .4s; }
+.cd-text.on .clue { background: color-mix(in srgb, #facc15 55%, transparent); }
+.cd-q { margin: 14px 0 4px; font-weight: 800; font-size: 1.05rem; }
+.cd-note { color: var(--muted); font-size: .85rem; line-height: 1.7; }
+.cd-opts { display: grid; gap: 10px; margin-top: 10px; }
+.cd-opt { text-align: left; font: inherit; font-size: 1.02rem; line-height: 1.6; padding: 12px 14px; border-radius: 14px;
+  border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.cd-opt:hover:not(:disabled) { border-color: #7c3aed; }
+.cd-opt.ok { border-color: #1f8f4a; background: color-mix(in srgb, #1f8f4a 14%, var(--card)); }
+.cd-opt.no { border-color: #e5484d; background: color-mix(in srgb, #e5484d 10%, var(--card)); }
+.cd-opt:disabled { cursor: default; }
+.cd-opt small { display: block; color: var(--muted); margin-top: 4px; line-height: 1.8; }
+.cd-why { margin-top: 12px; padding: 10px 12px; border-radius: 12px; line-height: 1.8; background: color-mix(in srgb, #1f8f4a 12%, var(--card)); border: 2px solid color-mix(in srgb, #1f8f4a 45%, var(--line)); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="cd-paper">
+    <div class="cd-tag"><span>🕵️ READ BETWEEN THE LINES</span><span><span id="n">1</span> / <span id="t">6</span></span></div>
+    <div class="cd-title" id="title"></div>
+    <div class="cd-text" id="text"></div>
+    <div class="cd-q" id="q"></div>
+    <div class="cd-note">စာထဲမှာ တိုက်ရိုက်မရေးထားဘူး — သက်သေ (clue) တွေကနေ ကောက်ချက်ချရမယ်</div>
+  </div>
+  <div class="cd-opts" id="opts"></div>
+  <div class="fb" id="fb"></div>
+  <div class="cd-why" id="why" hidden></div>
+  <div style="text-align:center;margin-top:12px"><button class="btn primary" id="next" hidden>Next →</button></div>
+  <div style="text-align:center;margin-top:10px;color:var(--muted)">Score: <b id="score">0</b></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Clue Detective: the answer is never written in the text. Players infer it from clues (shown in yellow afterwards).
+// Wrong options are: unsupported guesses, over-reaching conclusions, and statements that contradict the text. No timer.
+(() => {
+  renderBar("Clue Detective · " + getTopic().name);
+  const ROUNDS = 6;
+  // I(title, text with [[clue]] markers, question, [correct, Burmese why], [[wrong, why] ×3])
+  const I = (title, text, q, ok, bad) => ({ title, text, q, ok, bad });
+  const BANK = [
+    I("The Empty Desk", "When Lina arrived at work, Ben's coat was not on the hook. [[His computer was switched off, and the plant on his desk was dry.]] [[Her manager walked past and said, \"Don't expect him back before the holidays.\"]]",
+      "What can we infer about Ben?",
+      ["He has been away from work for some time.", "ခြောက်နေတဲ့အပင် + ရက်ရှည်မလာနိုင်ဘူးဆိုတာက ကွာနေတာကြာပြီဆိုတာကို ပြတယ်"],
+      [["He has just arrived early today.", "ကုတ်မရှိ၊ ကွန်ပျူတာပိတ်ထား — မရောက်သေးဘူးဆိုတာနဲ့ ဆန့်ကျင်တယ်"], ["He was fired because of the dry plant.", "ထုတ်ပယ်ခံရတယ်ဆိုတဲ့ သက်သေမရှိဘူး — ပိုကျော်ကောက်ချက်ချတာ"], ["Lina is Ben's manager.", "မန်နေဂျာက တခြားလူ (Lina နဲ့ သီးခြား) ဖြစ်တယ်"]]),
+    I("The Umbrella Seller", "[[Within minutes, the street seller had sold all his umbrellas.]] [[People hurried past with their jackets pulled over their heads.]] He smiled and put his \"Sunny days are for tourists\" sign in his bag.",
+      "What was the weather probably like?",
+      ["It had suddenly started to rain.", "ထီးတွေ မိနစ်ပိုင်းနဲ့ ကုန်၊ လူတွေ ဂျာကင်နဲ့ ခေါင်းကို အုပ်ပြေး — မိုးရွာတာပါ"],
+      [["It was hot and sunny all day.", "ထီးရောင်းကောင်းပြီး ခေါင်းအုပ်ပြေးတာနဲ့ မကိုက်ဘူး"], ["The seller was a tourist.", "စာထဲမှာ ဒီသက်သေမရှိဘူး"], ["Nobody wanted umbrellas.", "ကုန်သွားတယ်ဆိုတာနဲ့ ဆန့်ကျင်တယ်"]]),
+    I("The Quiet Dinner", "[[Nobody spoke while they ate.]] [[Dad kept looking at his phone, and Mum moved the food around her plate.]] Finally, Mia said, \"Can we please just talk about it?\"",
+      "What can we infer about the family?",
+      ["They are having a disagreement or a worry they have not discussed.", "တိတ်ဆိတ်မှု၊ အစာမစားနိုင်ခြင်း၊ \"just talk about it\" — ပြဿနာတစ်ခုရှိတယ်"],
+      [["They enjoy silent dinners.", "Mia က စကားပြောဖို့ တောင်းဆိုတာနဲ့ ဆန့်ကျင်တယ်"], ["The food was delicious.", "Mum က အစာကို မစားဘဲ ရွှေ့နေတာနဲ့ မကိုက်ဘူး"], ["Mia is angry about Dad's phone.", "ဖုန်းကြောင့်ဆိုတဲ့ သက်သေမရှိဘူး — ပိုကျော်ကောက်ချက်ချတာ"]]),
+    I("The Letter", "Grandfather read the envelope twice before opening it. [[His hands were shaking slightly as he unfolded the paper.]] [[Then he smiled, wiped his eyes and called the whole family.]]",
+      "How did Grandfather probably feel at the end?",
+      ["Relieved and happy about the news.", "ပြုံးတယ်၊ မျက်ရည်သုတ်တယ်၊ မိသားစုကိုခေါ်တယ် — ဝမ်းသာပြီး စိတ်သက်သာရာရတာ"],
+      [["Angry at the sender.", "ပြုံးတာနဲ့ ဆန့်ကျင်တယ်"], ["Bored by the letter.", "လက်တုန်၊ မိသားစုကိုခေါ်တာနဲ့ မကိုက်ဘူး"], ["Confused because he could not read.", "စာဖတ်တယ်ဆိုတာ စာထဲမှာ ရှိတယ်"]]),
+    I("The Shop Window", "The sign in the window said \"Everything must go – 70% off.\" [[Inside, the shelves were half empty and workers were taking down the lights.]] [[Outside, a woman asked, \"Where will you open now?\" and the owner just shrugged.]]",
+      "What is probably happening?",
+      ["The shop is closing down.", "ဈေးလျှော့ရောင်းထုတ်၊ စင်လွတ်၊ မီးချွတ်၊ \"Where will you open now?\" — ဆိုင်ပိတ်တော့မယ်"],
+      [["The shop is opening a bigger branch.", "ပိုကြီးတဲ့ဆိုင်ဖွင့်မယ်ဆိုရင် ပိုင်ရှင်က ပခုံးတွန့်စရာမလိုဘူး၊ သက်သေမရှိဘူး"], ["The shop has just opened.", "စင်တွေလွတ်ပြီး မီးချွတ်နေတာနဲ့ ဆန့်ကျင်တယ်"], ["The owner is angry at his customers.", "စာထဲမှာ ဒီသက်သေမရှိဘူး"]]),
+    I("The Late Student", "Kyaw ran into the classroom, out of breath. [[His shirt was wet, and he was holding his bicycle chain in his hand.]] [[The teacher looked at the chain, and nodded instead of writing a late mark.]]",
+      "Why didn't the teacher punish Kyaw?",
+      ["He understood why Kyaw was late.", "ကွင်းကိုကြည့်ပြီး ခေါင်းညိတ်တာက အကြောင်းရင်းကို နားလည်တယ်ဆိုတာ"],
+      [["He did not notice that Kyaw was late.", "ကွင်းကိုကြည့်ပြီး ခေါင်းညိတ်တယ် — သတိထားမိတယ်"], ["Kyaw is the teacher's son.", "စာထဲမှာ ဒီသက်သေမရှိဘူး"], ["Late marks are never given at this school.", "ပိုကျော်ကောက်ချက် — \"never\" ဆိုတာ သက်သေမရှိဘူး"]]),
+    I("The Tidy Room", "[[Sandar's suitcase was open on the bed, and her passport lay on top of the clothes.]] She had cancelled her gym class and told her boss she would be away. [[Her phone buzzed: \"Your flight leaves at 6 a.m. Please check in two hours early.\"]]",
+      "What is Sandar probably going to do?",
+      ["Travel by plane early tomorrow.", "ပတ်စပို့၊ ခရီးဆောင်သေတ္တာဖွင့်ထား၊ flight 6 a.m. — ခရီးသွားမယ်"],
+      [["Tidy her room all night.", "ခရီးဆောင်သေတ္တာ၊ passport သက်သေတွေနဲ့ မကိုက်ဘူး"], ["Start a new gym class.", "gym ကို ဖျက်ထားတယ်"], ["Go to work as usual.", "အလုပ်သွားမှာ မဟုတ်ဘူးလို့ boss ကိုပြောထားတယ်"]]),
+    I("The Football Fans", "[[The streets were full of people in red shirts, singing and waving flags.]] Shops had put their TVs outside. [[At exactly nine o'clock, thousands of people shouted at the same moment, then everything went quiet.]]",
+      "What probably happened at nine o'clock?",
+      ["The home team had a chance to score, but missed.", "တစ်ပြိုင်နက်အော်ပြီး တိတ်သွားတာ — ဂိုးအလွတ်ဖြစ်တာနဲ့ ကိုက်တယ်"],
+      [["The team won the final.", "အော်ပြီး တိတ်သွားတာ — အနိုင်ရရင် ဆက်အော်ကြမှာ၊ သက်သေမလုံလောက်ဘူး"], ["A thunderstorm began.", "ပွဲကြည့်နေတာကို စာထဲမှာ ပြတယ်၊ မိုးကိစ္စ မပါဘူး"], ["The shops closed.", "TV ကို အပြင်ထုတ်ထားပြီး ကြည့်နေတာနဲ့ မကိုက်ဘူး"]])
+  ];
+
+  let items, i, score, firsts, laters, tries, done, cur;
+  const q = s => document.querySelector(s);
+  function render(box, txt) {
+    box.textContent = "";
+    txt.split(/(\[\[[^\]]+\]\])/).forEach(p => {
+      if (!p) return;
+      if (p.startsWith("[[")) { const s = document.createElement("span"); s.className = "clue"; s.textContent = p.slice(2, -2); box.append(s); }
+      else box.append(document.createTextNode(p));
+    });
+  }
+  function play() { items = shuffle(BANK).slice(0, ROUNDS); i = 0; score = 0; firsts = 0; laters = 0; q("#t").textContent = items.length; show(); }
+  function show() {
+    cur = items[i]; done = false; tries = 0;
+    q("#n").textContent = i + 1; q("#score").textContent = score; q("#title").textContent = cur.title; q("#q").textContent = cur.q;
+    render(q("#text"), cur.text); q("#text").classList.remove("on");
+    const o = q("#opts"); o.textContent = "";
+    shuffle([[cur.ok[0], cur.ok[1], true], ...cur.bad.map(b => [b[0], b[1], false])]).forEach(([t, why, right]) => {
+      const b = document.createElement("button"); b.className = "cd-opt"; b.textContent = t;
+      b.onclick = () => pick(b, t, why, right); o.append(b);
+    });
+    q("#fb").textContent = ""; q("#fb").className = "fb"; q("#why").hidden = true; q("#next").hidden = true;
+  }
+  function finishItem() {
+    q("#text").classList.add("on");
+    const n = q("#next"); n.hidden = false; n.textContent = i === items.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  function pick(btn, t, why, right) {
+    if (done) return;
+    if (right) {
+      done = true;
+      const pts = tries === 0 ? 10 : 5; tries === 0 ? firsts++ : laters++;
+      score += pts; addPoints(pts); sfx.ok(); fx.pop(btn, "+" + pts);
+      document.querySelectorAll(".cd-opt").forEach(b => { b.disabled = true; if (b === btn) b.classList.add("ok"); });
+      q("#fb").className = "fb ok"; q("#fb").textContent = "✓ မှန်တယ်! +" + pts;
+      const w = q("#why"); w.hidden = false; w.textContent = "💡 " + why;
+      q("#score").textContent = score; finishItem(); return;
+    }
+    tries++; sfx.bad(); fx.shake(btn); btn.disabled = true; btn.classList.add("no");
+    const s = document.createElement("small"); s.textContent = "✗ " + why; btn.append(s);
+    q("#fb").className = "fb no";
+    if (tries >= 2) {
+      done = true; q("#fb").textContent = "ဒီတစ်ခါ မရသေးဘူး — အဖြေမှန်နဲ့ clue တွေကို ကြည့်ပါ";
+      document.querySelectorAll(".cd-opt").forEach(b => {
+        b.disabled = true;
+        if (b.firstChild.textContent === cur.ok[0]) { b.classList.add("ok"); const s2 = document.createElement("small"); s2.textContent = "✓ " + cur.ok[1]; b.append(s2); }
+      });
+      finishItem();
+    } else q("#fb").textContent = "မမှန်သေးဘူး — စာထဲက သက်သေတွေနဲ့ ကိုက်လား ပြန်စဉ်းစားပါ (၁ ကြိမ် ကျန်)";
+  }
+  q("#next").onclick = () => {
+    if (i < items.length - 1) { i++; show(); return; }
+    const r = score / (items.length * 10);
+    if (r >= 0.9) fx.confetti();
+    showResult({ title: cheer(r), stars: starsFor(r), onAgain: play,
+      text: (firsts + laters) + " / " + items.length + " ခု မှန်တယ် (ပထမအကြိမ်မှာ " + firsts + " ခု) · " + score + " points" });
+  };
+  play.gameId = "inference";
+  play();
+})();
+</script>
+</body>
+</html>

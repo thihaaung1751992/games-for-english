@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Detective</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.wd-paper { border-radius: 18px; border: 2px solid var(--line); padding: 16px; background: var(--card); box-shadow: 0 6px 14px rgba(0,0,0,.12); }
+.wd-tag { display: flex; justify-content: space-between; font-size: .8rem; font-weight: 800; letter-spacing: .05em; color: #0d9488; }
+.wd-text { font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; line-height: 2; margin-top: 8px; }
+.wd-text .w { color: #0d9488; border-bottom: 3px solid #0d9488; font-weight: 800; padding: 0 2px; }
+.wd-text .clue { border-radius: 6px; padding: 1px 2px; transition: background .4s; }
+.wd-text.on .clue { background: color-mix(in srgb, #facc15 55%, transparent); }
+.wd-q { margin: 14px 0 4px; font-weight: 800; font-size: 1.05rem; }
+.wd-note { color: var(--muted); font-size: .85rem; line-height: 1.7; }
+.wd-opts { display: grid; gap: 10px; margin-top: 10px; }
+.wd-opt { text-align: left; font: inherit; font-size: 1.02rem; line-height: 1.6; padding: 12px 14px; border-radius: 14px;
+  border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.wd-opt:hover:not(:disabled) { border-color: #0d9488; }
+.wd-opt.ok { border-color: #1f8f4a; background: color-mix(in srgb, #1f8f4a 14%, var(--card)); }
+.wd-opt.no { border-color: #e5484d; background: color-mix(in srgb, #e5484d 10%, var(--card)); }
+.wd-opt:disabled { cursor: default; }
+.wd-opt small { display: block; color: var(--muted); margin-top: 4px; line-height: 1.8; }
+.wd-why { margin-top: 12px; padding: 10px 12px; border-radius: 12px; line-height: 1.8; background: color-mix(in srgb, #1f8f4a 12%, var(--card)); border: 2px solid color-mix(in srgb, #1f8f4a 45%, var(--line)); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="wd-paper">
+    <div class="wd-tag"><span>🔎 GUESS FROM CONTEXT</span><span><span id="n">1</span> / <span id="t">6</span></span></div>
+    <div class="wd-text" id="text"></div>
+    <div class="wd-q">What does <span id="word" style="color:#0d9488"></span> mean here?</div>
+    <div class="wd-note">အဘိဓာန်မကြည့်ရဘူး — ဝန်းကျင်စကားလုံးတွေကနေ ခန့်မှန်းပါ</div>
+  </div>
+  <div class="wd-opts" id="opts"></div>
+  <div class="fb" id="fb"></div>
+  <div class="wd-why" id="why" hidden></div>
+  <div style="text-align:center;margin-top:12px"><button class="btn primary" id="next" hidden>Next →</button></div>
+  <div style="text-align:center;margin-top:10px;color:var(--muted)">Score: <b id="score">0</b></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Word Detective: a hard word sits inside a short text. Work out its meaning from the clues around it
+// (clues light up in yellow afterwards). Some words have several meanings, so the context decides. No timer.
+(() => {
+  renderBar("Word Detective · " + getTopic().name);
+  const ROUNDS = 6;
+  // W(text: *target* and [[clue]] markers, [correct meaning, Burmese why], [[wrong meaning, why] ×3])
+  const W = (text, ok, bad) => ({ text, ok, bad, word: (text.match(/\*([^*]+)\*/) || [])[1] });
+  const BANK = [
+    W("Ma Hla was *reluctant* to speak in public. [[Her hands shook, and she kept looking at the door]] as if she wanted to leave.",
+      ["unwilling and hesitant", "လက်တုန်၊ တံခါးကိုကြည့်၊ ထွက်ချင်နေ — မလုပ်ချင်ဘူး၊ တွန့်ဆုတ်နေတယ်"],
+      [["eager and excited", "ထွက်ချင်နေတာနဲ့ ဆန့်ကျင်တယ်"], ["famous and proud", "ဂုဏ်ယူတာရဲ့ သက်သေမရှိဘူး"], ["angry and loud", "လက်တုန်တာက ကြောက်တာ၊ ဒေါသမဟုတ်ဘူး"]]),
+    W("Water was *scarce* in the village that summer. [[People walked three hours to fill just one bucket.]]",
+      ["hard to find; not enough", "ရေတစ်ပုံးအတွက် ၃ နာရီလျှောက် — ရှားပါးတယ်"],
+      [["dirty and brown", "အရည်အသွေးအကြောင်း စာထဲမှာ မပါဘူး"], ["plentiful", "ဆန့်ကျင်ဘက်ပါ — များရင် ၃ နာရီမလျှောက်ရဘူး"], ["very expensive", "ဈေးနှုန်းအကြောင်း မပါဘူး"]]),
+    W("Cactus plants *thrive* in dry places. [[They grow strong and healthy with almost no rain.]]",
+      ["grow and do very well", "ရေမရှိတာတောင် ကြံ့ခိုင်စွာ ကြီးထွားတယ် — thrive"],
+      [["die slowly", "strong and healthy နဲ့ ဆန့်ကျင်တယ်"], ["need more water", "almost no rain နဲ့ ဆန့်ကျင်တယ်"], ["be afraid", "အပင်နဲ့ မဆိုင်တဲ့ အဓိပ္ပာယ်"]]),
+    W("The doctor was *candid* with him: [[\"You must stop smoking, or you will become seriously ill.\"]]",
+      ["honest and direct, even if unwelcome", "အမှန်ကို ပြောင်ပြောင်ပြောတယ် — candid"],
+      [["polite but untruthful", "ဟောပြောတာက ဟုတ်မှန်တယ်၊ မညာဘူး"], ["rude and angry", "စာထဲမှာ ဒေါသအချက်အလက်မရှိဘူး"], ["silent and shy", "ပြောဆိုတာနဲ့ ဆန့်ကျင်တယ်"]]),
+    W("The work was so *tedious* that Zaw checked the clock every five minutes. [[Day after day, he copied the same numbers.]]",
+      ["boring and repetitive", "နာရီကြည့်၊ တူညီတဲ့ဂဏန်းကူးရ — ပျင်းစရာကောင်းတယ်"],
+      [["dangerous", "အန္တရာယ်အကြောင်း မပါဘူး"], ["exciting", "နာရီခဏခဏကြည့်တာနဲ့ ဆန့်ကျင်တယ်"], ["too difficult", "တူတာကိုပဲ ကူးရတာ — ခက်တာမဟုတ်ဘူး၊ ထပ်ခါထပ်ခါပဲ"]]),
+    W("Heavy snow *hampered* the rescue team. [[They could only move a few metres an hour.]]",
+      ["made progress slow and difficult", "တစ်နာရီ မီတာအနည်းငယ်ပဲ ရွေ့နိုင် — နှောင့်နှေးစေတယ်"],
+      [["helped and speeded up", "နှေးတာနဲ့ ဆန့်ကျင်တယ်"], ["protected from danger", "အကာအကွယ်အကြောင်း မပါဘူး"], ["took photographs of", "ဓာတ်ပုံအကြောင်း မပါဘူး"]]),
+    W("After the long walk, they sat on the river *bank* and [[watched the boats go by on the water.]]",
+      ["the land along the side of a river", "ရေကိုကြည့်၊ လှေတွေ — မြစ်ကမ်းပါ"],
+      [["a place where people keep money", "ဒီနေရာမှာ မြစ်နားက ဖြစ်တယ်၊ ငွေဘဏ်မဟုတ်"], ["a row of switches", "မြစ်ဘေးကိုပြောနေတာ"], ["to tilt an aircraft", "ကြိယာအဓိပ္ပာယ်ပါ၊ ဒီမှာ နာမ်"]]),
+    W("The future looked *bleak*: [[the factory was closing and nobody in town had another job.]]",
+      ["without hope; very gloomy", "စက်ရုံပိတ်၊ အလုပ်မရှိ — မျှော်လင့်ချက်မရှိ"],
+      [["bright and promising", "ဆန့်ကျင်ဘက်ပါ"], ["far away", "အကွာအဝေးအကြောင်း မပါဘူး"], ["exciting and new", "စက်ရုံပိတ်တာနဲ့ မကိုက်ဘူး"]]),
+    W("The suitcase was *light*, so [[Nina carried it up three flights of stairs without stopping.]]",
+      ["not heavy", "မရပ်ဘဲ လှေကားသုံးထပ်တက် — ပေါ့တယ်"],
+      [["bright; full of sunshine", "ခရီးဆောင်သေတ္တာအကြောင်းမို့ အလင်းမဟုတ်ဘူး"], ["pale in colour", "အရောင်အကြောင်း မပါဘူး"], ["to set fire to", "ကြိယာ၊ ဒီမှာ adjective"]]),
+    W("Her answer was *vague*: [[\"Maybe next week, or the week after, or sometime later.\"]]",
+      ["not clear or exact", "\"maybe… or… or…\" — တိတိကျကျမရှိ"],
+      [["very quick", "အမြန်နှုန်းအကြောင်း မပါဘူး"], ["extremely rude", "ယဉ်ကျေးမှုအကြောင်း မပါဘူး"], ["completely certain", "maybe ဆိုတာနဲ့ ဆန့်ကျင်တယ်"]])
+  ];
+
+  let items, i, score, firsts, laters, tries, done, cur;
+  const q = s => document.querySelector(s);
+  function render(box, txt) {
+    box.textContent = "";
+    txt.split(/(\*[^*]+\*|\[\[[^\]]+\]\])/).forEach(p => {
+      if (!p) return;
+      const s = document.createElement("span");
+      if (p.startsWith("*")) { s.className = "w"; s.textContent = p.slice(1, -1); box.append(s); }
+      else if (p.startsWith("[[")) { s.className = "clue"; s.textContent = p.slice(2, -2); box.append(s); }
+      else box.append(document.createTextNode(p));
+    });
+  }
+  function play() { items = shuffle(BANK).slice(0, ROUNDS); i = 0; score = 0; firsts = 0; laters = 0; q("#t").textContent = items.length; show(); }
+  function show() {
+    cur = items[i]; done = false; tries = 0;
+    q("#n").textContent = i + 1; q("#score").textContent = score; q("#word").textContent = '"' + cur.word + '"';
+    render(q("#text"), cur.text); q("#text").classList.remove("on");
+    const o = q("#opts"); o.textContent = "";
+    shuffle([[cur.ok[0], cur.ok[1], true], ...cur.bad.map(b => [b[0], b[1], false])]).forEach(([t, why, right]) => {
+      const b = document.createElement("button"); b.className = "wd-opt"; b.textContent = t;
+      b.onclick = () => pick(b, t, why, right); o.append(b);
+    });
+    q("#fb").textContent = ""; q("#fb").className = "fb"; q("#why").hidden = true; q("#next").hidden = true;
+  }
+  function finishItem() {
+    q("#text").classList.add("on");
+    const n = q("#next"); n.hidden = false; n.textContent = i === items.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  function pick(btn, t, why, right) {
+    if (done) return;
+    if (right) {
+      done = true;
+      const pts = tries === 0 ? 10 : 5; tries === 0 ? firsts++ : laters++;
+      score += pts; addPoints(pts); sfx.ok(); fx.pop(btn, "+" + pts); speak(cur.word);
+      document.querySelectorAll(".wd-opt").forEach(b => { b.disabled = true; if (b === btn) b.classList.add("ok"); });
+      q("#fb").className = "fb ok"; q("#fb").textContent = "✓ မှန်တယ်! +" + pts;
+      const w = q("#why"); w.hidden = false; w.textContent = "💡 " + why;
+      q("#score").textContent = score; finishItem(); return;
+    }
+    tries++; sfx.bad(); fx.shake(btn); btn.disabled = true; btn.classList.add("no");
+    const s = document.createElement("small"); s.textContent = "✗ " + why; btn.append(s);
+    q("#fb").className = "fb no";
+    if (tries >= 2) {
+      done = true; q("#fb").textContent = "ဒီတစ်ခါ မရသေးဘူး — အဖြေမှန်နဲ့ clue တွေကို ကြည့်ပါ";
+      document.querySelectorAll(".wd-opt").forEach(b => {
+        b.disabled = true;
+        if (b.firstChild.textContent === cur.ok[0]) { b.classList.add("ok"); const s2 = document.createElement("small"); s2.textContent = "✓ " + cur.ok[1]; b.append(s2); }
+      });
+      finishItem();
+    } else q("#fb").textContent = "မမှန်သေးဘူး — စကားလုံးရဲ့ ဝန်းကျင်ကို ပြန်ဖတ်ပါ (၁ ကြိမ် ကျန်)";
+  }
+  q("#next").onclick = () => {
+    if (i < items.length - 1) { i++; show(); return; }
+    const r = score / (items.length * 10);
+    if (r >= 0.9) fx.confetti();
+    showResult({ title: cheer(r), stars: starsFor(r), onAgain: play,
+      text: (firsts + laters) + " / " + items.length + " ခု မှန်တယ် (ပထမအကြိမ်မှာ " + firsts + " ခု) · " + score + " points" });
+  };
+  play.gameId = "wordclue";
+  play();
+})();
+</script>
+</body>
+</html>

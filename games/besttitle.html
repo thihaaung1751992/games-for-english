@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Best Title</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.bt-paper { border-radius: 18px; border: 2px solid var(--line); padding: 16px; background: var(--card); box-shadow: 0 6px 14px rgba(0,0,0,.12); }
+.bt-tag { display: flex; justify-content: space-between; font-size: .8rem; font-weight: 800; letter-spacing: .05em; color: #ea580c; }
+.bt-text { font-family: Georgia, "Times New Roman", serif; font-size: 1.06rem; line-height: 1.9; margin-top: 8px; }
+.bt-q { margin: 14px 0 4px; font-weight: 800; font-size: 1.05rem; }
+.bt-note { color: var(--muted); font-size: .85rem; line-height: 1.7; }
+.bt-opts { display: grid; gap: 10px; margin-top: 10px; }
+.bt-opt { text-align: left; font: inherit; font-family: Georgia, "Times New Roman", serif; font-weight: 700; font-size: 1.05rem; line-height: 1.6; padding: 12px 14px; border-radius: 14px;
+  border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.bt-opt:hover:not(:disabled) { border-color: #ea580c; }
+.bt-opt.ok { border-color: #1f8f4a; background: color-mix(in srgb, #1f8f4a 14%, var(--card)); }
+.bt-opt.no { border-color: #e5484d; background: color-mix(in srgb, #e5484d 10%, var(--card)); }
+.bt-opt:disabled { cursor: default; }
+.bt-opt small { display: block; font-family: system-ui, sans-serif; font-weight: 400; color: var(--muted); margin-top: 4px; line-height: 1.8; }
+.bt-why { margin-top: 12px; padding: 10px 12px; border-radius: 12px; line-height: 1.8; background: color-mix(in srgb, #1f8f4a 12%, var(--card)); border: 2px solid color-mix(in srgb, #1f8f4a 45%, var(--line)); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="bt-paper">
+    <div class="bt-tag"><span>📰 PICK THE BEST TITLE</span><span><span id="n">1</span> / <span id="t">5</span></span></div>
+    <div class="bt-text" id="text"></div>
+    <div class="bt-q">Which title fits the whole text best?</div>
+    <div class="bt-note">အဓိကအကြောင်းအရာတစ်ခုလုံးကို ကိုယ်စားပြုတဲ့ ခေါင်းစဉ်ကို ရွေးပါ — အသေးစိတ်တစ်ချက်တည်း၊ ကျယ်လွန်းတာ၊ မမှန်တာတွေကို ရှောင်ပါ</div>
+  </div>
+  <div class="bt-opts" id="opts"></div>
+  <div class="fb" id="fb"></div>
+  <div class="bt-why" id="why" hidden></div>
+  <div style="text-align:center;margin-top:12px"><button class="btn primary" id="next" hidden>Next →</button></div>
+  <div style="text-align:center;margin-top:10px;color:var(--muted)">Score: <b id="score">0</b></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Best Title: read a short news-style text and choose the headline that covers the MAIN idea.
+// The three traps are always: too narrow (one detail), too broad (the general topic), and wrong (contradicts the text). No timer.
+(() => {
+  renderBar("Best Title · " + getTopic().name);
+  const ROUNDS = 5;
+  // H(text, [correct title, why], [[narrow, why], [broad, why], [wrong, why]])
+  const H = (text, ok, bad) => ({ text, ok, bad });
+  const BANK = [
+    H("More and more cities are installing beehives on rooftops. Bees in cities often find a wider variety of flowers than bees in farming areas, where only one crop grows. As a result, city honey is sometimes richer in flavour. Beekeepers also say that the hives help local gardens produce more fruit.",
+      ["Why Cities Are Becoming Good Homes for Bees", "ပျားတွေအတွက် မြို့တွေဘာကြောင့် သင့်တော်လာသလဲဆိုတဲ့ အဓိကအကြောင်းအရာတစ်ခုလုံးကို ဖုံးတယ်"],
+      [["How City Honey Tastes", "အသေးစိတ်တစ်ချက်ပဲ (ပျားရည်အရသာ) — တစ်ခုလုံးကို မဖုံးဘူး"], ["The Importance of Insects", "ကျယ်လွန်းတယ် — ပိုးမွှားအားလုံးအကြောင်းမဟုတ်ဘဲ မြို့ထဲက ပျားအကြောင်းပါ"], ["Bees Are Disappearing from Gardens", "စာထဲမှာ ဥယျာဉ်တွေက အသီးပိုသီးတယ်လို့ပြောတယ် — ဆန့်ကျင်တယ်"]]),
+    H("Students often stay up all night before an exam, but research suggests this is a mistake. During sleep, the brain stores what we learned during the day. Tired students also find it harder to concentrate during the exam itself.",
+      ["Why Sleep Beats Last-Minute Studying", "အိပ်ရေးဝတာက ညလုံးပေါက်လေ့လာတာထက် ပိုကောင်းတဲ့ အကြောင်းအရင်းတွေကို ပေါင်းချုပ်တယ်"],
+      [["Concentration in Exams", "အကြောင်းရင်းတစ်ခုပဲ — အဓိကအကြောင်းအရာ မဟုတ်ဘူး"], ["How the Brain Works", "ကျယ်လွန်းတယ် — ဦးနှောက်တစ်ခုလုံးအကြောင်းမဟုတ်ဘူး"], ["All-Night Study Raises Exam Scores", "စာထဲက မှားတယ်လို့ပြောတာနဲ့ ဆန့်ကျင်တယ်"]]),
+    H("Many cities are closing city-centre streets to cars and giving the space to cyclists and walkers. Shop owners were afraid of losing customers, yet most report that sales stayed the same or grew. Air quality has improved, and fewer accidents are reported.",
+      ["Car-Free Streets: Good News for Cities", "စီးပွားရေး၊ လေထု၊ ဘေးအန္တရာယ် အားလုံးကောင်းတာကို ဖုံးတယ်"],
+      [["Shop Sales in the City Centre", "အသေးစိတ်တစ်ချက်ပဲ — လေထု၊ မတော်တဆမှုတွေ မပါဘူး"], ["Transport Around the World", "ကျယ်လွန်းတယ် — ကားမပါလမ်းကိစ္စအထူးပါ"], ["Shops Close as Cars Disappear", "ရောင်းအားမကျတဲ့အကြောင်းနဲ့ ဆန့်ကျင်တယ်"]]),
+    H("Many adults think they are too old to learn a language. However, studies show that adults often learn grammar faster than children, because they understand rules. Children, on the other hand, usually pronounce new words better. So both age groups have advantages.",
+      ["Adults and Children Learn Languages in Different Ways", "အရွယ်နှစ်မျိုးရဲ့ အားသာချက်တွေကို နှိုင်းယှဉ်ထားတာ — အဓိကအကြောင်းအရာ"],
+      [["Children's Pronunciation", "တစ်ဖက်တည်းပဲ — လူကြီးအကြောင်းမပါဘူး"], ["Education and Age", "ကျယ်လွန်းတယ် — ဘာသာစကားသင်ယူမှုအကြောင်းပဲ"], ["Adults Cannot Learn New Languages", "စာနဲ့ ဆန့်ကျင်တယ်"]]),
+    H("A town in the north has banned plastic bags in all shops. At first, customers complained. After a year, though, the town collected 60% less litter, and shops saved money on bags. Nearby towns are now planning similar rules.",
+      ["A Plastic Bag Ban That Worked", "တားမြစ်ချက်ရဲ့ အောင်မြင်မှုကို တစ်ခုလုံးအနေနဲ့ ပြောတယ်"],
+      [["Shops Save Money on Bags", "အကျိုးကျေးဇူးတစ်ခုပဲ — အမှိုက်လျော့တာ မပါဘူး"], ["Pollution Problems Worldwide", "ကျယ်လွန်းတယ် — မြို့တစ်မြို့ရဲ့ ကိစ္စပဲ"], ["Customers Demand Plastic Bags Back", "အစပိုင်းပဲ တိုင်ကြတာ၊ နောက်မှာ အောင်မြင်တယ်"]]),
+    H("Night markets are becoming more popular across Asia. Visitors enjoy cheap street food and handmade goods, while local families earn extra income. However, residents near the markets complain about noise and rubbish, so city councils now set closing times and cleaning rules.",
+      ["Night Markets: Popular but Needing Rules", "အားသာချက်၊ ပြဿနာ၊ အဖြေ အားလုံးကို ဖုံးတယ်"],
+      [["Street Food Prices", "အသေးစိတ်တစ်ချက်ပဲ"], ["Tourism in Asia", "ကျယ်လွန်းတယ် — ညဈေးအကြောင်းအထူးပါ"], ["Councils Ban Night Markets", "စည်းကမ်းသတ်မှတ်တာပဲ — ပိတ်ပင်တာမဟုတ်ဘူး"]])
+  ];
+
+  let items, i, score, firsts, laters, tries, done, cur;
+  const q = s => document.querySelector(s);
+  function play() { items = shuffle(BANK).slice(0, ROUNDS); i = 0; score = 0; firsts = 0; laters = 0; q("#t").textContent = items.length; show(); }
+  function show() {
+    cur = items[i]; done = false; tries = 0;
+    q("#n").textContent = i + 1; q("#score").textContent = score; q("#text").textContent = cur.text;
+    const o = q("#opts"); o.textContent = "";
+    shuffle([[cur.ok[0], cur.ok[1], true], ...cur.bad.map(b => [b[0], b[1], false])]).forEach(([t, why, right]) => {
+      const b = document.createElement("button"); b.className = "bt-opt"; b.textContent = t;
+      b.onclick = () => pick(b, t, why, right); o.append(b);
+    });
+    q("#fb").textContent = ""; q("#fb").className = "fb"; q("#why").hidden = true; q("#next").hidden = true;
+  }
+  function finishItem() {
+    const n = q("#next"); n.hidden = false; n.textContent = i === items.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  function pick(btn, t, why, right) {
+    if (done) return;
+    if (right) {
+      done = true;
+      const pts = tries === 0 ? 10 : 5; tries === 0 ? firsts++ : laters++;
+      score += pts; addPoints(pts); sfx.ok(); fx.pop(btn, "+" + pts);
+      document.querySelectorAll(".bt-opt").forEach(b => { b.disabled = true; if (b === btn) b.classList.add("ok"); });
+      q("#fb").className = "fb ok"; q("#fb").textContent = "✓ မှန်တယ်! +" + pts;
+      const w = q("#why"); w.hidden = false; w.textContent = "💡 " + why;
+      q("#score").textContent = score; finishItem(); return;
+    }
+    tries++; sfx.bad(); fx.shake(btn); btn.disabled = true; btn.classList.add("no");
+    const s = document.createElement("small"); s.textContent = "✗ " + why; btn.append(s);
+    q("#fb").className = "fb no";
+    if (tries >= 2) {
+      done = true; q("#fb").textContent = "ဒီတစ်ခါ မရသေးဘူး — အဖြေမှန်ကို ကြည့်ပါ";
+      document.querySelectorAll(".bt-opt").forEach(b => {
+        b.disabled = true;
+        if (b.firstChild.textContent === cur.ok[0]) { b.classList.add("ok"); const s2 = document.createElement("small"); s2.textContent = "✓ " + cur.ok[1]; b.append(s2); }
+      });
+      finishItem();
+    } else q("#fb").textContent = "မမှန်သေးဘူး — စာတစ်ခုလုံးကို ဖုံးလား ပြန်စဉ်းစားပါ (၁ ကြိမ် ကျန်)";
+  }
+  q("#next").onclick = () => {
+    if (i < items.length - 1) { i++; show(); return; }
+    const r = score / (items.length * 10);
+    if (r >= 0.9) fx.confetti();
+    showResult({ title: cheer(r), stars: starsFor(r), onAgain: play,
+      text: (firsts + laters) + " / " + items.length + " ခု မှန်တယ် (ပထမအကြိမ်မှာ " + firsts + " ခု) · " + score + " points" });
+  };
+  play.gameId = "besttitle";
+  play();
+})();
+</script>
+</body>
+</html>

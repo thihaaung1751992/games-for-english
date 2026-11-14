@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>True False Not Given</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.tf-paper { border-radius: 18px; border: 2px solid var(--line); padding: 16px; background: var(--card); box-shadow: 0 6px 14px rgba(0,0,0,.12); }
+.tf-tag { display: flex; justify-content: space-between; font-size: .8rem; font-weight: 800; letter-spacing: .05em; color: #2563eb; }
+.tf-title { font-size: 1.2rem; font-weight: 800; margin: 4px 0 8px; }
+.tf-text { font-family: Georgia, "Times New Roman", serif; font-size: 1.06rem; line-height: 1.9; }
+.tf-text .ev { border-radius: 6px; padding: 1px 2px; transition: background .4s; }
+.tf-text.on .ev { background: color-mix(in srgb, #facc15 55%, transparent); }
+.tf-rule { margin-top: 10px; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, #2563eb 8%, var(--card)); font-size: .85rem; line-height: 1.8; color: var(--muted); }
+.tf-st { margin: 14px 0 8px; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); font-weight: 700; font-size: 1.05rem; line-height: 1.6; }
+.tf-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tf-btn { font: inherit; font-weight: 800; padding: 12px 6px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.tf-btn:hover:not(:disabled) { border-color: #2563eb; }
+.tf-btn.ok { border-color: #1f8f4a; background: color-mix(in srgb, #1f8f4a 16%, var(--card)); }
+.tf-btn.no { border-color: #e5484d; background: color-mix(in srgb, #e5484d 12%, var(--card)); }
+.tf-btn:disabled { cursor: default; }
+.tf-why { margin-top: 12px; padding: 10px 12px; border-radius: 12px; line-height: 1.8; background: color-mix(in srgb, #1f8f4a 12%, var(--card)); border: 2px solid color-mix(in srgb, #1f8f4a 45%, var(--line)); }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="tf-paper">
+    <div class="tf-tag"><span>⚖️ TRUE · FALSE · NOT GIVEN</span><span>Statement <span id="n">1</span> / <span id="t">8</span></span></div>
+    <div class="tf-title" id="title"></div>
+    <div class="tf-text" id="text"></div>
+    <div class="tf-rule">
+      <b>True</b> = စာနဲ့ ကိုက်ညီတယ် · <b>False</b> = စာနဲ့ ဆန့်ကျင်တယ် · <b>Not Given</b> = စာထဲမှာ မပြောထားဘူး (သင်ထင်တာ၊ သိထားတာနဲ့ မဖြေရ)
+    </div>
+  </div>
+  <div class="tf-st" id="st"></div>
+  <div class="tf-btns" id="btns"></div>
+  <div class="fb" id="fb"></div>
+  <div class="tf-why" id="why" hidden></div>
+  <div style="text-align:center;margin-top:12px"><button class="btn primary" id="next" hidden>Next →</button></div>
+  <div style="text-align:center;margin-top:10px;color:var(--muted)">Score: <b id="score">0</b></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// True / False / Not Given: the IELTS-style task. Two short texts per game, four statements each. Answer using ONLY
+// what the text says. Evidence is highlighted after each answer (Not Given has none). One answer per statement, no timer.
+(() => {
+  renderBar("True / False / Not Given · " + getTopic().name);
+  // P(title, text with [[evidence]] markers, [[statement, "T"|"F"|"N", Burmese why] ...])
+  const P = (title, text, sts) => ({ title, text, sts });
+  const BANK = [
+    P("The Lighthouse", "The Cape Point lighthouse was built in 1859. [[Its light was so high that ships often could not see it through the clouds.]] [[In 1919, a second lighthouse was built lower on the cliff.]] [[Today the old lighthouse is a museum, and about 200,000 people visit each year.]]",
+      [["The first lighthouse was built in the nineteenth century.", "T", "1859 = 19 ရာစု — ကိုက်ညီတယ် (ပထမစာကြောင်း)"],
+       ["The second lighthouse was higher than the first one.", "F", "\"lower on the cliff\" လို့ရေးထား — ဆန့်ကျင်တယ်"],
+       ["Several ships crashed because of the first lighthouse.", "N", "မြင်ရခက်တာပဲပြောတယ်၊ သင်္ဘောတိုက်မိတာ မပြောဘူး — Not Given"],
+       ["More than 150,000 people visit the old lighthouse every year.", "T", "200,000 > 150,000 — ကိုက်ညီတယ်"]]),
+    P("Tea Farming", "[[Tea plants grow best on hillsides, where water does not collect around the roots.]] [[Farmers usually pick only the top two leaves and a bud, because these are the softest.]] [[Picking is done by hand on most small farms, though some large farms now use machines.]] A skilled worker can pick about 30 kilograms of leaves in a day.",
+      [["Tea grows well in places where water drains away.", "T", "hillsides မှာ ရေမစုဘူး — ကိုက်ညီတယ်"],
+       ["Farmers pick every leaf on the plant.", "F", "top two leaves and a bud ပဲ ခူးတယ် — ဆန့်ကျင်တယ်"],
+       ["Tea picked by machine tastes worse.", "N", "စက်နဲ့ခူးတာကို သုံးတယ်လို့ပဲပြောတယ်၊ အရသာမပြောဘူး — Not Given"],
+       ["Most small farms pick tea by hand.", "T", "\"by hand on most small farms\" — ကိုက်ညီတယ်"]]),
+    P("Cats and Purring", "[[Scientists believe cats purr not only when they are happy but also when they are in pain or afraid.]] [[The vibration of a purr is between 25 and 150 hertz, a range that may help bones heal.]] [[Cats begin to purr when they are only a few days old, which helps kittens find their mother's milk.]] Not all big cats can purr; lions and tigers roar instead.",
+      [["Cats only purr when they are happy.", "F", "pain or afraid မှာလည်း purr တယ် — ဆန့်ကျင်တယ်"],
+       ["Purring may be good for a cat's bones.", "T", "may help bones heal — ကိုက်ညီတယ်"],
+       ["Kittens can purr when they are only a few days old.", "T", "only a few days old — ကိုက်ညီတယ်"],
+       ["Cheetahs purr louder than house cats.", "N", "cheetah အကြောင်း၊ အသံအကျယ်အကြောင်း မပါဘူး — Not Given"]]),
+    P("Bike Share", "[[The city launched its bike-share scheme in 2019 with 500 bikes.]] Within a year, the number of users had tripled, and the city added 1,000 more bikes. [[Most trips are shorter than twenty minutes, and the first thirty minutes are free.]] [[Officials say that some bikes are damaged by vandals, but the problem is smaller than expected.]]",
+      [["The scheme began with fewer than 1,000 bikes.", "T", "500 bikes ဖြင့် စတင်တယ် — ကိုက်ညီတယ်"],
+       ["Every trip costs money.", "F", "ပထမ ၃၀ မိနစ် အခမဲ့ — ဆန့်ကျင်တယ်"],
+       ["Vandalism is a bigger problem than officials expected.", "F", "\"smaller than expected\" — ဆန့်ကျင်တယ်"],
+       ["Most users of the scheme are students.", "N", "အသုံးပြုသူ ဘယ်သူလဲ မပြောဘူး — Not Given"]]),
+    P("The Night Shift", "[[Hospital nurses on night shifts often struggle to sleep during the day.]] Many wear dark glasses on the way home, because bright morning light tells the body to wake up. [[Some hospitals now give night workers a quiet room to nap during breaks.]] [[A recent survey found that nurses who nap for twenty minutes make fewer mistakes at work.]]",
+      [["Some hospitals provide a place for night workers to nap.", "T", "a quiet room to nap — ကိုက်ညီတယ်"],
+       ["Napping makes nurses make more mistakes.", "F", "fewer mistakes — ဆန့်ကျင်တယ်"],
+       ["Night shift nurses are paid more than day shift nurses.", "N", "လစာအကြောင်း မပါဘူး — Not Given"],
+       ["Nurses on night shifts can find it hard to sleep in the daytime.", "T", "ပထမစာကြောင်း — ကိုက်ညီတယ်"]]),
+    P("A Village Library", "A retired teacher opened a small library in her village in 2015. [[At first, she had only 200 books, all donated by neighbours.]] [[Today the library has 3,000 books and a reading corner for children.]] [[It is open every afternoon except Sunday, and membership is free.]]",
+      [["The library was started by a teacher.", "T", "A retired teacher opened — ကိုက်ညီတယ်"],
+       ["The library opens every day of the week.", "F", "except Sunday — ဆန့်ကျင်တယ်"],
+       ["Members must pay a small yearly fee.", "F", "membership is free — ဆန့်ကျင်တယ်"],
+       ["The government gave money to build the library.", "N", "ရန်ပုံငွေအရင်းအမြစ် မပြောဘူး (ကိုယ်ပိုင်စာအုပ်လှူတာပဲပြော) — Not Given"]])
+  ];
+
+  let sts, i, score, right, done, curPassage;
+  const q = s => document.querySelector(s);
+  function render(box, txt) {
+    box.textContent = "";
+    txt.split(/(\[\[[^\]]+\]\])/).forEach(p => {
+      if (!p) return;
+      if (p.startsWith("[[")) { const s = document.createElement("span"); s.className = "ev"; s.textContent = p.slice(2, -2); box.append(s); }
+      else box.append(document.createTextNode(p));
+    });
+  }
+  const NAMES = { T: "True", F: "False", N: "Not Given" };
+  function play() {
+    const two = shuffle(BANK).slice(0, 2);
+    // Statements are shuffled inside each text, and the two texts are played one after the other.
+    sts = [];
+    two.forEach(p => shuffle(p.sts).forEach(s => sts.push({ p, s })));
+    i = 0; score = 0; right = 0; q("#t").textContent = sts.length; show();
+  }
+  function show() {
+    const cur = sts[i]; done = false;
+    if (curPassage !== cur.p) { curPassage = cur.p; q("#title").textContent = cur.p.title; render(q("#text"), cur.p.text); }
+    q("#text").classList.remove("on");
+    q("#n").textContent = i + 1; q("#score").textContent = score; q("#st").textContent = cur.s[0];
+    const b = q("#btns"); b.textContent = "";
+    ["T", "F", "N"].forEach(k => {
+      const x = document.createElement("button"); x.className = "tf-btn"; x.dataset.k = k; x.textContent = NAMES[k];
+      x.onclick = () => pick(x, k); b.append(x);
+    });
+    q("#fb").textContent = ""; q("#fb").className = "fb"; q("#why").hidden = true; q("#next").hidden = true;
+  }
+  function pick(btn, k) {
+    if (done) return; done = true;
+    const cur = sts[i], ans = cur.s[1], hit = k === ans;
+    document.querySelectorAll(".tf-btn").forEach(b => { b.disabled = true; if (b.dataset.k === ans) b.classList.add("ok"); });
+    if (hit) { right++; score += 10; addPoints(10); sfx.ok(); fx.pop(btn, "+10"); q("#fb").className = "fb ok"; q("#fb").textContent = "✓ မှန်တယ်! +10"; }
+    else { sfx.bad(); fx.shake(btn); btn.classList.add("no"); q("#fb").className = "fb no"; q("#fb").textContent = "✗ အဖြေမှန်က " + NAMES[ans]; }
+    q("#text").classList.add("on");
+    const w = q("#why"); w.hidden = false; w.textContent = "💡 " + cur.s[2];
+    q("#score").textContent = score;
+    const n = q("#next"); n.hidden = false; n.textContent = i === sts.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  q("#next").onclick = () => {
+    if (i < sts.length - 1) { i++; show(); return; }
+    const r = score / (sts.length * 10);
+    if (r >= 0.9) fx.confetti();
+    showResult({ title: cheer(r), stars: starsFor(r), onAgain: play,
+      text: right + " / " + sts.length + " ခု မှန်တယ် · " + score + " points" });
+  };
+  play.gameId = "tfng";
+  play();
+})();
+</script>
+</body>
+</html>

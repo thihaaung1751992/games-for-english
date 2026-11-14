@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Read &amp; Reply</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.rr-paper { position: relative; border-radius: 6px 18px 18px 6px; padding: 16px 16px 14px 22px; border: 2px solid var(--line); border-left: 10px solid #7c3aed;
+  background: var(--card); box-shadow: 0 6px 14px rgba(0,0,0,.12); }
+.rr-tag { display: flex; align-items: center; gap: 8px; font-size: .8rem; font-weight: 800; letter-spacing: .05em; color: #7c3aed; }
+.rr-tag button { margin-left: auto; font: inherit; font-size: .85rem; padding: 4px 10px; border-radius: 99px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.rr-title { font-size: 1.2rem; font-weight: 800; margin: 4px 0 8px; }
+.rr-text { font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; line-height: 1.85; }
+.rr-text mark { background: #fde047; color: #1c1917; border-radius: 4px; padding: 0 2px; }
+.rr-q { margin-top: 14px; border-radius: 16px; padding: 14px; border: 2px dashed #7c3aed; background: color-mix(in srgb, #7c3aed 6%, var(--card)); }
+.rr-qn { font-size: .8rem; font-weight: 800; color: #7c3aed; letter-spacing: .04em; }
+.rr-qt { font-size: 1.15rem; font-weight: 800; line-height: 1.7; margin: 4px 0 0; }
+.rr-my { color: var(--muted); line-height: 1.8; }
+.rr-in { width: 100%; box-sizing: border-box; margin-top: 10px; padding: 12px 14px; font: inherit; font-size: 1.1rem; min-height: 84px; resize: vertical;
+  border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); }
+.rr-in:focus { outline: 3px solid color-mix(in srgb, #7c3aed 50%, transparent); border-color: #7c3aed; }
+.rr-in.good { border-color: #1f8f4a; } .rr-in.bad { border-color: #e5484d; }
+.rr-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: .9rem; margin-top: 6px; }
+.rr-model { margin-top: 10px; padding: 10px 12px; border-radius: 12px; line-height: 1.8; background: color-mix(in srgb, #1f8f4a 12%, var(--card)); border: 2px solid color-mix(in srgb, #1f8f4a 45%, var(--line)); }
+.rr-row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="rr-paper">
+    <div class="rr-tag">📖 READ <span id="pn"></span><button id="listen">🔊 Listen</button></div>
+    <div class="rr-title" id="ptitle"></div>
+    <div class="rr-text" id="ptext"></div>
+  </div>
+  <div class="rr-q">
+    <div class="rr-qn">✍️ QUESTION <span id="qn">1</span> / <span id="qt">8</span></div>
+    <div class="rr-qt" id="q"></div>
+    <div class="rr-my" id="qmy"></div>
+    <textarea class="rr-in" id="in" rows="3" placeholder="Write your answer in one full sentence…" autocomplete="off" autocapitalize="sentences" spellcheck="false"></textarea>
+    <div class="rr-meta"><span id="wc">0 words</span><span id="tries"></span></div>
+    <div class="fb" id="fb"></div>
+    <div class="rr-model" id="model" hidden></div>
+    <div class="rr-row"><button class="btn primary" id="check">Check ✓</button><button class="btn" id="hint">💡 Hint</button><button class="btn primary" id="next" hidden>Next →</button></div>
+  </div>
+  <div style="text-align:center;margin-top:10px;color:var(--muted)">Score: <b id="score">0</b></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Read & Reply: read a hard passage, then answer questions in full sentences. No timer.
+// An answer counts when it is a proper sentence (capital letter, full stop, enough words)
+// and contains enough of the key ideas, each of which can be said in several ways.
+(() => {
+  renderBar("Read & Reply · " + getTopic().name);
+  const MAX_TRIES = 2, NEED_LEN = 4;
+  // Q(question, Burmese, model answer, key idea groups (any one word of a group covers it), groups needed, sentence to highlight, min words)
+  const Q = (q, my, m, keys, need, ev, min) => ({ q, my, m, keys, need, ev, min: min || NEED_LEN });
+  const P = [
+    { title: "Library Closes for Repairs", text: "The city library will close its main building for repairs from 3 March until the end of June. During this time, readers can borrow books from a small branch in the old post office, which will open from Monday to Saturday between nine and five. Although the branch has fewer books, staff will deliver any title to it within two days if a reader asks. The library manager said the roof had leaked for years and that without the repairs, thousands of rare books might have been damaged.", qs: [
+      Q("Why is the main library closing?", "ဘာကြောင့် စာကြည့်တိုက်ကြီး ပိတ်တာလဲ?", "It is closing because the building needs repairs.", [["repairs", "repair", "roof", "leaked", "leak", "leaking", "fixed", "fix", "renovation"]], 1, "close its main building for repairs"),
+      Q("Where can readers borrow books while it is closed?", "ပိတ်ထားတုန်း စာအုပ်ဘယ်မှာ ငှားလို့ရလဲ?", "They can borrow books from a small branch in the old post office.", [["branch", "post", "office"]], 1, "small branch in the old post office"),
+      Q("How can a reader get a book that the branch does not have?", "ဆိုင်ခွဲမှာ မရှိတဲ့ စာအုပ်ကို ဘယ်လိုရနိုင်လဲ?", "A reader can ask staff, and they will deliver it within two days.", [["ask", "asks", "request", "requests", "order", "asking"], ["deliver", "delivered", "delivery", "bring", "brought", "two", "2", "days"]], 1, "deliver any title to it within two days"),
+      Q("Write one sentence about why the repairs are important.", "ပြုပြင်ရတာ ဘာကြောင့် အရေးကြီးလဲ ဆိုတာ တစ်ကြောင်းရေးပါ။", "The repairs will stop the leaking roof from damaging rare books.", [["roof", "leak", "leaked", "leaks", "leaking"], ["rare", "damaged", "damage", "protect", "protected", "ruined", "lost", "destroyed"]], 1, "thousands of rare books might have been damaged", 5)
+    ] },
+    { title: "Working from Home", text: "Many companies now allow staff to work from home two or three days a week. Supporters say this saves time and money because nobody has to commute, and employees often report that they concentrate better without noise. Critics, however, argue that younger workers learn less when they rarely meet colleagues, and that some people feel lonely at home. As a result, several firms have chosen a middle path: everyone comes to the office on Tuesdays and Thursdays so that teams can meet face to face.", qs: [
+      Q("What do supporters say is good about working from home?", "အိမ်ကနေ အလုပ်လုပ်တာ ကောင်းတယ်လို့ ထောက်ခံသူတွေ ဘာပြောလဲ?", "They say it saves time and money, and people can concentrate better.", [["save", "saves", "saving", "time", "money", "commute", "commuting"], ["concentrate", "concentrates", "noise", "focus", "quiet"]], 1, "saves time and money because nobody has to commute"),
+      Q("Why do critics worry about younger workers?", "ဝေဖန်သူတွေက လူငယ်ဝန်ထမ်းတွေအတွက် ဘာကြောင့် စိုးရိမ်လဲ?", "They worry that younger workers learn less when they rarely meet colleagues.", [["learn", "learns", "learning", "less"], ["colleagues", "meet", "rarely", "experience", "office"]], 1, "younger workers learn less"),
+      Q("What compromise have some firms chosen?", "ကုမ္ပဏီတချို့က ဘယ်လို အလယ်လမ်းကို ရွေးလဲ?", "Everyone comes to the office on Tuesdays and Thursdays.", [["tuesday", "tuesdays", "thursday", "thursdays", "two", "2"], ["office", "together", "face", "meet", "middle"]], 1, "everyone comes to the office on Tuesdays and Thursdays"),
+      Q("Summarise the passage in one sentence.", "စာပိုဒ်ကို တစ်ကြောင်းနဲ့ အနှစ်ချုပ်ပါ။", "Working from home has advantages and problems, so some firms use a mix of home and office days.", [["home", "remote", "remotely"], ["office", "together", "middle", "balance", "mix", "compromise", "both"], ["advantages", "benefits", "problems", "disadvantages", "critics", "supporters", "lonely", "commute"]], 2, "middle path", 6)
+    ] },
+    { title: "A School That Grows Its Lunch", text: "Last month, a small village school in the mountains began a project to grow its own food. Pupils plant vegetables in the school garden every Wednesday, and the harvest is used in the canteen. The headteacher noticed that children who help in the garden are more willing to try new vegetables. Although the project costs very little, it has taught the pupils patience, because plants cannot be rushed, and it has also reduced the school's food bill by almost a fifth.", qs: [
+      Q("When do the pupils work in the garden?", "ကျောင်းသားတွေ ဥယျာဉ်မှာ ဘယ်အချိန် အလုပ်လုပ်လဲ?", "They work in the garden every Wednesday.", [["wednesday", "wednesdays", "every", "weekly"]], 1, "every Wednesday"),
+      Q("What happens to the vegetables they grow?", "စိုက်တဲ့ သီးနှံတွေကို ဘာလုပ်လဲ?", "The vegetables are used in the school canteen.", [["canteen", "eat", "eaten", "cooked", "used", "lunch", "meals", "food"]], 1, "harvest is used in the canteen"),
+      Q("What did the headteacher notice about the children?", "ကျောင်းအုပ်ကြီးက ကလေးတွေအကြောင်း ဘာသတိထားမိလဲ?", "He noticed that children who help in the garden are more willing to try new vegetables.", [["try", "tried", "trying", "taste", "tasting", "eat"], ["new", "vegetables", "willing", "more"]], 2, "more willing to try new vegetables"),
+      Q("Give two benefits of the project.", "စီမံကိန်းရဲ့ အကျိုးကျေးဇူး နှစ်ခု ပေးပါ။", "It has taught pupils patience and reduced the school's food bill.", [["patience", "patient"], ["food", "bill", "money", "cheaper", "reduced", "save", "saves", "saved", "cost", "costs"], ["try", "new", "vegetables", "healthy", "willing"]], 2, "taught the pupils patience", 5)
+    ] },
+    { title: "Phones and Sleep", text: "Sleep scientists warn that using a phone in bed may do more harm than most people realise. The bright light from a screen tells the brain that it is still daytime, so the body produces less of the chemical that makes us sleepy. Consequently, people who scroll late at night take longer to fall asleep and feel tired the next morning. Experts therefore recommend putting phones away at least an hour before bedtime, and reading a paper book instead.", qs: [
+      Q("What does the light from a screen tell the brain?", "ဖုန်းမျက်နှာပြင်အလင်းက ဦးနှောက်ကို ဘာပြောလဲ?", "It tells the brain that it is still daytime.", [["daytime", "day", "awake", "morning", "daylight"]], 1, "it is still daytime"),
+      Q("What happens to people who scroll late at night?", "ညနက်အထိ ဖုန်းကြည့်သူတွေ ဘာဖြစ်လဲ?", "They take longer to fall asleep and feel tired the next morning.", [["longer", "harder", "difficult", "hard", "slowly", "late"], ["tired", "tiredness", "sleepy", "exhausted"]], 1, "take longer to fall asleep"),
+      Q("What do experts recommend?", "ပညာရှင်တွေက ဘာကို အကြံပြုလဲ?", "They recommend putting phones away an hour before bed and reading a book.", [["away", "put", "putting", "stop", "avoid", "hour", "before", "bedtime"], ["book", "books", "read", "reading"]], 1, "putting phones away at least an hour before bedtime"),
+      Q("Why is a book better than a phone before bed?", "အိပ်ခါနီး စာအုပ်က ဖုန်းထက် ဘာကြောင့် ပိုကောင်းလဲ?", "A book has no bright light, so you fall asleep more easily.", [["light", "screen", "daytime", "bright"], ["sleep", "sleepy", "fall", "asleep", "easier", "easily", "better"], ["tired", "tiredness", "morning"]], 2, "bright light from a screen", 6)
+    ] }
+  ];
+
+  const norm = s => s.toLowerCase().replace(/[’‘`]/g, "'").replace(/[^a-z0-9' ]+/g, " ").split(/\s+/).filter(Boolean);
+  const hit = (w, alt) => w === alt || (alt.length >= 5 && w.startsWith(alt));
+  function judge(it, raw) {
+    const t = raw.trim(), ws = norm(t);
+    if (ws.length < it.min) return { bad: "စာကြောင်းအပြည့်အစုံ ရေးပါ — အနည်းဆုံး စကားလုံး " + it.min + " လုံး လိုပါတယ်", free: true };
+    if (!/^[A-Z]/.test(t)) return { bad: "စာကြောင်းကို စာလုံးအကြီး (capital letter) နဲ့ စပါ", free: true };
+    if (!/[.!?]$/.test(t)) return { bad: "စာကြောင်းအဆုံးမှာ full stop (.) ထည့်ပါ", free: true };
+    const got = it.keys.filter(g => g.some(a => ws.some(w => hit(w, a)))).length;
+    return { ok: got >= it.need, got };
+  }
+
+  let pass, items, i, score, firsts, laters, tries, done, hinted, last = [];
+  const q = s => document.querySelector(s);
+  function mark(ev) {
+    const p = q("#ptext"), src = pass.text, k = src.toLowerCase().indexOf(ev.toLowerCase());
+    p.textContent = "";
+    if (k < 0) { p.textContent = src; return; }
+    const m = document.createElement("mark"); m.textContent = src.slice(k, k + ev.length);
+    p.append(src.slice(0, k), m, src.slice(k + ev.length));
+  }
+  function play() {
+    // two different passages per game, never the same pair as last time
+    let ids; do { ids = shuffle(P.map((_, k) => k)).slice(0, 2); } while (last.length && ids.slice().sort().join() === last.slice().sort().join());
+    last = ids;
+    items = ids.flatMap(k => P[k].qs.map(x => ({ ...x, p: P[k], pi: k })));
+    i = 0; score = 0; firsts = 0; laters = 0;
+    q("#qt").textContent = items.length; show();
+  }
+  function show() {
+    const it = items[i]; pass = it.p;
+    done = false; tries = 0; hinted = false;
+    q("#pn").textContent = "· " + (i < 4 ? 1 : 2) + " of 2";
+    q("#ptitle").textContent = pass.title; q("#ptext").textContent = pass.text;
+    q("#qn").textContent = i + 1; q("#q").textContent = it.q; q("#qmy").textContent = it.my; q("#score").textContent = score;
+    const inp = q("#in"); inp.value = ""; inp.disabled = false; inp.className = "rr-in"; q("#wc").textContent = "0 words"; q("#tries").textContent = "";
+    q("#fb").textContent = ""; q("#fb").className = "fb"; q("#model").hidden = true;
+    q("#check").hidden = false; q("#hint").hidden = false; q("#next").hidden = true;
+    inp.focus();
+  }
+  function finish(ok) {
+    done = true; const it = items[i];
+    q("#in").disabled = true; q("#check").hidden = true; q("#hint").hidden = true;
+    mark(it.ev);
+    const m = q("#model"); m.hidden = false; m.innerHTML = "Model answer: <b></b>"; q("b", m).textContent = it.m;
+    const n = q("#next"); n.hidden = false; n.textContent = i === items.length - 1 ? "Finish" : "Next →"; n.focus();
+    q("#score").textContent = score;
+  }
+  function check() {
+    if (done) return;
+    const it = items[i], inp = q("#in"), r = judge(it, inp.value), fb = q("#fb");
+    if (r.free) { fb.className = "fb no"; fb.textContent = r.bad; sfx.bad(); return; }
+    if (r.ok) {
+      const pts = tries === 0 && !hinted ? 10 : tries === 0 ? 7 : 5;
+      tries === 0 && !hinted ? firsts++ : laters++;
+      score += pts; addPoints(pts); sfx.ok(); fx.pop(q("#check"), "+" + pts);
+      inp.className = "rr-in good"; fb.className = "fb ok";
+      fb.textContent = "✓ မှန်တယ်! +" + pts; return finish(true);
+    }
+    tries++; sfx.bad(); fx.shake(inp); inp.className = "rr-in bad";
+    q("#tries").textContent = "ကြိုးစားမှု " + tries + " / " + MAX_TRIES;
+    fb.className = "fb no";
+    if (tries >= MAX_TRIES) { fb.textContent = "ဒီတစ်ခါ မရသေးဘူး — အဖြေပုံစံနဲ့ ဖတ်ပြီး နှိုင်းယှဉ်ကြည့်ပါ"; return finish(false); }
+    mark(it.ev); hinted = true;
+    fb.textContent = "အဓိကအချက် မပြည့်သေးဘူး — စာထဲက အဝါရောင်ဖော်ပြထားတဲ့ နေရာကို ပြန်ဖတ်ပြီး ပြင်ရေးပါ";
+  }
+  function next() {
+    if (i < items.length - 1) { i++; show(); return; }
+    const r = score / (items.length * 10);
+    if (r >= 0.9) fx.confetti();
+    showResult({ title: cheer(r), stars: starsFor(r), onAgain: play,
+      text: (firsts + laters) + " / " + items.length + " ခု မှန်တယ် (ပထမအကြိမ်မှာ " + firsts + " ခု) · " + score + " points" });
+  }
+  play.gameId = "readreply";
+  q("#check").onclick = check;
+  q("#hint").onclick = () => { if (done) return; hinted = true; mark(items[i].ev); q("#fb").className = "fb"; q("#fb").textContent = "💡 အဝါရောင်ဖော်ပြထားတဲ့ စာကြောင်းထဲမှာ အဖြေရှိတယ် (အမှတ် လျော့မယ်)"; };
+  q("#next").onclick = next;
+  q("#listen").onclick = () => speak(pass.text);
+  q("#in").addEventListener("input", e => { q("#wc").textContent = norm(e.target.value).length + " words"; e.target.className = "rr-in"; });
+  q("#in").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); done ? next() : check(); } });
+  play();
+})();
+</script>
+</body>
+</html>

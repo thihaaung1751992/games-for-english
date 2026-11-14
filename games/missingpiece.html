@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Missing Piece</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.mp-paper { border-radius: 18px; border: 2px solid var(--line); padding: 16px; background: var(--card); box-shadow: 0 6px 14px rgba(0,0,0,.12); }
+.mp-tag { display: flex; justify-content: space-between; font-size: .8rem; font-weight: 800; letter-spacing: .05em; color: #db2777; }
+.mp-title { font-size: 1.2rem; font-weight: 800; margin: 4px 0 10px; }
+.mp-line { font-family: Georgia, "Times New Roman", serif; font-size: 1.06rem; line-height: 1.85; padding: 2px 0; }
+.mp-gap { margin: 6px 0; padding: 12px 14px; border-radius: 14px; border: 2px dashed #db2777; background: color-mix(in srgb, #db2777 8%, var(--card));
+  text-align: center; color: #db2777; font-weight: 800; transition: all .3s; }
+.mp-gap.in { border-style: solid; border-color: #1f8f4a; background: color-mix(in srgb, #1f8f4a 12%, var(--card)); color: var(--ink); text-align: left;
+  font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 1.06rem; line-height: 1.85; animation: mp-drop .4s ease; }
+.mp-gap.no { border-color: #e5484d; }
+.mp-opts { display: grid; gap: 10px; margin-top: 14px; }
+.mp-opt { text-align: left; font: inherit; font-family: Georgia, "Times New Roman", serif; font-size: 1.02rem; line-height: 1.7; padding: 12px 14px; border-radius: 14px;
+  border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.mp-opt:hover:not(:disabled) { border-color: #db2777; }
+.mp-opt.ok { border-color: #1f8f4a; background: color-mix(in srgb, #1f8f4a 14%, var(--card)); }
+.mp-opt.no { border-color: #e5484d; background: color-mix(in srgb, #e5484d 10%, var(--card)); }
+.mp-opt:disabled { cursor: default; }
+.mp-opt small { display: block; font-family: system-ui, sans-serif; color: var(--muted); margin-top: 4px; line-height: 1.8; }
+.mp-why { margin-top: 12px; padding: 10px 12px; border-radius: 12px; line-height: 1.8; background: color-mix(in srgb, #1f8f4a 12%, var(--card)); border: 2px solid color-mix(in srgb, #1f8f4a 45%, var(--line)); }
+@keyframes mp-drop { from { opacity: 0; transform: translateY(-14px) scale(.97); } }
+@media (prefers-reduced-motion: reduce) { .mp-gap.in { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="mp-paper">
+    <div class="mp-tag"><span>🧩 FIND THE MISSING SENTENCE</span><span><span id="n">1</span> / <span id="t">6</span></span></div>
+    <div class="mp-title" id="title"></div>
+    <div id="text"></div>
+  </div>
+  <div class="mp-opts" id="opts"></div>
+  <div class="fb" id="fb"></div>
+  <div class="mp-why" id="why" hidden></div>
+  <div style="text-align:center;margin-top:12px"><button class="btn primary" id="next" hidden>Next →</button></div>
+  <div style="text-align:center;margin-top:10px;color:var(--muted)">Score: <b id="score">0</b></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Missing Piece: one sentence has been removed from a short text. Pick the sentence that fits —
+// it has to agree with the sentences before AND after it (meaning, linking word, direction of the story). No timer.
+(() => {
+  renderBar("Missing Piece · " + getTopic().name);
+  const ROUNDS = 6;
+  // M(title, sentences, index of the gap, [correct sentence, Burmese reason], [[wrong sentence, Burmese reason] ×3])
+  const M = (title, lines, gap, ok, bad) => ({ title, lines, gap, ok, bad });
+  const BANK = [
+    M("The Bakery", ["Maya opened her bakery two years ago.", "At first, only a few customers came.", null, "Now she is hiring two more bakers to keep up with demand."], 2,
+      ["However, after a local blogger praised her bread, the shop was crowded every morning.", "However နဲ့ အရင်အခြေအနေ (လူနည်း) ကို ဆန့်ကျင်ပြီး နောက်စာကြောင်း (လူများလို့ ဝန်ထမ်းယူ) နဲ့ ဆက်စပ်တယ်"],
+      [["She does not like bread at all.", "ဘေကာရီဖွင့်တဲ့သူက ပေါင်မုန့်မကြိုက်ဘူးဆိုတာ အဓိပ္ပာယ်မညီဘူး"], ["Therefore, the shop was closed forever.", "နောက်စာကြောင်းမှာ ဝန်ထမ်းထပ်ယူနေတယ် — ဆိုင်ပိတ်သွားတာနဲ့ ဆန့်ကျင်တယ်"], ["Bread is made from flour, water and yeast.", "အချက်အလက်မှန်ပေမယ့် ဆိုင်ပြောင်းလဲလာပုံကို မရှင်းပြဘူး"]]),
+    M("The Bus Lane", ["The new bus lane opened in March.", "Many drivers complained that it made traffic worse.", null, "As a result, thousands of commuters have left their cars at home."], 2,
+      ["Surprisingly, the average journey time for passengers fell by almost ten minutes.", "Surprisingly နဲ့ ဝေဖန်သံကို ပြန်ချေပပြီး As a result (ကားမစီးတော့ဘူး) ရဲ့ အကြောင်းရင်းဖြစ်တယ်"],
+      [["Buses are usually painted red or blue.", "အကြောင်းအရာနဲ့ မဆိုင်ဘူး"], ["Unfortunately, bus journeys became much longer.", "ကားတွေ ထားခဲ့တဲ့ ရလဒ်နဲ့ ဆန့်ကျင်တယ်"], ["In addition, drivers were delighted with the change.", "In addition က ရှေ့စာကြောင်း (ဝေဖန်သံ) နဲ့ ဆန့်ကျင်ကွဲလွဲတယ်"]]),
+    M("The New Cook", ["Tom had never cooked before moving abroad.", null, "Over the months, he followed online videos and slowly improved.", "Today his friends ask him to host dinner parties."], 1,
+      ["His first attempts were so bad that he often ordered takeaway instead.", "မချက်ဖူးတဲ့အကြောင်းနဲ့ ကိုက်ညီပြီး နောက်က improved ကို ကြိုတင်ပြတယ်"],
+      [["He has always been an excellent chef.", "မချက်ဖူးဘူးဆိုတာနဲ့ ဆန့်ကျင်တယ်"], ["Takeaway food is popular in many countries.", "အထွေထွေအချက်ပဲ၊ Tom ရဲ့ ဇာတ်လမ်းကို မဆက်ဘူး"], ["Because he enjoyed it, he stopped learning.", "နောက်စာကြောင်းမှာ ဆက်လေ့လာပြီး တိုးတက်တယ်ဆိုတာနဲ့ ဆန့်ကျင်တယ်"]]),
+    M("Honey", ["Honey never goes bad if it is stored properly.", null, "Archaeologists have even found edible honey in ancient tombs."], 1,
+      ["This is because it contains very little water, so bacteria cannot grow in it.", "This is because နဲ့ ရှေ့အချက်ကို အကြောင်းရင်းပြတယ်"],
+      [["Most people prefer sugar to honey.", "ဘာကြောင့်မပျက်လဲ ဆိုတာ မဖြေဘူး"], ["Honey becomes dangerous after one week.", "မပျက်ဘူးဆိုတာနဲ့ ဆန့်ကျင်တယ်"], ["Bees can fly at twenty kilometres per hour.", "ပျားအကြောင်းက မပျက်တဲ့အကြောင်းရင်းနဲ့ မဆိုင်ဘူး"]]),
+    M("The Marathon", ["Sara decided to run her first marathon at the age of forty.", "Her friends warned her that the training would be exhausting.", null, "On race day, she crossed the finish line in under five hours."], 2,
+      ["Nevertheless, she followed her plan carefully and ran four times a week.", "Nevertheless = သတိပေးခံရပေမယ့်လည်း ဆက်လုပ်တယ် — ရလဒ်နဲ့ ဆက်စပ်တယ်"],
+      [["Therefore, she gave up after the first week.", "နောက်မှာ ပြေးပြီးမြောက်တယ်ဆိုတာနဲ့ ဆန့်ကျင်တယ်"], ["Marathons are held in many cities every year.", "Sara ရဲ့ လေ့ကျင့်မှုကို မဆက်ဘူး"], ["She hated running and never trained.", "ပြေးပြီးမြောက်တဲ့ရလဒ်နဲ့ မကိုက်ဘူး"]]),
+    M("The Old Bookshop", ["The old bookshop on Park Street has been open for sixty years.", "Sadly, online shopping has taken most of its customers.", null, "Local people are now planning a farewell party to thank him."], 2,
+      ["The owner has therefore decided to close the shop at the end of this month.", "therefore = ဖောက်သည်လျော့တဲ့ ရလဒ်၊ နောက်က farewell party နဲ့ ကိုက်တယ်"],
+      [["The owner has decided to double the size of the shop.", "ဖောက်သည်မရှိဘဲ ဆိုင်ချဲ့တာ၊ farewell party နဲ့ မကိုက်ဘူး"], ["Park Street is the longest street in the town.", "ဆိုင်ကိစ္စနဲ့ မဆိုင်ဘူး"], ["Customers have never bought books there.", "ဆိုင်ဖွင့်နေတာ ၆၀ နှစ်ဆိုတာနဲ့ ဆန့်ကျင်တယ်"]]),
+    M("Coffee at Work", ["Scientists studied 500 office workers for six months.", "Those who drank two cups of coffee a day reported better concentration.", null, "The researchers concluded that moderation is the key."], 2,
+      ["On the other hand, people who drank five or more cups often felt anxious and slept badly.", "On the other hand = ကွဲလွဲတဲ့ရလဒ် — နောက်က moderation ကို ရှင်းပြတယ်"],
+      [["In the same way, drinking more coffee made everyone calmer.", "In the same way နဲ့ ပိုသောက်ရင် ပိုတည်ငြိမ်တယ် — moderation လိုတယ်ဆိုတာနဲ့ မကိုက်ဘူး"], ["Coffee was first discovered in Ethiopia.", "သုတေသနနဲ့ မဆိုင်ဘူး"], ["As a result, the workers all stopped drinking coffee.", "ရလဒ်ကို အကြောင်းမရှိဘဲ ကျော်ပြောတာ၊ moderation နဲ့ မကိုက်ဘူး"]]),
+    M("The Water Festival", ["The village water festival is held every April.", "This year, heavy rain was forecast for the whole week.", null, "In the end, the rain stopped just before the opening ceremony."], 2,
+      ["Despite the weather, the organisers decided to go ahead as planned.", "Despite = မိုးရွာမယ့်ကြားက ဆက်လုပ်မယ် — နောက်က In the end နဲ့ ဆက်စပ်တယ်"],
+      [["As a result, the festival was cancelled immediately.", "ပွဲဖျက်လိုက်ရင် opening ceremony မရှိတော့ဘူး"], ["April is the hottest month in many countries.", "ပွဲကိစ္စကို မဆက်ဘူး"], ["The villagers dislike water festivals.", "ဒီပွဲကို နှစ်စဉ်ကျင်းပတာနဲ့ ဆန့်ကျင်တယ်"]])
+  ];
+
+  let items, i, score, firsts, laters, tries, done, cur;
+  const q = s => document.querySelector(s);
+  function play() { items = shuffle(BANK).slice(0, ROUNDS); i = 0; score = 0; firsts = 0; laters = 0; q("#t").textContent = items.length; show(); }
+  function show() {
+    cur = items[i]; done = false; tries = 0;
+    q("#n").textContent = i + 1; q("#score").textContent = score; q("#title").textContent = cur.title;
+    const box = q("#text"); box.textContent = "";
+    cur.lines.forEach((l, k) => {
+      const d = document.createElement("div");
+      if (l === null) { d.className = "mp-gap"; d.id = "gap"; d.textContent = "❓ Which sentence goes here?"; } else { d.className = "mp-line"; d.textContent = l; }
+      box.append(d);
+    });
+    const o = q("#opts"); o.textContent = "";
+    shuffle([[cur.ok[0], cur.ok[1], true], ...cur.bad.map(b => [b[0], b[1], false])]).forEach(([t, why, right]) => {
+      const b = document.createElement("button"); b.className = "mp-opt"; b.textContent = t;
+      b.onclick = () => pick(b, t, why, right); o.append(b);
+    });
+    q("#fb").textContent = ""; q("#fb").className = "fb"; q("#why").hidden = true; q("#next").hidden = true;
+  }
+  function pick(btn, t, why, right) {
+    if (done) return;
+    const gap = q("#gap");
+    if (right) {
+      done = true;
+      const pts = tries === 0 ? 10 : 5; tries === 0 ? firsts++ : laters++;
+      score += pts; addPoints(pts); sfx.ok(); fx.pop(btn, "+" + pts);
+      gap.className = "mp-gap in"; gap.textContent = t;
+      document.querySelectorAll(".mp-opt").forEach(b => { b.disabled = true; if (b === btn) b.classList.add("ok"); });
+      q("#fb").className = "fb ok"; q("#fb").textContent = "✓ မှန်တယ်! +" + pts;
+      const w = q("#why"); w.hidden = false; w.textContent = "💡 " + why;
+      const n = q("#next"); n.hidden = false; n.textContent = i === items.length - 1 ? "Finish" : "Next →"; n.focus();
+      q("#score").textContent = score; return;
+    }
+    tries++; sfx.bad(); fx.shake(gap); btn.disabled = true; btn.classList.add("no");
+    const s = document.createElement("small"); s.textContent = "✗ " + why; btn.append(s);
+    q("#fb").className = "fb no";
+    if (tries >= 2) {
+      done = true; q("#fb").textContent = "ဒီတစ်ခါ မရသေးဘူး — အဖြေမှန်ကို ကြည့်ပါ";
+      document.querySelectorAll(".mp-opt").forEach(b => {
+        b.disabled = true;
+        if (b.firstChild.textContent === cur.ok[0]) { b.classList.add("ok"); const s2 = document.createElement("small"); s2.textContent = "✓ " + cur.ok[1]; b.append(s2); }
+      });
+      const n = q("#next"); n.hidden = false; n.textContent = i === items.length - 1 ? "Finish" : "Next →"; n.focus();
+    } else q("#fb").textContent = "မမှန်သေးဘူး — ရှေ့နောက်စာကြောင်းနဲ့ ကိုက်လား ပြန်စဉ်းစားပါ (၁ ကြိမ် ကျန်)";
+  }
+  q("#next").onclick = () => {
+    if (i < items.length - 1) { i++; show(); return; }
+    const r = score / (items.length * 10);
+    if (r >= 0.9) fx.confetti();
+    showResult({ title: cheer(r), stars: starsFor(r), onAgain: play,
+      text: (firsts + laters) + " / " + items.length + " ခု မှန်တယ် (ပထမအကြိမ်မှာ " + firsts + " ခု) · " + score + " points" });
+  };
+  play.gameId = "missingpiece";
+  play();
+})();
+</script>
+</body>
+</html>
