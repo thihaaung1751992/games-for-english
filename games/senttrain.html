@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentence Train</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.st-scene { position: relative; border-radius: 22px; overflow: hidden; border: 2px solid var(--line); padding: 14px 10px 0;
+  background: linear-gradient(color-mix(in srgb, #8fd3ff 45%, var(--card)), color-mix(in srgb, #c9f0c0 40%, var(--card))); }
+.st-my { font-weight: 800; font-size: clamp(1.1rem, 4.8vw, 1.45rem); line-height: 1.7; text-align: center; min-height: 3.4em; }
+.st-train { display: flex; flex-wrap: wrap; align-items: flex-end; row-gap: 22px; padding: 4px 0 16px; transition: transform .7s ease-in, opacity .7s; }
+.st-train.go { transform: translateX(-110%); opacity: 0; }
+.st-train.in { animation: stin .5s ease-out; }
+.st-eng { font-size: clamp(2.6rem, 12vw, 3.4rem); line-height: 1; margin-right: 2px; position: relative; }
+.st-eng.puff::after { content: "💨"; position: absolute; left: 60%; top: -40%; font-size: 1.2rem; animation: stpuff 1s ease-out infinite; }
+.st-wag { position: relative; font: inherit; font-weight: 800; font-size: clamp(.95rem, 4vw, 1.15rem); min-width: 78px; min-height: 58px; padding: 4px 10px;
+  margin-right: 8px; border-radius: 12px 12px 6px 6px; border: 3px dashed color-mix(in srgb, var(--ink) 45%, transparent); background: color-mix(in srgb, var(--card) 70%, transparent);
+  color: var(--muted); cursor: pointer; line-height: 1.3; }
+.st-wag::before, .st-wag::after { content: ""; position: absolute; bottom: -11px; width: 14px; height: 14px; border-radius: 50%; background: #333; border: 3px solid #999; }
+.st-wag::before { left: 10px; } .st-wag::after { right: 10px; }
+.st-wag small { display: block; font-size: .7rem; font-weight: 700; opacity: .85; }
+.st-wag.full { border-style: solid; border-color: rgba(0,0,0,.35); color: #fff; background: var(--accent); }
+.st-wag.ok { box-shadow: 0 0 0 3px var(--good); }
+.st-wag.no { animation: shake .3s; box-shadow: 0 0 0 3px var(--bad); }
+.st-rail { height: 10px; margin: 0 -10px; background: repeating-linear-gradient(90deg, #7a5a3a 0 8px, transparent 8px 22px), linear-gradient(#888 0 4px, #6b4a2a 4px); }
+.st-bank { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 16px 0 6px; min-height: 56px; }
+.st-pc { font: inherit; font-weight: 800; font-size: clamp(1rem, 4.2vw, 1.2rem); min-height: 52px; padding: 6px 14px; border-radius: 14px; border: 0; color: #fff; background: var(--accent);
+  box-shadow: 0 4px 0 rgba(0,0,0,.25); cursor: pointer; }
+.st-pc:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.st-pc:disabled { opacity: .2; cursor: default; }
+.st-tip { text-align: center; font-size: .92rem; color: var(--muted); line-height: 1.7; }
+.st-tip b { display: inline-block; padding: 0 8px; border-radius: 99px; color: #fff; margin: 2px 1px; font-size: .82rem; }
+.st-fb { min-height: 4.6em; text-align: center; margin-top: 8px; font-weight: 700; line-height: 1.6; }
+.st-fb.ok { color: var(--good); } .st-fb.no { color: var(--bad); }
+.st-fb .en { display: block; font-size: 1.2rem; color: var(--ink); }
+@keyframes stin { from { transform: translateX(110%); } to { transform: none; } }
+@keyframes stpuff { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(26px, -22px) scale(1.3); } }
+@media (prefers-reduced-motion: reduce) { .st-train, .st-train.in, .st-eng.puff::after, .st-wag.no { animation: none; transition: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Sentence Train: couple the wagons in English word order (who → does → what → where → when).
+// Burmese puts the verb last, so the game drills the Subject–Verb–Object order chunk by chunk.
+(() => {
+  const topic = getTopic(), lvl = topic.level;
+  renderBar("Sentence Train · " + topic.name);
+  const ROLE = { S: ["ဘယ်သူ", "#3b82f6"], V: ["ဘာလုပ်", "#e5484d"], O: ["ဘာကို", "#2f9e44"], P: ["ဘယ်မှာ", "#8b5cf6"], T: ["ဘယ်အချိန်", "#f08c2e"] };
+  // "S:she|V:reads|O:a book" + Burmese meaning. Chunks are written as they appear mid-sentence.
+  const B = (s, my) => ({ my, parts: s.split("|").map(x => ({ r: x[0], t: x.slice(2) })) });
+  const BANK = {
+    3: [
+      B("S:I|V:drink|O:tea", "ကျွန်တော် လက်ဖက်ရည် သောက်တယ်။"),
+      B("S:she|V:reads|O:a book", "သူမ စာအုပ် ဖတ်တယ်။"),
+      B("S:we|V:play|O:football", "ကျွန်တော်တို့ ဘောလုံး ကစားတယ်။"),
+      B("S:my mother|V:cooks|O:rice", "အမေက ထမင်း ချက်တယ်။"),
+      B("S:the dog|V:likes|O:water", "ခွေးက ရေကို ကြိုက်တယ်။"),
+      B("S:they|V:watch|O:TV", "သူတို့ တီဗီ ကြည့်တယ်။"),
+      B("S:he|V:eats|O:an apple", "သူ ပန်းသီး စားတယ်။"),
+      B("S:my father|V:drives|O:a car", "အဖေက ကား မောင်းတယ်။"),
+      B("S:I|V:love|O:my family", "ကျွန်တော် မိသားစုကို ချစ်တယ်။"),
+      B("S:the baby|V:wants|O:milk", "ကလေးက နို့ လိုချင်တယ်။")
+    ],
+    4: [
+      B("S:I|V:buy|O:fish|P:at the market", "ကျွန်တော် ဈေးမှာ ငါး ဝယ်တယ်။"),
+      B("S:she|V:drinks|O:coffee|T:every morning", "သူမ မနက်တိုင်း ကော်ဖီ သောက်တယ်။"),
+      B("S:we|V:eat|O:lunch|P:at school", "ကျွန်တော်တို့ ကျောင်းမှာ နေ့လယ်စာ စားတယ်။"),
+      B("S:he|V:sells|O:fruit|P:in the shop", "သူ ဆိုင်မှာ သစ်သီး ရောင်းတယ်။"),
+      B("S:they|V:play|O:games|T:on Sunday", "သူတို့ တနင်္ဂနွေနေ့မှာ ဂိမ်း ကစားတယ်။"),
+      B("S:my sister|V:studies|O:English|T:at night", "ညီမက ညဘက်မှာ အင်္ဂလိပ်စာ လေ့လာတယ်။"),
+      B("S:the children|V:read|O:books|P:in the library", "ကလေးတွေ စာကြည့်တိုက်မှာ စာအုပ် ဖတ်တယ်။"),
+      B("S:I|V:meet|O:my friends|T:after work", "ကျွန်တော် အလုပ်ပြီးရင် သူငယ်ချင်းတွေနဲ့ တွေ့တယ်။")
+    ],
+    5: [
+      B("S:I|V:visit|O:my grandmother|P:in Mandalay|T:every month", "ကျွန်တော် လတိုင်း မန္တလေးမှာ အဖွားဆီ သွားလည်တယ်။"),
+      B("S:she|V:takes|O:the bus|P:to the office|T:at seven o'clock", "သူမ ခုနစ်နာရီမှာ ရုံးကို ဘတ်စ်ကား စီးသွားတယ်။"),
+      B("S:we|V:watched|O:a film|P:at the cinema|T:last night", "ကျွန်တော်တို့ မနေ့ညက ရုပ်ရှင်ရုံမှာ ရုပ်ရှင် ကြည့်ခဲ့တယ်။"),
+      B("S:he|V:will send|O:the email|P:from the office|T:tomorrow morning", "သူ မနက်ဖြန်မနက် ရုံးကနေ အီးမေးလ် ပို့မယ်။"),
+      B("S:they|V:are building|O:a new school|P:in our village|T:this year", "သူတို့ ဒီနှစ် ကျွန်တော်တို့ရွာမှာ ကျောင်းအသစ် ဆောက်နေတယ်။"),
+      B("S:my brother|V:teaches|O:maths|P:at a high school|T:on weekdays", "အစ်ကိုက ကြားရက်တွေမှာ အထက်တန်းကျောင်းမှာ သင်္ချာ သင်တယ်။"),
+      B("S:the doctor|V:saw|O:ten patients|P:at the clinic|T:yesterday", "ဆရာဝန်က မနေ့က ဆေးခန်းမှာ လူနာဆယ်ယောက် ကြည့်ခဲ့တယ်။"),
+      B("S:I|V:finished|O:my homework|P:in my room|T:before dinner", "ကျွန်တော် ညစာမစားခင် အခန်းထဲမှာ အိမ်စာ ပြီးအောင် လုပ်ခဲ့တယ်။")
+    ]
+  };
+  const ROUNDS = 8;
+  const slotHint = lvl <= 3, colour = lvl <= 2;   // level 3 drops the colours, level 4 drops the labels too
+  const cap = s => s[0].toUpperCase() + s.slice(1);
+
+  $("#app").innerHTML =
+    '<div class="stats"><span>Train: <b id="sn">1</b>/' + ROUNDS + '</span><span>Score: <b id="score">0</b></span></div>' +
+    '<div class="st-scene"><div class="q-label" style="text-align:center">ဒီဝါကျကို English လို တွဲဆက်ပါ</div><div class="st-my" id="my"></div>' +
+    '<div class="st-train" id="train"></div><div class="st-rail"></div></div>' +
+    '<div class="st-bank" id="bank"></div>' +
+    '<div class="st-tip" id="tip"></div>' +
+    '<div class="st-fb" id="fb" aria-live="polite"></div>' +
+    '<div class="row"><button class="btn" id="say" hidden>🔊 Listen</button><button class="btn" id="skip">Skip</button><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+  let list, i, score, first, it, pcs, slots, tries, locked;
+
+  function pickList() {
+    const mix = lvl === 1 ? [[3, 8]] : lvl === 2 ? [[3, 3], [4, 5]] : lvl === 3 ? [[4, 3], [5, 5]] : [[5, 8]];
+    return mix.flatMap(([n, k]) => shuffle(BANK[n]).slice(0, k));
+  }
+  function play() { list = pickList(); i = 0; score = 0; first = 0; show(); }
+  function show() {
+    it = list[i]; tries = 0; locked = false;
+    slots = it.parts.map(() => null);
+    let arr = it.parts.map((p, id) => ({ t: p.t, r: p.r, id }));
+    for (let n = 0; n < 12 && arr.every((p, k) => p.id === k); n++) arr = shuffle(arr);
+    pcs = arr;
+    $("#sn").textContent = i + 1; $("#score").textContent = score;
+    $("#my").textContent = it.my;
+    $("#fb").textContent = ""; $("#fb").className = "st-fb";
+    $("#next").hidden = true; $("#say").hidden = true; $("#skip").hidden = false;
+    const tip = $("#tip"); tip.innerHTML = "";
+    if (slotHint) {
+      tip.append("English အစီအစဉ်: ");
+      it.parts.forEach((p, k) => {
+        if (k) tip.append(" → ");
+        const b = document.createElement("b"); b.textContent = ROLE[p.r][0]; b.style.background = ROLE[p.r][1]; tip.appendChild(b);
+      });
+    } else tip.textContent = "အရိပ်အမြွက် မပါဘူး — ဘယ်သူ → ဘာလုပ် → ဘာကို → ဘယ်မှာ → ဘယ်အချိန်";
+    const tr = $("#train"); tr.className = "st-train in";
+    draw();
+  }
+  function draw() {
+    const tr = $("#train"), bank = $("#bank");
+    tr.innerHTML = '<div class="st-eng" id="eng">🚂</div>'; bank.innerHTML = "";
+    slots.forEach((p, k) => {
+      const b = document.createElement("button");
+      b.className = "st-wag" + (p ? " full" : "");
+      if (p) {
+        b.textContent = (k === 0 ? cap(p.t) : p.t) + (k === slots.length - 1 ? "." : "");
+        if (colour) b.style.background = ROLE[p.r][1];
+        b.setAttribute("aria-label", p.t + " — ပြန်ဖြုတ်ရန်");
+        b.onclick = () => { if (!locked) { slots[k] = null; draw(); } };
+      } else {
+        b.innerHTML = slotHint ? "<small></small>?" : "?";
+        if (slotHint) { $("small", b).textContent = ROLE[it.parts[k].r][0]; if (colour) b.style.borderColor = ROLE[it.parts[k].r][1]; }
+        b.disabled = true;
+      }
+      tr.appendChild(b);
+    });
+    pcs.forEach(p => {
+      const b = document.createElement("button");
+      b.className = "st-pc"; b.textContent = p.t;
+      if (colour) b.style.background = ROLE[p.r][1];
+      b.disabled = slots.includes(p);
+      b.onclick = () => {
+        if (locked) return;
+        slots[slots.indexOf(null)] = p; draw();
+        if (!slots.includes(null)) { locked = true; setTimeout(check, 250); }
+      };
+      bank.appendChild(b);
+    });
+  }
+  const sentence = () => cap(it.parts.map(p => p.t).join(" ")) + ".";
+  function check() {
+    const wags = [...$("#train").querySelectorAll(".st-wag")], fb = $("#fb");
+    const bad = slots.map((p, k) => p.t !== it.parts[k].t);
+    if (!bad.includes(true)) return win(wags);
+    tries++; sfx.bad();
+    wags.forEach((w, k) => w.classList.add(bad[k] ? "no" : "ok"));
+    const vWrong = bad[1] && slots[1].r !== "V";
+    fb.className = "st-fb no";
+    fb.textContent = vWrong ? "ကြိယာ (ဘာလုပ်) က English မှာ ဘယ်သူ ပြီးတာနဲ့ ချက်ချင်းလာတယ်။ အနီရောင်တွဲတွေကို ပြန်စီပါ။" : "အနီရောင်ပြထားတဲ့ တွဲတွေ နေရာမမှန်သေးဘူး၊ ပြန်စီကြည့်ပါ။";
+    setTimeout(() => { slots = slots.map((p, k) => bad[k] ? null : p); locked = false; draw(); }, 900);
+  }
+  function win(wags) {
+    const pts = tries ? 5 : 10;
+    if (!tries) first++;
+    score += pts; addPoints(pts); sfx.ok();
+    wags.forEach(w => w.classList.add("ok"));
+    $("#eng").classList.add("puff");
+    fx.confetti(fx.at($("#train")).x, fx.at($("#train")).y, 24);
+    fx.pop($("#train"), "+" + pts);
+    done("ok", "✓ မှန်ပါတယ်! ");
+    speak(sentence());
+  }
+  function done(cls, lead) {
+    locked = true;
+    const fb = $("#fb"); fb.className = "st-fb " + cls; fb.textContent = lead;
+    const en = document.createElement("span"); en.className = "en"; en.textContent = sentence(); fb.appendChild(en);
+    fb.append("မြန်မာလို ကြိယာက နောက်ဆုံးမှာ၊ English မှာတော့ ဘယ်သူ ပြီးတာနဲ့ ကြိယာ လာတယ်။");
+    $("#score").textContent = score;
+    $("#skip").hidden = true; $("#say").hidden = false;
+    const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  $("#say").onclick = () => speak(sentence());
+  $("#skip").onclick = () => {
+    if (locked) return;
+    slots = it.parts.map((p, id) => pcs.find(x => x.id === id)); draw(); sfx.bad();
+    done("no", "အဖြေမှန်: ");
+  };
+  $("#next").onclick = () => {
+    $("#next").hidden = true;
+    $("#train").className = "st-train go";
+    setTimeout(() => {
+      if (i < list.length - 1) { i++; show(); return; }
+      const r = first / list.length;
+      showResult({ title: cheer(r), stars: starsFor(r), text: "ရထား " + first + " / " + list.length + " စီး တစ်ခါတည်းမှန်တယ် · " + score + " points", onAgain: play });
+    }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 650);
+  };
+  play.gameId = "senttrain";
+  play();
+})();
+</script>
+</body>
+</html>

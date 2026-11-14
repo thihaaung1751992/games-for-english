@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Picture Listen</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.pl-radio { border-radius: 22px; border: 3px solid #5b3a1e; padding: 14px; text-align: center;
+  background: linear-gradient(color-mix(in srgb, #f6c177 50%, var(--card)), color-mix(in srgb, #c98a47 40%, var(--card))); }
+.pl-play { font: inherit; font-weight: 800; font-size: 1.2rem; width: 100%; min-height: 66px; border-radius: 16px; border: 0; background: var(--accent); color: #fff; cursor: pointer; box-shadow: 0 5px 0 rgba(0,0,0,.25); }
+.pl-play:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.pl-play:disabled { opacity: .5; cursor: default; }
+.pl-row { display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.pl-slow { font: inherit; font-weight: 700; min-height: 44px; padding: 0 14px; border-radius: 99px; border: 2px solid #5b3a1e; background: var(--card); color: var(--ink); cursor: pointer; }
+.pl-slow:disabled { opacity: .45; }
+.pl-left { font-size: .9rem; font-weight: 700; color: var(--ink); }
+.pl-wave { display: flex; justify-content: center; align-items: flex-end; gap: 4px; height: 26px; margin-top: 8px; }
+.pl-wave i { width: 6px; height: 6px; border-radius: 3px; background: #5b3a1e; opacity: .35; }
+.pl-wave.on i { opacity: 1; animation: plw .8s ease-in-out infinite; }
+.pl-wave.on i:nth-child(2) { animation-delay: .1s; } .pl-wave.on i:nth-child(3) { animation-delay: .2s; }
+.pl-wave.on i:nth-child(4) { animation-delay: .3s; } .pl-wave.on i:nth-child(5) { animation-delay: .4s; }
+.pl-note { font-size: .9rem; font-weight: 700; color: var(--warn); min-height: 1.6em; }
+.pl-q { text-align: center; font-weight: 800; margin: 14px 0 8px; }
+.pl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pl-card { font: inherit; min-height: 104px; border-radius: 18px; border: 3px solid var(--line); background: var(--card); cursor: pointer; font-size: clamp(1.9rem, 9vw, 2.6rem); line-height: 1.25; padding: 6px; letter-spacing: .04em; }
+.pl-card:hover:not(:disabled) { border-color: var(--accent); }
+.pl-card.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 20%, var(--card)); }
+.pl-card.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 18%, var(--card)); }
+.pl-card:disabled { cursor: default; }
+.pl-fb { min-height: 4.4em; text-align: center; margin-top: 10px; font-weight: 700; line-height: 1.6; }
+.pl-fb.ok { color: var(--good); } .pl-fb.no { color: var(--bad); }
+.pl-fb .en { display: block; font-size: 1.2rem; color: var(--ink); }
+@keyframes plw { 0%, 100% { height: 6px; } 50% { height: 24px; } }
+@media (prefers-reduced-motion: reduce) { .pl-wave.on i { animation: none; height: 16px; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Picture Listen: hear a whole sentence (no text on screen) and tap the picture that matches it.
+// The wrong pictures each change one detail (who, what, how many), so the player has to catch every word.
+(() => {
+  const topic = getTopic(), lvl = topic.level, LV = getLevel();
+  renderBar("Picture Listen · " + topic.name);
+  // [sentence, Burmese, right picture, wrong pictures]
+  const P = (s, my, a, d) => ({ s, my, a, d });
+  const EASY = [
+    P("It is raining.", "မိုးရွာနေတယ်။", "🌧️", ["☀️", "❄️", "🌈"]),
+    P("Three apples.", "ပန်းသီး သုံးလုံး။", "🍎🍎🍎", ["🍎🍎", "🍌🍌🍌", "🍎🍎🍎🍎"]),
+    P("The cat is sleeping.", "ကြောင်က အိပ်နေတယ်။", "🐱💤", ["🐶💤", "🐱🥛", "🐶🦴"]),
+    P("She is drinking coffee.", "သူမ ကော်ဖီ သောက်နေတယ်။", "👩☕", ["👨☕", "👩🍜", "👩📖"]),
+    P("He is reading a book.", "သူ စာအုပ် ဖတ်နေတယ်။", "👨📖", ["👩📖", "👨📱", "👨⚽"]),
+    P("The boy is happy.", "ကောင်လေးက ပျော်နေတယ်။", "👦😄", ["👦😢", "👧😄", "👦😡"]),
+    P("The girl is crying.", "ကောင်မလေးက ငိုနေတယ်။", "👧😢", ["👦😢", "👧😄", "👧😴"]),
+    P("My father is a doctor.", "အဖေက ဆရာဝန်ပါ။", "👨‍⚕️", ["👨‍🏫", "👨‍🍳", "👩‍⚕️"]),
+    P("My mother is a teacher.", "အမေက ဆရာမပါ။", "👩‍🏫", ["👩‍⚕️", "👩‍🍳", "👨‍🏫"]),
+    P("A yellow taxi.", "အဝါရောင် တက္ကစီ။", "🚕", ["🚗", "🚙", "🚌"]),
+    P("Two cups of tea, please.", "လက်ဖက်ရည် နှစ်ခွက် ပေးပါ။", "🍵🍵", ["🍵", "🥛🥛", "🍵🍵🍵"]),
+    P("I want rice and fish.", "ထမင်းနဲ့ ငါး လိုချင်တယ်။", "🍚🐟", ["🍚🍗", "🍞🐟", "🍜🥚"]),
+    P("Turn left.", "ဘယ်ဘက် ကွေ့ပါ။", "⬅️", ["➡️", "⬆️", "⬇️"]),
+    P("It is hot and sunny today.", "ဒီနေ့ ပူပြီး နေသာတယ်။", "☀️🥵", ["🌧️☔", "❄️🥶", "☁️🌬️"])
+  ];
+  const HARD = [
+    P("Two birds are in the tree.", "ငှက်နှစ်ကောင် သစ်ပင်ပေါ်မှာ ရှိတယ်။", "🐦🐦🌳", ["🐦🌳", "🐱🐱🌳", "🐦🐦🏠"]),
+    P("I go to school by bus.", "ကျွန်တော် ကျောင်းကို ဘတ်စ်ကားနဲ့ သွားတယ်။", "🚌🏫", ["🚲🏫", "🚌🏥", "🚗🏫"]),
+    P("The cat is on the bed.", "ကြောင်က ကုတင်ပေါ်မှာ ရှိတယ်။", "🐱🛏️", ["🐶🛏️", "🐱🪑", "🐱📦"]),
+    P("Four eggs and one banana.", "ကြက်ဥ လေးလုံးနဲ့ ငှက်ပျောသီး တစ်လုံး။", "🥚🥚🥚🥚🍌", ["🥚🍌🍌🍌🍌", "🥚🥚🥚🍌", "🥚🥚🥚🥚🍎"]),
+    P("It is seven o'clock.", "ခုနစ်နာရီ ရှိပြီ။", "🕖", ["🕕", "🕗", "🕐"]),
+    P("She goes to work by train, not by car.", "သူမ အလုပ်ကို ကားနဲ့မဟုတ်ဘဲ ရထားနဲ့ သွားတယ်။", "👩🚆", ["👩🚗", "👨🚆", "👩🚌"]),
+    P("He bought bread and milk, but no eggs.", "သူ ပေါင်မုန့်နဲ့ နို့ ဝယ်ခဲ့တယ်၊ ကြက်ဥတော့ မဝယ်ဘူး။", "🍞🥛", ["🍞🥛🥚", "🍞🥚", "🥛🥚"]),
+    P("There are four people in my family.", "ကျွန်တော့်မိသားစုမှာ လူလေးယောက် ရှိတယ်။", "👨👩👧👦", ["👨👩👧", "👨👩", "👨👩👧👦👶"]),
+    P("First I had a shower, and then I had breakfast.", "အရင် ရေချိုးပြီးမှ မနက်စာ စားခဲ့တယ်။", "🚿➡️🍳", ["🍳➡️🚿", "🚿➡️🛏️", "🏃➡️🍳"]),
+    P("I have a headache, so I am going to the hospital.", "ခေါင်းကိုက်လို့ ဆေးရုံ သွားမယ်။", "🤕🏥", ["🤕🏫", "🤧🏠", "😄🏥"]),
+    P("It was cloudy in the morning, but it is sunny now.", "မနက်က တိမ်ထူခဲ့ပေမယ့် အခု နေသာနေတယ်။", "☁️➡️☀️", ["☀️➡️☁️", "☁️➡️🌧️", "🌧️➡️☁️"]),
+    P("The shop sells shoes and bags, but not clothes.", "ဆိုင်က ဖိနပ်နဲ့ အိတ် ရောင်းတယ်၊ အဝတ်တော့ မရောင်းဘူး။", "👟👜", ["👟👕", "👜👕", "👟👜👕"])
+  ];
+  const ROUNDS = 10, MAXPLAY = lvl <= 2 ? 0 : lvl === 3 ? 3 : 2;   // 0 = listen as often as you like
+  const canSpeak = "speechSynthesis" in window;
+
+  $("#app").innerHTML =
+    '<div class="stats"><span>Round: <b id="rn">1</b>/' + ROUNDS + '</span><span id="streak"></span><span>Score: <b id="score">0</b></span></div>' +
+    '<div class="pl-radio"><button class="pl-play" id="playb">▶️ နားထောင်ပါ</button>' +
+    '<div class="pl-row"><button class="pl-slow" id="slow">🐢 ဖြည်းဖြည်း</button><span class="pl-left" id="left"></span></div>' +
+    '<div class="pl-wave" id="wave"><i></i><i></i><i></i><i></i><i></i></div><div class="pl-note" id="note"></div></div>' +
+    '<div class="pl-q">ကြားရတဲ့ ဝါကျနဲ့ ကိုက်တဲ့ ပုံကို ရွေးပါ</div><div class="pl-grid" id="grid"></div>' +
+    '<div class="pl-fb" id="fb" aria-live="polite"></div>' +
+    '<div class="row"><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+  let list, i, score, right, streak, it, plays, answered;
+
+  function say(rate) {
+    const note = $("#note");
+    if (!canSpeak) { note.textContent = "ဒီ browser မှာ အသံထွက်မရပါ။"; return; }
+    if (Store.get("mute", false)) { note.textContent = "🔇 အသံပိတ်ထားတယ် — အပေါ်ညာဘက်က ခလုတ်ကို နှိပ်ပြီး ဖွင့်ပါ။"; return; }
+    if (!answered && MAXPLAY && plays >= MAXPLAY) return;
+    note.textContent = "";
+    if (!answered) plays++;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(it.s);
+    u.lang = "en-US"; u.rate = rate;
+    const w = $("#wave"); w.classList.add("on");
+    u.onend = u.onerror = () => w.classList.remove("on");
+    speechSynthesis.speak(u);
+    paintLeft();
+  }
+  function paintLeft() {
+    const out = !answered && MAXPLAY && plays >= MAXPLAY;
+    $("#left").textContent = MAXPLAY && !answered ? "နားထောင်ခွင့် " + Math.max(0, MAXPLAY - plays) + " ကြိမ် ကျန်" : "";
+    $("#playb").disabled = out; $("#slow").disabled = out;
+  }
+  function play() {
+    const pool = lvl === 1 ? EASY : lvl === 2 ? shuffle(EASY).slice(0, 6).concat(shuffle(HARD).slice(0, 4)) : shuffle(HARD).slice(0, 8).concat(shuffle(EASY).slice(0, 2));
+    list = shuffle(pool).slice(0, ROUNDS); i = 0; score = 0; right = 0; streak = 0; show();
+  }
+  function show() {
+    it = list[i]; answered = false; plays = 0;
+    $("#rn").textContent = i + 1; $("#score").textContent = score;
+    $("#streak").textContent = streak >= 2 ? "🔥 " + streak : "";
+    $("#slow").hidden = lvl > 2;
+    const grid = $("#grid"); grid.innerHTML = "";
+    shuffle([it.a, ...shuffle(it.d).slice(0, LV.opts - 1)]).forEach(p => {
+      const b = document.createElement("button"); b.className = "pl-card"; b.textContent = p;
+      b.onclick = () => choose(b, p === it.a); grid.appendChild(b);
+    });
+    $("#fb").textContent = ""; $("#fb").className = "pl-fb"; $("#note").textContent = "";
+    $("#next").hidden = true;
+    paintLeft();
+    if (i > 0) setTimeout(() => say(0.85), 300);   // the first round waits for a tap (browsers block sound before one)
+  }
+  function choose(btn, ok) {
+    if (answered) return;
+    if (!plays && canSpeak && !Store.get("mute", false)) { $("#note").textContent = "အရင် ▶️ နှိပ်ပြီး နားထောင်ပါ။"; return; }
+    answered = true;
+    [...$("#grid").children].forEach(b => { b.disabled = true; if (b.textContent === it.a) b.classList.add("right"); });
+    const fb = $("#fb");
+    if (ok) {
+      right++; streak++;
+      const pts = 10 + Math.min(streak - 1, 5) * 2 - (plays > 2 ? 3 : 0); score += pts; addPoints(pts); sfx.ok();
+      fx.pop(btn, "+" + pts); if (streak % 3 === 0) fx.confetti(fx.at(btn).x, fx.at(btn).y, 24);
+      fb.className = "pl-fb ok"; fb.textContent = "✓ မှန်ပါတယ်! ";
+    } else { streak = 0; sfx.bad(); btn.classList.add("wrong"); fx.shake(btn); fb.className = "pl-fb no"; fb.textContent = "✗ မှားပါတယ်။ "; }
+    const en = document.createElement("span"); en.className = "en"; en.textContent = it.s; fb.appendChild(en);
+    fb.append(it.my);
+    $("#score").textContent = score; paintLeft();
+    const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →";
+  }
+  $("#playb").onclick = () => say(0.85);
+  $("#slow").onclick = () => say(0.55);
+  $("#next").onclick = () => {
+    if (canSpeak) speechSynthesis.cancel();
+    if (i < list.length - 1) { i++; show(); return; }
+    const r = right / list.length;
+    showResult({ title: cheer(r), stars: starsFor(r), text: right + " / " + list.length + " မှန်တယ် · " + score + " points", onAgain: play });
+  };
+  play.gameId = "piclisten";
+  play();
+})();
+</script>
+</body>
+</html>

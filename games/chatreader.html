@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat Reader</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.cr-phone { border-radius: 26px; border: 4px solid #2b2f36; overflow: hidden; background: color-mix(in srgb, #dfe9f3 55%, var(--card)); box-shadow: 0 6px 14px rgba(0,0,0,.2); }
+.cr-top { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: #2b2f36; color: #fff; font-weight: 800; }
+.cr-top .av { font-size: 1.5rem; line-height: 1; }
+.cr-top small { display: block; font-weight: 600; font-size: .72rem; opacity: .75; line-height: 1.2; }
+.cr-top button { margin-left: auto; font: inherit; font-size: .85rem; font-weight: 700; min-height: 40px; padding: 0 12px; border-radius: 99px; border: 0; background: #4b5563; color: #fff; cursor: pointer; }
+.cr-msgs { padding: 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+.cr-m { max-width: 84%; text-align: left; }
+.cr-m.me { align-self: flex-end; }
+.cr-m .who { font-size: .72rem; font-weight: 800; color: var(--muted); margin: 0 8px; line-height: 1.3; }
+.cr-m.me .who { text-align: right; }
+.cr-b { padding: 7px 12px; border-radius: 16px 16px 16px 4px; background: var(--card); border: 2px solid var(--line); font-size: 1.05rem; line-height: 1.6; transition: box-shadow .3s, background .3s; }
+.cr-m.me .cr-b { border-radius: 16px 16px 4px 16px; background: color-mix(in srgb, var(--accent) 22%, var(--card)); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.cr-m.ev .cr-b { box-shadow: 0 0 0 3px var(--star); background: color-mix(in srgb, var(--star) 28%, var(--card)); }
+.cr-m.in { animation: crin .35s ease-out backwards; }
+.cr-b button.w { font: inherit; color: inherit; background: none; border: 0; border-bottom: 2px dotted var(--accent); padding: 0; margin: 0; cursor: pointer; line-height: inherit; }
+.cr-b button.w.on { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.cr-gloss { margin: 0 10px 10px; padding: 6px 12px; border-radius: 12px; border: 2px dashed var(--line); background: var(--card); font-size: .95rem; color: var(--muted); min-height: 2.6em; }
+.cr-gloss b { color: var(--ink); }
+.cr-q { margin-top: 14px; }
+.cr-q .q-text { font-size: clamp(1.15rem, 5vw, 1.45rem); }
+.cr-q .opt { text-align: left; font-size: 1.05rem; }
+@keyframes crin { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cr-m.in { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Chat Reader: read a short phone chat, then answer questions about it. Dotted words show their Burmese meaning.
+// Each chat: a (other person), b (phone owner, shown on the right), msgs [[0 = a | 1 = b, text]], gloss {word: Burmese},
+// qs [{q, a (right), d (wrong x3), ev (index of the message that proves it), why}]
+(() => {
+  const topic = getTopic(), LV = getLevel();
+  renderBar("Chat Reader · " + topic.name);
+  const CHATS = [
+    { a: "Su", b: "Aye", av: "👩", title: "Dinner plans",
+      msgs: [[0, "Hi Aye! Are you free tonight?"], [1, "Yes, I finish work at six. Why?"], [0, "Let's have dinner. There is a new noodle shop near the market."],
+        [1, "Sounds good! Is it expensive?"], [0, "No, it's cheap. A bowl is only 2,000 kyats."], [1, "Great. What time shall we meet?"],
+        [0, "Seven o'clock, in front of the bank."], [1, "OK. See you at seven! 🍜"]],
+      gloss: { free: "အားတယ်", expensive: "ဈေးကြီးတယ်", cheap: "ဈေးပေါတယ်", bowl: "ပန်းကန်လုံး", "in front of": "...ရဲ့ အရှေ့မှာ" },
+      qs: [
+        { q: "When does Aye finish work?", a: "At six", d: ["At seven", "At five", "At eight"], ev: 1, why: "Aye က 'I finish work at six' လို့ ပြောတယ်။ seven က တွေ့မယ့်အချိန်ပါ။" },
+        { q: "Where is the new noodle shop?", a: "Near the market", d: ["In front of the bank", "Next to Aye's office", "Near the school"], ev: 2, why: "'near the market' = ဈေးနားမှာ။ ဘဏ်ရှေ့က ချိန်းတဲ့နေရာပါ။" },
+        { q: "How much is a bowl of noodles?", a: "2,000 kyats", d: ["7,000 kyats", "6,000 kyats", "200 kyats"], ev: 4, why: "'A bowl is only 2,000 kyats' = တစ်ပွဲ ၂,၀၀၀ ကျပ်ပဲ။" },
+        { q: "Where will they meet?", a: "In front of the bank", d: ["At the noodle shop", "At the market", "At Aye's office"], ev: 6, why: "'in front of the bank' = ဘဏ်ရှေ့မှာ တွေ့မယ်။" }
+      ] },
+    { a: "Mum", b: "Ko Ko", av: "👩‍🦳", title: "Shopping for Mum",
+      msgs: [[0, "Ko Ko, are you still at the market?"], [1, "Yes, Mum. I bought the rice and the eggs."], [0, "Good. Please buy some onions too. One kilo."],
+        [1, "OK. Do we need cooking oil?"], [0, "No, we have a lot of oil. But we don't have any salt."], [1, "All right — onions and salt. Anything else?"],
+        [0, "That's all. Come home before five. Grandma is coming for dinner."], [1, "OK, Mum! 👍"]],
+      gloss: { still: "...နေတုန်းပဲ", bought: "ဝယ်ခဲ့တယ်", onions: "ကြက်သွန်နီ", need: "လိုတယ်", "a lot of": "အများကြီး", salt: "ဆား", before: "မတိုင်ခင်" },
+      qs: [
+        { q: "What did Ko Ko already buy?", a: "Rice and eggs", d: ["Onions and salt", "Oil and salt", "Rice and onions"], ev: 1, why: "'I bought the rice and the eggs' = ဆန်နဲ့ ကြက်ဥ ဝယ်ပြီးပြီ။" },
+        { q: "How many onions does Mum want?", a: "One kilo", d: ["Two kilos", "Five kilos", "Half a kilo"], ev: 2, why: "'some onions ... One kilo' = ကြက်သွန် တစ်ကီလို။" },
+        { q: "Why don't they need cooking oil?", a: "They have a lot at home.", d: ["It is too expensive.", "Ko Ko already bought it.", "Grandma will bring it."], ev: 4, why: "'we have a lot of oil' = ဆီ အများကြီး ရှိသေးတယ်။" },
+        { q: "Who is coming for dinner?", a: "Grandma", d: ["Ko Ko's friend", "Dad", "The teacher"], ev: 6, why: "'Grandma is coming for dinner' = အဖွား ညစာလာစားမယ်။" }
+      ] },
+    { a: "Zaw", b: "Nilar", av: "🧑", title: "The lost umbrella",
+      msgs: [[1, "Zaw, I can't find my umbrella. Did I leave it in your car?"], [0, "Let me look... What colour is it?"], [1, "It's blue with white flowers."],
+        [0, "Yes! It's here, under the back seat."], [1, "Thank goodness! It was a present from my sister."], [0, "I can bring it to class tomorrow."],
+        [1, "Thanks. But it's raining now, and I have to go to the shop."], [0, "Then I'll bring it to your house in ten minutes."], [1, "You're the best! 😊"]],
+      gloss: { umbrella: "ထီး", leave: "ထားခဲ့တယ်", under: "အောက်မှာ", seat: "ထိုင်ခုံ", present: "လက်ဆောင်", bring: "ယူလာပေးတယ်" },
+      qs: [
+        { q: "What can't Nilar find?", a: "Her umbrella", d: ["Her bag", "Her phone", "Her car key"], ev: 0, why: "'I can't find my umbrella' = ထီး ရှာမတွေ့ဘူး။" },
+        { q: "Where is it?", a: "Under the back seat of Zaw's car", d: ["In the classroom", "At the shop", "At her sister's house"], ev: 3, why: "'under the back seat' = ကားနောက်ခုံအောက်မှာ။" },
+        { q: "Who gave it to Nilar?", a: "Her sister", d: ["Zaw", "Her mother", "Her teacher"], ev: 4, why: "'a present from my sister' = အစ်မ/ညီမ ပေးတဲ့ လက်ဆောင်။" },
+        { q: "When will Zaw bring it?", a: "In ten minutes", d: ["Tomorrow, in class", "Next week", "Tonight, after dinner"], ev: 7, why: "မနက်ဖြန်လို့ အရင်ပြောပေမယ့် မိုးရွာနေလို့ 'in ten minutes' ဆိုပြီး ပြောင်းလိုက်တယ်။" }
+      ] },
+    { a: "Thida", b: "Min", av: "👧", title: "A birthday surprise",
+      msgs: [[0, "Min, it's Hla's birthday on Saturday. Are you coming to the party?"], [1, "Of course! Where is it?"], [0, "At her house, at 4 p.m. Her mum is making a big cake."],
+        [1, "Nice. What shall I bring?"], [0, "I'm bringing juice. Can you bring some fruit?"], [1, "Sure. I'll buy mangoes and bananas."],
+        [0, "Perfect. And don't tell Hla — it's a surprise!"], [1, "Don't worry. I won't say anything. 🤫"]],
+      gloss: { birthday: "မွေးနေ့", "Of course": "ဟုတ်တာပေါ့", bring: "ယူလာတယ်", juice: "ဖျော်ရည်", surprise: "ကြိုမသိအောင် လုပ်တဲ့ အံ့ဩစရာ", worry: "စိတ်ပူတယ်" },
+      qs: [
+        { q: "When is the party?", a: "On Saturday at 4 p.m.", d: ["On Sunday at 4 p.m.", "On Saturday at 2 p.m.", "On Friday evening"], ev: 2, why: "မွေးနေ့က Saturday၊ ပွဲက 'at 4 p.m.' ပါ။" },
+        { q: "Who is making the cake?", a: "Hla's mum", d: ["Thida", "Min", "Hla"], ev: 2, why: "'Her mum is making a big cake' = Hla ရဲ့ အမေ လုပ်နေတယ်။" },
+        { q: "What will Min bring?", a: "Fruit", d: ["Juice", "A cake", "Flowers"], ev: 5, why: "Thida က juice၊ Min က mangoes and bananas (သစ်သီး) ယူလာမယ်။" },
+        { q: "Why mustn't Min tell Hla?", a: "The party is a surprise.", d: ["Hla is busy.", "Hla doesn't like parties.", "The party is cancelled."], ev: 6, why: "'it's a surprise' = Hla ကြိုမသိစေချင်လို့။" }
+      ] },
+    { a: "Mr Tun", b: "Sandar", av: "👨‍💼", title: "A message from the shop",
+      msgs: [[0, "Hello Sandar. Your new phone has arrived at our shop."], [1, "That's great news! Can I collect it today?"], [0, "Yes. We are open until 6 p.m. Please bring your receipt."],
+        [1, "I lost the receipt. Is my ID card OK?"], [0, "Yes, an ID card is fine. Do you want a phone case too? It's 3,000 kyats."], [1, "Yes, please. A black one."],
+        [0, "No problem. The total is 3,000 kyats, because you already paid for the phone."], [1, "Thank you. I'll come at five."]],
+      gloss: { arrived: "ရောက်လာပြီ", collect: "လာယူတယ်", until: "အထိ", receipt: "ငွေလက်ခံဖြတ်ပိုင်း", lost: "ပျောက်သွားတယ်", total: "စုစုပေါင်း", already: "...ပြီးသား" },
+      qs: [
+        { q: "Why does Mr Tun write to Sandar?", a: "Her new phone has arrived.", d: ["Her phone is broken.", "The shop is closing.", "She forgot to pay."], ev: 0, why: "'Your new phone has arrived' = ဖုန်းအသစ် ရောက်ပြီ။" },
+        { q: "What will Sandar show at the shop?", a: "Her ID card", d: ["Her receipt", "Her old phone", "A photo"], ev: 3, why: "receipt ပျောက်သွားလို့ ID card ပြမယ်။" },
+        { q: "How much will she pay today?", a: "3,000 kyats", d: ["6,000 kyats", "Nothing", "5,000 kyats"], ev: 6, why: "ဖုန်းဖိုး ပေးပြီးသားမို့ phone case ဖိုး ၃,၀၀၀ ပဲ ပေးရမယ်။" },
+        { q: "What time will she go to the shop?", a: "At five", d: ["At six", "At three", "Tomorrow morning"], ev: 7, why: "'I'll come at five'။ 6 p.m. က ဆိုင်ပိတ်ချိန်ပါ။" }
+      ] }
+  ];
+  const GLOSS_TIP = "👆 အစက်မျဉ်းသားထားတဲ့ စာလုံးကို နှိပ်ရင် မြန်မာအဓိပ္ပါယ် ပေါ်လာမယ်။";
+
+  $("#app").innerHTML =
+    '<div class="stats"><span>Question: <b id="qn">1</b>/<span id="qt"></span></span><span>Score: <b id="score">0</b></span></div>' +
+    '<div class="cr-phone"><div class="cr-top"><span class="av" id="av"></span><span><span id="name"></span><small id="title"></small></span><button id="read">🔊 Listen</button></div>' +
+    '<div class="cr-msgs" id="msgs"></div><div class="cr-gloss" id="gloss"></div></div>' +
+    '<div class="panel cr-q"><div class="q-label">Chat ကိုဖတ်ပြီး ဖြေပါ</div><div class="q-text" id="qtext"></div><div class="opts" id="opts"></div>' +
+    '<div class="fb" id="fb" aria-live="polite"></div>' +
+    '<div class="row"><button class="btn" id="hint">💡 ဘယ်စာကြောင်းလဲ ပြပါ (−3)</button><button class="btn primary" id="next" hidden>Next →</button></div></div>';
+
+  let C, qs, qi, right, score, answered, hinted, lastIdx = Store.get("chatreader_last", -1);
+
+  function bubble(text, gl) {
+    const div = document.createElement("div"); div.className = "cr-b";
+    const keys = Object.keys(gl).sort((x, y) => y.length - x.length);
+    const re = new RegExp("\\b(" + keys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\\b", "g");
+    let at = 0, m;
+    while ((m = re.exec(text))) {
+      div.append(text.slice(at, m.index));
+      const word = m[0];
+      const b = document.createElement("button"); b.className = "w"; b.textContent = word;
+      b.onclick = () => {
+        document.querySelectorAll(".cr-b .w.on").forEach(x => x.classList.remove("on")); b.classList.add("on");
+        const g = $("#gloss"); g.textContent = ""; const s = document.createElement("b"); s.textContent = word; g.append(s, " = " + gl[word]);
+        speak(word);
+      };
+      div.appendChild(b); at = m.index + m[0].length;
+    }
+    div.append(text.slice(at));
+    return div;
+  }
+  function play() {
+    let idx; do { idx = Math.floor(Math.random() * CHATS.length); } while (idx === lastIdx);
+    lastIdx = idx; Store.set("chatreader_last", idx); C = CHATS[idx];
+    qs = shuffle(C.qs).map(q => Object.assign({}, q, { options: shuffle([q.a, ...shuffle(q.d).slice(0, LV.opts - 1)]) }));
+    qi = 0; right = 0; score = 0;
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    $("#av").textContent = C.av; $("#name").textContent = C.a; $("#title").textContent = C.title; $("#qt").textContent = qs.length;
+    $("#gloss").textContent = GLOSS_TIP;
+    const box = $("#msgs"); box.innerHTML = "";
+    C.msgs.forEach(([who, text], k) => {
+      const m = document.createElement("div"); m.className = "cr-m in" + (who ? " me" : ""); m.style.animationDelay = (k * 0.12) + "s";
+      const w = document.createElement("div"); w.className = "who"; w.textContent = who ? C.b : C.a;
+      m.append(w, bubble(text, C.gloss)); box.appendChild(m);
+    });
+    showQ();
+  }
+  function setEv(on) {
+    [...$("#msgs").children].forEach((m, k) => m.classList.toggle("ev", on && k === qs[qi].ev));
+    if (on) $("#msgs").children[qs[qi].ev].scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  function showQ() {
+    const q = qs[qi]; answered = false; hinted = false; setEv(false);
+    $("#qn").textContent = qi + 1; $("#score").textContent = score;
+    $("#qtext").textContent = q.q;
+    const box = $("#opts"); box.innerHTML = "";
+    q.options.forEach(o => {
+      const b = document.createElement("button"); b.className = "opt"; b.textContent = o;
+      b.onclick = () => choose(b, o === q.a); box.appendChild(b);
+    });
+    $("#fb").textContent = ""; $("#fb").className = "fb";
+    $("#next").hidden = true; $("#hint").hidden = false; $("#hint").disabled = false;
+  }
+  function choose(btn, ok) {
+    if (answered) return;
+    answered = true;
+    const q = qs[qi], fb = $("#fb");
+    [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === q.a) b.classList.add("right"); });
+    $("#hint").hidden = true;
+    if (ok) { right++; const pts = hinted ? 7 : 10; score += pts; addPoints(pts); sfx.ok(); fx.pop(btn, "+" + pts); fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! "; }
+    else { sfx.bad(); btn.classList.add("wrong"); fb.className = "fb no"; fb.textContent = "✗ မှားပါတယ်။ "; }
+    fb.append(q.why + " (အဖြေပါတဲ့ စာကြောင်းကို အဝါရောင်နဲ့ ပြထားတယ်)");
+    setEv(true);
+    $("#score").textContent = score;
+    const n = $("#next"); n.hidden = false; n.textContent = qi === qs.length - 1 ? "Finish" : "Next →";
+  }
+  $("#hint").onclick = () => { if (answered) return; hinted = true; setEv(true); $("#hint").disabled = true; };
+  $("#next").onclick = () => {
+    if (qi < qs.length - 1) { qi++; showQ(); return; }
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    const r = right / qs.length;
+    showResult({ title: cheer(r), stars: starsFor(r), text: right + " / " + qs.length + " မှန်တယ် · " + score + " points", onAgain: play });
+  };
+  $("#read").onclick = () => {
+    if (!("speechSynthesis" in window)) return;
+    if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
+    speak(C.msgs.map(m => m[1].replace(/[^\x00-\x7F—]/g, "").replace(/—/g, ",").replace(/p\.m\./g, "P M")).join(" "));
+  };
+  play.gameId = "chatreader";
+  play();
+})();
+</script>
+</body>
+</html>

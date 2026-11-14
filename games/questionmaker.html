@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Question Maker</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.qm-mach { border-radius: 22px; border: 3px solid #4b5563; padding: 14px; text-align: center;
+  background: linear-gradient(color-mix(in srgb, #cbd5e1 55%, var(--card)), color-mix(in srgb, #94a3b8 35%, var(--card))); }
+.qm-in { background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+.qm-in small { display: block; font-size: .75rem; font-weight: 800; letter-spacing: .06em; color: var(--muted); }
+.qm-in b { font-size: clamp(1.25rem, 5.6vw, 1.7rem); line-height: 1.5; }
+.qm-my { font-size: .95rem; color: var(--muted); }
+.qm-arrow { font-size: 1.5rem; line-height: 1.2; margin: 6px 0 2px; }
+.qm-mode { display: inline-block; padding: 2px 14px; border-radius: 99px; color: #fff; font-weight: 800; font-size: 1rem; }
+.qm-mode.q { background: #3b82f6; } .qm-mode.n { background: #e5484d; }
+.qm-out { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; min-height: 64px; margin-top: 10px; padding: 8px;
+  border-radius: 14px; border: 3px dashed #4b5563; background: color-mix(in srgb, var(--card) 80%, transparent); }
+.qm-out.good { border-style: solid; border-color: var(--good); } .qm-out.bad { border-color: var(--bad); animation: shake .3s; }
+.qm-out:empty::before { content: "စကားလုံးတွေကို နှိပ်ပြီး ဒီမှာ စီပါ"; color: var(--muted); font-size: .9rem; }
+.qm-bank { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 16px 0 4px; min-height: 56px; }
+.qm-fb { min-height: 4.4em; text-align: center; margin-top: 8px; font-weight: 700; line-height: 1.6; }
+.qm-fb.ok { color: var(--good); } .qm-fb.no { color: var(--bad); }
+.qm-fb .en { display: block; font-size: 1.15rem; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .qm-out.bad { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Question Maker: feed a plain sentence into the machine and rebuild it as a question (❓) or a negative (✖).
+// The word bank holds two trap words (wrong helper verb, wrong verb form), so the order alone is not enough.
+(() => {
+  const topic = getTopic(), lvl = topic.level;
+  renderBar("Question Maker · " + topic.name);
+  // [statement, mode q|n, answer, trap words, Burmese meaning of the statement, rule in Burmese]
+  const I = (s, k, a, x, my, why) => ({ s, k, a: a.split(" "), x: x.split(" "), my, why });
+  const BASIC = [
+    I("She likes tea.", "q", "Does she like tea?", "Do likes", "သူမ လက်ဖက်ရည် ကြိုက်တယ်။", "he / she / it ဆိုရင် Does နဲ့မေး၊ ကြိယာမှာ s မပါတော့ဘူး (like)။"),
+    I("They play football.", "q", "Do they play football?", "Does plays", "သူတို့ ဘောလုံး ကစားတယ်။", "I / you / we / they ဆိုရင် Do နဲ့ မေးတယ်။"),
+    I("He is a teacher.", "q", "Is he a teacher?", "Does Are", "သူက ဆရာတစ်ယောက်ပါ။", "is / are ပါတဲ့ဝါကျမှာ Do မလိုဘူး၊ is ကို ရှေ့ဆုံး ရွှေ့လိုက်ရုံပဲ။"),
+    I("You are hungry.", "q", "Are you hungry?", "Is Do", "မင်း ဗိုက်ဆာနေတယ်။", "are ကို ရှေ့ဆုံး ရွှေ့ပြီး မေးတယ်။"),
+    I("I like coffee.", "n", "I do not like coffee.", "does am", "ကျွန်တော် ကော်ဖီ ကြိုက်တယ်။", "I / you / we / they ဆိုရင် do not + ကြိယာ။"),
+    I("She eats meat.", "n", "She does not eat meat.", "do eats", "သူမ အသား စားတယ်။", "she ဆိုရင် does not၊ ကြိယာက s မပါတော့ဘူး (eat)။"),
+    I("We are late.", "n", "We are not late.", "do is", "ကျွန်တော်တို့ နောက်ကျနေတယ်။", "are ပါပြီးသားမို့ are နောက်မှာ not ထည့်ရုံပဲ။"),
+    I("He has a car.", "q", "Does he have a car?", "Do has", "သူ့မှာ ကားတစ်စီး ရှိတယ်။", "Does နဲ့မေးရင် has က have ပြန်ဖြစ်သွားတယ်။"),
+    I("The shop opens at nine.", "q", "Does the shop open at nine?", "Do opens", "ဆိုင်က ကိုးနာရီ ဖွင့်တယ်။", "the shop = it မို့ Does၊ ကြိယာက open (s မပါ)။"),
+    I("It is expensive.", "n", "It is not expensive.", "does are", "အဲဒါ ဈေးကြီးတယ်။", "is နောက်မှာ not ထည့်တယ်။"),
+    I("They live in Yangon.", "n", "They do not live in Yangon.", "does lives", "သူတို့ ရန်ကုန်မှာ နေတယ်။", "they ဆိုရင် do not + live။"),
+    I("Tom can swim.", "q", "Can Tom swim?", "Does swims", "တွမ် ရေကူးတတ်တယ်။", "can ပါရင် Do မလိုဘူး၊ Can ကို ရှေ့ဆုံး ရွှေ့တယ်။")
+  ];
+  const ADV = [
+    I("She went to the market.", "q", "Did she go to the market?", "Does went", "သူမ ဈေးသွားခဲ့တယ်။", "အတိတ်ကာလကို Did နဲ့မေး၊ ကြိယာက မူရင်းပုံစံ (go) ပြန်ဖြစ်တယ်။"),
+    I("They bought a new house.", "n", "They did not buy a new house.", "do bought", "သူတို့ အိမ်အသစ် ဝယ်ခဲ့တယ်။", "did not + မူရင်းကြိယာ (buy)။"),
+    I("He was at home yesterday.", "q", "Was he at home yesterday?", "Did were", "သူ မနေ့က အိမ်မှာ ရှိခဲ့တယ်။", "was / were ပါရင် Did မလိုဘူး၊ Was ကို ရှေ့ရွှေ့တယ်။"),
+    I("You will call me tomorrow.", "q", "Will you call me tomorrow?", "Do calls", "မင်း မနက်ဖြန် ငါ့ကို ဖုန်းဆက်မယ်။", "will ကို ရှေ့ဆုံး ရွှေ့ပြီး မေးတယ်။"),
+    I("She has finished her work.", "q", "Has she finished her work?", "Did finish", "သူမ အလုပ် ပြီးသွားပြီ။", "has + V3 ဝါကျမှာ Has ကို ရှေ့ရွှေ့တယ်၊ finished မပြောင်းဘူး။"),
+    I("We were tired.", "n", "We were not tired.", "did was", "ကျွန်တော်တို့ ပင်ပန်းခဲ့တယ်။", "were နောက်မှာ not ထည့်တယ်။"),
+    I("He should take the medicine.", "n", "He should not take the medicine.", "does takes", "သူ ဆေးသောက်သင့်တယ်။", "should နောက်မှာ not၊ ကြိယာက မူရင်းပုံစံ။"),
+    I("They are waiting for the bus.", "q", "Are they waiting for the bus?", "Do wait", "သူတို့ ဘတ်စ်ကား စောင့်နေတယ်။", "are + V-ing ဝါကျမှာ Are ကို ရှေ့ရွှေ့တယ်။"),
+    I("I saw the doctor.", "n", "I did not see the doctor.", "do saw", "ကျွန်တော် ဆရာဝန်နဲ့ ပြခဲ့တယ်။", "did not + မူရင်းကြိယာ (see)။"),
+    I("She can speak Chinese.", "n", "She cannot speak Chinese.", "does speaks", "သူမ တရုတ်စကား ပြောတတ်တယ်။", "can ရဲ့ အငြင်းက cannot (တစ်လုံးတည်း)။")
+  ];
+  const ROUNDS = 8;
+  const MODE = { q: "❓ မေးခွန်း ပြောင်းပါ", n: "✖ အငြင်းဝါကျ ပြောင်းပါ" };
+
+  $("#app").innerHTML =
+    '<div class="stats"><span>Sentence: <b id="sn">1</b>/' + ROUNDS + '</span><span>Score: <b id="score">0</b></span></div>' +
+    '<div class="qm-mach"><div class="qm-in"><small>မူရင်းဝါကျ</small><b id="src"></b><div class="qm-my" id="my"></div></div>' +
+    '<div class="qm-arrow">⚙️ ⬇️ ⚙️</div><span class="qm-mode" id="mode"></span>' +
+    '<div class="qm-out chips" id="line" aria-label="Your sentence"></div></div>' +
+    '<div class="qm-bank" id="bank" aria-label="Words"></div>' +
+    '<div class="qm-fb" id="fb" aria-live="polite"></div>' +
+    '<div class="row"><button class="btn" id="clear">Clear</button><button class="btn" id="skip">Skip</button>' +
+    '<button class="btn primary" id="check">Check</button><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+  let list, i, score, first, it, toks, placed, tries, locked;
+
+  function play() {
+    list = lvl <= 2 ? shuffle(BASIC).slice(0, ROUNDS) : shuffle(shuffle(ADV).slice(0, 6).concat(shuffle(BASIC).slice(0, 2)));
+    i = 0; score = 0; first = 0; show();
+  }
+  function show() {
+    it = list[i]; tries = 0; locked = false; placed = [];
+    // level 1 has one trap word, the rest have both
+    toks = shuffle(it.a.concat(lvl === 1 ? it.x.slice(0, 1) : it.x).map((t, id) => ({ t, id })));
+    $("#sn").textContent = i + 1; $("#score").textContent = score;
+    $("#src").textContent = it.s; $("#my").textContent = it.my;
+    const m = $("#mode"); m.textContent = MODE[it.k]; m.className = "qm-mode " + it.k;
+    $("#fb").textContent = ""; $("#fb").className = "qm-fb";
+    $("#next").hidden = true; $("#check").hidden = false; $("#skip").hidden = false; $("#clear").hidden = false;
+    draw();
+  }
+  function draw() {
+    const line = $("#line"), bank = $("#bank");
+    line.innerHTML = ""; bank.innerHTML = ""; line.className = "qm-out chips";
+    placed.forEach((p, n) => {
+      const b = document.createElement("button");
+      b.className = "chip placed"; b.textContent = p.t;
+      b.onclick = () => { if (!locked) { placed.splice(n, 1); draw(); } };
+      line.appendChild(b);
+    });
+    toks.forEach(p => {
+      const b = document.createElement("button");
+      b.className = "chip"; b.textContent = p.t;
+      b.disabled = placed.includes(p);
+      b.onclick = () => { if (!locked) { placed.push(p); draw(); } };
+      bank.appendChild(b);
+    });
+    $("#check").disabled = !placed.length;
+  }
+  function finish(cls, lead) {
+    locked = true;
+    const fb = $("#fb"); fb.className = "qm-fb " + cls; fb.textContent = lead;
+    const en = document.createElement("span"); en.className = "en"; en.textContent = it.a.join(" "); fb.appendChild(en);
+    fb.append(it.why);
+    $("#score").textContent = score;
+    $("#check").hidden = true; $("#skip").hidden = true; $("#clear").hidden = true;
+    const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  $("#check").onclick = () => {
+    if (locked || !placed.length) return;
+    const line = $("#line"), fb = $("#fb");
+    if (placed.map(p => p.t).join(" ") === it.a.join(" ")) {
+      const pts = tries ? 5 : 10;
+      if (!tries) first++;
+      score += pts; addPoints(pts); sfx.ok(); line.classList.add("good");
+      fx.confetti(fx.at(line).x, fx.at(line).y, 22); fx.pop(line, "+" + pts);
+      speak(it.a.join(" "));
+      return finish("ok", "✓ မှန်ပါတယ်! ");
+    }
+    tries++; sfx.bad(); line.classList.add("bad");
+    fb.className = "qm-fb no";
+    fb.textContent = tries === 1 ? "မမှန်သေးဘူး။ စကားလုံးအားလုံး သုံးစရာ မလိုဘူးနော် — ထောင်ချောက်စာလုံး ပါတယ်။" : "💡 " + it.why;
+    setTimeout(() => line.classList.remove("bad"), 400);
+  };
+  $("#clear").onclick = () => { if (!locked) { placed = []; draw(); } };
+  $("#skip").onclick = () => {
+    if (locked) return;
+    sfx.bad();
+    const pool = toks.slice();
+    placed = it.a.map(t => pool.splice(pool.findIndex(p => p.t === t), 1)[0]);
+    draw(); finish("no", "အဖြေမှန်: ");
+  };
+  $("#next").onclick = () => {
+    if (i < list.length - 1) { i++; show(); return; }
+    const r = first / list.length;
+    showResult({ title: cheer(r), stars: starsFor(r), text: first + " / " + list.length + " တစ်ခါတည်းမှန်တယ် · " + score + " points", onAgain: play });
+  };
+  play.gameId = "questionmaker";
+  play();
+})();
+</script>
+</body>
+</html>

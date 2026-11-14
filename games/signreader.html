@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign Reader</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.sr-street { position: relative; border-radius: 22px; overflow: hidden; border: 2px solid var(--line); padding: 18px 12px 0; text-align: center;
+  background: linear-gradient(color-mix(in srgb, #9ad7ff 45%, var(--card)) 0 70%, color-mix(in srgb, #9aa5b1 50%, var(--card)) 70%); min-height: 250px; }
+.sr-where { font-size: .9rem; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+.sr-sign { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 190px; max-width: 100%; min-height: 110px; padding: 12px 20px;
+  border-radius: 14px; border: 5px solid #fff; outline: 3px solid rgba(0,0,0,.35); box-shadow: 0 6px 10px rgba(0,0,0,.3); color: #fff; font-weight: 900; letter-spacing: .04em;
+  font-size: clamp(1.4rem, 6.6vw, 2rem); line-height: 1.3; animation: srin .4s ease-out; }
+.sr-sign .ic { font-size: 2rem; line-height: 1.1; }
+.sr-sign.g { background: #1f8f4a; } .sr-sign.r { background: #c92a2a; } .sr-sign.b { background: #1c63c7; }
+.sr-sign.y { background: #f5c211; color: #1a1a1a; } .sr-sign.w { background: #fdfdfd; color: #1a1a1a; border-color: #1a1a1a; }
+.sr-sign.q { background: var(--card); color: var(--ink); border-color: var(--line); outline: 0; font-size: clamp(1.15rem, 5vw, 1.5rem); letter-spacing: 0; }
+.sr-pole { width: 12px; height: 54px; margin: 0 auto; background: linear-gradient(90deg, #777, #bbb, #777); }
+.sr-q { font-weight: 800; font-size: 1.05rem; margin: 14px 0 0; text-align: center; }
+.sr-opts .opt { font-size: 1.05rem; line-height: 1.6; }
+.sr-opts.en .opt { font-size: 1.15rem; letter-spacing: .03em; }
+@keyframes srin { from { transform: translateY(-30px) rotate(-4deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sr-sign { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Sign Reader: read the signs you meet in a town and say what they mean (first-step reading for real life).
+// Rounds alternate: sign → Burmese meaning, then Burmese situation → pick the right sign.
+(() => {
+  const topic = getTopic(), lvl = topic.level, LV = getLevel();
+  renderBar("Sign Reader · " + topic.name);
+  // [sign text, colour, icon, where you see it, meaning, near-miss meaning (always offered as a wrong option), word help]
+  const S = (t, c, ic, at, my, near, why) => ({ t, c, ic, at, my, near, why });
+  const BASIC = [
+    S("OPEN", "g", "", "ဆိုင်တံခါးမှာ", "ဆိုင်ဖွင့်ထားတယ်", "ဆိုင်ပိတ်ထားတယ်", "open = ဖွင့်သည်"),
+    S("CLOSED", "r", "", "ဆိုင်တံခါးမှာ", "ဆိုင်ပိတ်ထားတယ်", "ဆိုင်ဖွင့်ထားတယ်", "closed = ပိတ်ထားသည်"),
+    S("PUSH", "b", "", "တံခါးလက်ကိုင်မှာ", "တံခါးကို တွန်းဖွင့်ပါ", "တံခါးကို ဆွဲဖွင့်ပါ", "push = တွန်းသည်"),
+    S("PULL", "b", "", "တံခါးလက်ကိုင်မှာ", "တံခါးကို ဆွဲဖွင့်ပါ", "တံခါးကို တွန်းဖွင့်ပါ", "pull = ဆွဲသည်"),
+    S("EXIT", "g", "🚪", "အဆောက်အအုံထဲမှာ", "ထွက်ပေါက်", "ဝင်ပေါက်", "exit = ထွက်ပေါက်"),
+    S("ENTRANCE", "b", "", "အဆောက်အအုံအရှေ့မှာ", "ဝင်ပေါက်", "ထွက်ပေါက်", "entrance = ဝင်ပေါက်"),
+    S("NO SMOKING", "r", "🚭", "ဆေးရုံထဲမှာ", "ဆေးလိပ် မသောက်ရ", "ဓာတ်ပုံ မရိုက်ရ", "no = မလုပ်ရ၊ smoking = ဆေးလိပ်သောက်ခြင်း"),
+    S("NO PARKING", "r", "🚫", "လမ်းဘေးမှာ", "ကား မရပ်ရ", "ကား ဒီမှာရပ်ပါ", "parking = ကားရပ်ခြင်း"),
+    S("WET FLOOR", "y", "⚠️", "ဈေးဝယ်စင်တာ ကြမ်းပြင်မှာ", "ကြမ်းပြင်စိုနေတယ်၊ ချော်မယ် သတိထားပါ", "ကြမ်းပြင်ပေါ် မထိုင်ရ", "wet = စိုသည်၊ floor = ကြမ်းပြင်"),
+    S("SALE 50% OFF", "r", "🏷️", "အဝတ်ဆိုင်မှာ", "ဈေးတစ်ဝက် လျှော့ထားတယ်", "ဈေး ၅၀ ကျပ်ပဲ ပေးရမယ်", "sale = လျှော့ဈေး၊ 50% off = တစ်ဝက်လျှော့"),
+    S("TOILETS", "b", "🚻", "ဘူတာရုံမှာ", "အိမ်သာ", "ရေချိုးခန်းပျက်နေတယ်", "toilets = အိမ်သာ"),
+    S("STOP", "r", "✋", "လမ်းဆုံမှာ", "ရပ်ပါ", "မြန်မြန်သွားပါ", "stop = ရပ်သည်"),
+    S("DO NOT ENTER", "r", "⛔", "တံခါးတစ်ခုမှာ", "မဝင်ရ", "ဝင်ပေါက်", "enter = ဝင်သည်၊ do not = မလုပ်နဲ့"),
+    S("BUS STOP", "b", "🚌", "လမ်းဘေးမှာ", "ဘတ်စ်ကားမှတ်တိုင်", "ဘတ်စ်ကား မရပ်ရ", "bus stop = ကားမှတ်တိုင်"),
+    S("QUIET PLEASE", "w", "🤫", "စာကြည့်တိုက်မှာ", "တိတ်တိတ်နေပါ", "မြန်မြန်ပြောပါ", "quiet = တိတ်ဆိတ်သည်"),
+    S("CASH ONLY", "w", "💵", "ဆိုင်ငွေရှင်းကောင်တာမှာ", "ငွေသားပဲ လက်ခံတယ်", "ကတ်နဲ့ပဲ ပေးလို့ရတယ်", "cash = ငွေသား၊ only = သာလျှင်")
+  ];
+  const ADV = [
+    S("KEEP OFF THE GRASS", "g", "🌱", "ပန်းခြံထဲမှာ", "မြက်ခင်းပေါ် မနင်းရ", "မြက်ခင်းပေါ်မှာ ထိုင်ပါ", "keep off = အပေါ်မတက်နဲ့၊ grass = မြက်"),
+    S("OUT OF ORDER", "y", "🛗", "ဓာတ်လှေကားမှာ", "ပျက်နေလို့ သုံးမရဘူး", "တန်းစီပြီး သုံးပါ", "out of order = ပျက်နေသည်"),
+    S("STAFF ONLY", "r", "", "ဆိုင်နောက်ခန်းတံခါးမှာ", "ဝန်ထမ်းတွေပဲ ဝင်ခွင့်ရှိတယ်", "ဝန်ထမ်း မရှိဘူး", "staff = ဝန်ထမ်း၊ only = သာလျှင်"),
+    S("PLEASE QUEUE HERE", "b", "🧍🧍", "ဘဏ်ထဲမှာ", "ဒီမှာ တန်းစီပါ", "ဒီမှာ မရပ်ရ", "queue = တန်းစီသည်"),
+    S("MIND THE GAP", "y", "🚉", "ရထားပလက်ဖောင်းမှာ", "ရထားနဲ့ ပလက်ဖောင်းကြားက ကွက်လပ်ကို သတိထားပါ", "ရထားပေါ် မတက်ရ", "mind = သတိထားသည်၊ gap = ကွက်လပ်"),
+    S("BUY ONE, GET ONE FREE", "r", "🎁", "စူပါမားကက်မှာ", "တစ်ခုဝယ်ရင် တစ်ခု အလကားရမယ်", "တစ်ယောက်ကို တစ်ခုပဲ ဝယ်ခွင့်ရှိတယ်", "free = အခမဲ့"),
+    S("BACK IN 10 MINUTES", "w", "🕙", "ဆိုင်တံခါးမှာ", "၁၀ မိနစ်အတွင်း ပြန်လာမယ်", "၁၀ မိနစ်ပဲ ဖွင့်မယ်", "back = ပြန်လာသည်"),
+    S("BEWARE OF THE DOG", "y", "🐕", "အိမ်ခြံတံခါးမှာ", "ခွေးရှိတယ်၊ သတိထားပါ", "ခွေးတွေ ဝင်ခွင့်မရှိ", "beware of = သတိထားပါ"),
+    S("PLEASE TAKE OFF YOUR SHOES", "w", "👟", "ဘုရားအဝင်မှာ", "ဖိနပ်ချွတ်ပါ", "ဖိနပ်စီးထားပါ", "take off = ချွတ်သည်"),
+    S("FREE WI-FI INSIDE", "g", "📶", "ကော်ဖီဆိုင်မှာ", "အထဲမှာ ဝိုင်ဖိုင် အခမဲ့သုံးလို့ရတယ်", "အထဲမှာ ဖုန်းမသုံးရ", "free = အခမဲ့၊ inside = အထဲမှာ"),
+    S("SOLD OUT", "r", "", "လက်မှတ်ရောင်းတဲ့နေရာမှာ", "ရောင်းကုန်သွားပြီ", "အခုပဲ စရောင်းတယ်", "sold out = ရောင်းကုန်သည်"),
+    S("OPEN DAILY 9 A.M. – 5 P.M.", "g", "", "ပြတိုက်အရှေ့မှာ", "နေ့တိုင်း မနက် ၉ နာရီကနေ ညနေ ၅ နာရီအထိ ဖွင့်တယ်", "တစ်ပတ်ကို ၅ ရက်ပဲ ဖွင့်တယ်", "daily = နေ့တိုင်း")
+  ];
+  const ROUNDS = 10;
+
+  $("#app").innerHTML =
+    '<div class="stats"><span>Sign: <b id="sn">1</b>/' + ROUNDS + '</span><span id="streak"></span><span>Score: <b id="score">0</b></span></div>' +
+    '<div class="sr-street"><div class="sr-where" id="where"></div><div id="sign"></div><div class="sr-pole"></div></div>' +
+    '<div class="sr-q" id="q"></div><div class="opts sr-opts" id="opts"></div>' +
+    '<div class="fb" id="fb" aria-live="polite" style="text-align:center"></div>' +
+    '<div class="row"><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+  let list, pool, i, score, right, streak, it, rev, answer, answered;
+
+  function play() {
+    pool = lvl <= 2 ? BASIC : lvl === 3 ? BASIC.slice(0, 8).concat(ADV) : ADV;
+    list = shuffle(pool).slice(0, ROUNDS);
+    i = 0; score = 0; right = 0; streak = 0; show();
+  }
+  function show() {
+    it = list[i]; answered = false;
+    rev = i % 2 === 1;   // odd rounds: Burmese situation → which sign?
+    $("#sn").textContent = i + 1; $("#score").textContent = score;
+    $("#streak").textContent = streak >= 2 ? "🔥 " + streak : "";
+    $("#where").textContent = "📍 " + it.at;
+    const sg = document.createElement("div");
+    if (rev) { sg.className = "sr-sign q my"; sg.textContent = "“" + it.my + "”"; }
+    else {
+      sg.className = "sr-sign " + it.c;
+      if (it.ic) { const s = document.createElement("span"); s.className = "ic"; s.textContent = it.ic; sg.appendChild(s); }
+      sg.append(it.t);
+    }
+    $("#sign").replaceChildren(sg);
+    $("#q").textContent = rev ? "ဒီလိုပြောချင်ရင် ဘယ်ဆိုင်းဘုတ် တပ်ရမလဲ?" : "ဒီဆိုင်းဘုတ်က ဘာကို ဆိုလိုတာလဲ?";
+    answer = rev ? it.t : it.my;
+    const n = LV.opts - 1, others = shuffle(pool.filter(x => x !== it));
+    let wrong;
+    if (rev) {
+      const twin = pool.find(x => x.my === it.near);   // OPEN ↔ CLOSED, PUSH ↔ PULL …
+      wrong = [...new Set((twin ? [twin.t] : []).concat(others.map(x => x.t)))].slice(0, n);
+    } else wrong = [...new Set([it.near].concat(others.map(x => x.my).filter(m => m !== it.near)))].filter(m => m !== it.my).slice(0, n);
+    const box = $("#opts"); box.innerHTML = ""; box.className = "opts sr-opts" + (rev ? " en" : "");
+    shuffle([answer, ...wrong]).forEach(t => {
+      const b = document.createElement("button"); b.className = "opt"; b.textContent = t;
+      b.onclick = () => choose(b, t === answer); box.appendChild(b);
+    });
+    $("#fb").textContent = ""; $("#fb").className = "fb";
+    $("#next").hidden = true;
+  }
+  function choose(btn, ok) {
+    if (answered) return;
+    answered = true;
+    const fb = $("#fb");
+    [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === answer) b.classList.add("right"); });
+    if (ok) {
+      right++; streak++;
+      const pts = 10 + Math.min(streak - 1, 5) * 2; score += pts; addPoints(pts); sfx.ok();
+      fx.pop(btn, "+" + pts); if (streak % 3 === 0) fx.confetti(fx.at(btn).x, fx.at(btn).y, 24);
+      fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! ";
+    } else { streak = 0; sfx.bad(); btn.classList.add("wrong"); fx.shake(btn); fb.className = "fb no"; fb.textContent = "✗ မှားပါတယ်။ "; }
+    fb.append(it.t + " = " + it.my + " · " + it.why);
+    speak(it.t.toLowerCase().replace("–", "to"));
+    $("#score").textContent = score;
+    const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  $("#next").onclick = () => {
+    if (i < list.length - 1) { i++; show(); return; }
+    const r = right / list.length;
+    showResult({ title: cheer(r), stars: starsFor(r), text: right + " / " + list.length + " မှန်တယ် · " + score + " points", onAgain: play });
+  };
+  play.gameId = "signreader";
+  play();
+})();
+</script>
+</body>
+</html>

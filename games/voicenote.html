@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voicemail Notes</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.vn-phone { border-radius: 22px; border: 3px solid #2b2f36; padding: 14px; text-align: center; background: linear-gradient(color-mix(in srgb, #a5b4fc 40%, var(--card)), color-mix(in srgb, #6366f1 22%, var(--card))); }
+.vn-from { font-weight: 800; font-size: 1.05rem; line-height: 1.5; }
+.vn-from .ic { font-size: 2rem; line-height: 1.1; display: block; }
+.vn-from small { display: block; font-weight: 600; font-size: .85rem; color: var(--muted); }
+.vn-play { font: inherit; font-weight: 800; font-size: 1.2rem; width: 100%; min-height: 62px; margin-top: 8px; border-radius: 16px; border: 0; background: var(--accent); color: #fff; cursor: pointer; box-shadow: 0 5px 0 rgba(0,0,0,.25); }
+.vn-play:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.vn-play:disabled { opacity: .5; cursor: default; }
+.vn-row { display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 10px; flex-wrap: wrap; min-height: 44px; }
+.vn-slow { font: inherit; font-weight: 700; min-height: 44px; padding: 0 14px; border-radius: 99px; border: 2px solid #2b2f36; background: var(--card); color: var(--ink); cursor: pointer; }
+.vn-slow:disabled { opacity: .45; }
+.vn-left { font-size: .9rem; font-weight: 700; }
+.vn-wave { display: flex; justify-content: center; align-items: flex-end; gap: 4px; height: 26px; margin-top: 6px; }
+.vn-wave i { width: 6px; height: 6px; border-radius: 3px; background: #2b2f36; opacity: .35; }
+.vn-wave.on i { opacity: 1; animation: vnw .8s ease-in-out infinite; }
+.vn-wave.on i:nth-child(2) { animation-delay: .1s; } .vn-wave.on i:nth-child(3) { animation-delay: .2s; }
+.vn-wave.on i:nth-child(4) { animation-delay: .3s; } .vn-wave.on i:nth-child(5) { animation-delay: .4s; }
+.vn-warn { font-size: .9rem; font-weight: 700; color: var(--warn); min-height: 1.6em; }
+.vn-pad { margin-top: 14px; padding: 14px 14px 6px; border-radius: 6px 6px 18px 18px; border: 2px solid #d8b93a; border-top: 14px solid #d8b93a;
+  background: repeating-linear-gradient(color-mix(in srgb, #fff3a8 55%, var(--card)) 0 33px, color-mix(in srgb, #d8b93a 45%, transparent) 33px 34px); }
+.vn-pad h2 { margin: 0 0 4px; font-size: 1rem; text-align: center; }
+.vn-f { margin-bottom: 12px; }
+.vn-f .lb { font-weight: 800; font-size: .95rem; }
+.vn-ch { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.vn-c { font: inherit; font-weight: 700; font-size: 1rem; min-height: 46px; padding: 4px 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.vn-c.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--card)); }
+.vn-c.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 22%, var(--card)); }
+.vn-c.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 18%, var(--card)); }
+.vn-c:disabled { cursor: default; }
+.vn-text { text-align: left; border: 2px dashed var(--line); border-radius: 14px; padding: 10px 14px; margin-top: 12px; line-height: 1.8; background: var(--card); }
+.vn-text small { display: block; color: var(--muted); }
+.vn-fb { min-height: 2em; text-align: center; margin-top: 10px; font-weight: 700; }
+.vn-fb.ok { color: var(--good); } .vn-fb.no { color: var(--bad); }
+@keyframes vnw { 0%, 100% { height: 6px; } 50% { height: 24px; } }
+@media (prefers-reduced-motion: reduce) { .vn-wave.on i { animation: none; height: 16px; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Voicemail Notes: listen to a short voicemail and fill in the note pad (day, time, place, price …).
+// Listening for detail: the wrong chips are the things people mishear (fifteen / fifty, Tuesday / Thursday).
+(() => {
+  const topic = getTopic(), lvl = topic.level;
+  renderBar("Voicemail Notes · " + topic.name);
+  // fields: [label, right answer, wrong, wrong]
+  const MSGS = [
+    { ic: "👩", from: "Anna", my: "သူငယ်ချင်း",
+      text: "Hi, this is Anna. Let's meet on Friday at three o'clock, at the coffee shop.",
+      tr: "ဟိုင်း၊ Anna ပါ။ သောကြာနေ့ သုံးနာရီမှာ ကော်ဖီဆိုင်မှာ တွေ့ရအောင်။",
+      f: [["📅 ဘယ်နေ့လဲ", "Friday", "Thursday", "Saturday"], ["🕒 ဘယ်အချိန်လဲ", "3:00", "2:00", "4:00"], ["📍 ဘယ်မှာလဲ", "coffee shop", "bus stop", "library"]] },
+    { ic: "🏥", from: "Doctor Lin's clinic", my: "ဆေးခန်း",
+      text: "Hello, this is Doctor Lin's clinic. Your appointment is on Monday at ten thirty. Please bring your blue card.",
+      tr: "မင်္ဂလာပါ၊ ဒေါက်တာ Lin ဆေးခန်းကပါ။ ရက်ချိန်းက တနင်္လာနေ့ ဆယ်နာရီခွဲပါ။ အပြာရောင်ကတ် ယူလာပါ။",
+      f: [["📅 ဘယ်နေ့လဲ", "Monday", "Sunday", "Wednesday"], ["🕒 ဘယ်အချိန်လဲ", "10:30", "10:13", "2:30"], ["🎒 ဘာယူလာရမလဲ", "blue card", "money", "medicine"]] },
+    { ic: "👦", from: "Tom", my: "သား",
+      text: "Hi Mum, it's Tom. Please buy two kilos of rice and six eggs. I will be home at seven.",
+      tr: "အမေ၊ Tom ပါ။ ဆန် နှစ်ကီလိုနဲ့ ကြက်ဥ ခြောက်လုံး ဝယ်ပေးပါ။ ခုနစ်နာရီ အိမ်ပြန်ရောက်မယ်။",
+      f: [["🍚 ဆန် ဘယ်လောက်လဲ", "2 kilos", "6 kilos", "7 kilos"], ["🥚 ကြက်ဥ ဘယ်နှလုံးလဲ", "6", "2", "16"], ["🏠 အိမ်ပြန်ချိန်", "7:00", "6:00", "11:00"]] },
+    { ic: "🛍️", from: "Golden Shop", my: "ဆိုင်",
+      text: "Good morning. Your order is ready. The total is fifteen thousand kyats. Our shop closes at five p.m. today.",
+      tr: "မင်္ဂလာနံနက်ခင်းပါ။ မှာထားတာ ရပါပြီ။ စုစုပေါင်း တစ်သောင်းခွဲ ကျပ်ပါ။ ဒီနေ့ ဆိုင်က ညနေငါးနာရီ ပိတ်မယ်။",
+      f: [["📦 မှာထားတဲ့ပစ္စည်း", "ready", "late", "cancelled"], ["💰 စုစုပေါင်း", "15,000 kyats", "50,000 kyats", "5,000 kyats"], ["🕔 ဆိုင်ပိတ်ချိန်", "5 p.m.", "9 p.m.", "4 p.m."]] },
+    { ic: "👨‍🏫", from: "Mr Ko", my: "ကျောင်း",
+      text: "Hello, this is Mr Ko from the school. There is no class on Wednesday. The next class is on Thursday at nine a.m., in room four.",
+      tr: "မင်္ဂလာပါ၊ ကျောင်းက Mr Ko ပါ။ ဗုဒ္ဓဟူးနေ့ အတန်းမရှိပါ။ နောက်အတန်းက ကြာသပတေးနေ့ မနက်ကိုးနာရီ၊ အခန်း လေးမှာပါ။",
+      f: [["🚫 အတန်းမရှိတဲ့နေ့", "Wednesday", "Thursday", "Tuesday"], ["📅 နောက်အတန်း", "Thursday, 9 a.m.", "Tuesday, 9 a.m.", "Thursday, 4 p.m."], ["🚪 အခန်းနံပါတ်", "4", "9", "14"]] },
+    { ic: "👧", from: "Mya", my: "သူငယ်ချင်း",
+      text: "Hi, it's Mya. I have a new phone number. It is zero nine, five five two, one three seven. Please call me after six.",
+      tr: "ဟိုင်း၊ Mya ပါ။ ဖုန်းနံပါတ်အသစ် ရှိတယ်။ ၀၉ ၅၅၂ ၁၃၇ ပါ။ ခြောက်နာရီနောက်မှ ဖုန်းဆက်ပါ။",
+      f: [["✨ ဘာအသစ်လဲ", "phone number", "address", "job"], ["📞 နံပါတ်", "09 552 137", "09 525 137", "09 552 173"], ["🕕 ဘယ်အချိန် ဆက်ရမလဲ", "after 6", "before 6", "after 7"]] },
+    { ic: "🚌", from: "Bus station", my: "ကားဂိတ်",
+      text: "This is the bus station. The bus to Bagan leaves at eight fifteen from gate three. A ticket costs thirteen thousand kyats.",
+      tr: "ကားဂိတ်ကပါ။ ပုဂံသွားကားက ရှစ်နာရီ ဆယ့်ငါးမိနစ်မှာ ဂိတ်ပေါက် သုံးကနေ ထွက်မယ်။ လက်မှတ်တစ်စောင် တစ်သောင်းသုံးထောင် ကျပ်ပါ။",
+      f: [["🕗 ထွက်ချိန်", "8:15", "8:50", "9:15"], ["🚪 ဂိတ်ပေါက်", "3", "13", "8"], ["🎫 လက်မှတ်ခ", "13,000 kyats", "30,000 kyats", "3,000 kyats"]] },
+    { ic: "🤒", from: "Sara", my: "သူငယ်ချင်း",
+      text: "Hi, this is Sara. I am sorry, I can't come to your party on Saturday because I am sick. I will visit you on Tuesday.",
+      tr: "ဟိုင်း၊ Sara ပါ။ တောင်းပန်ပါတယ်၊ နေမကောင်းလို့ စနေနေ့ ပါတီကို မလာနိုင်ဘူး။ အင်္ဂါနေ့ လာလည်မယ်။",
+      f: [["🎉 ပါတီက ဘယ်နေ့လဲ", "Saturday", "Sunday", "Tuesday"], ["❓ ဘာလို့ မလာနိုင်တာလဲ", "sick", "busy", "away"], ["🚶 ဘယ်နေ့ လာလည်မလဲ", "Tuesday", "Thursday", "Saturday"]] },
+    { ic: "✈️", from: "Sky Travel", my: "ခရီးသွားကုမ္ပဏီ",
+      text: "Hello, this is Sky Travel. Your flight to Bangkok is on the sixteenth of May, not the sixth. Please be at the airport by half past five in the morning, and bring your passport.",
+      tr: "မင်္ဂလာပါ၊ Sky Travel ကပါ။ ဘန်ကောက်လေယာဉ်က မေလ ၆ ရက် မဟုတ်ဘဲ ၁၆ ရက်ပါ။ မနက် ငါးနာရီခွဲ နောက်ဆုံးထားပြီး လေဆိပ်ရောက်ပါ၊ ပတ်စပို့ ယူလာပါ။",
+      f: [["📅 ပျံသန်းမယ့်ရက်", "16 May", "6 May", "60 days later"], ["🕠 လေဆိပ်ရောက်ရမယ့်အချိန်", "5:30 a.m.", "5:00 a.m.", "6:30 a.m."], ["🎒 ဘာယူလာရမလဲ", "passport", "ticket", "ID card"]], hard: true },
+    { ic: "👩‍💼", from: "Ms Chen (office)", my: "ရုံး",
+      text: "Hi, it's Ms Chen. The meeting has moved from Tuesday to Thursday. It will start at a quarter to two, in the room on the third floor. Please bring fourteen copies of the report.",
+      tr: "ဟိုင်း၊ Ms Chen ပါ။ အစည်းအဝေးကို အင်္ဂါနေ့ကနေ ကြာသပတေးနေ့ကို ရွှေ့လိုက်တယ်။ နှစ်နာရီထိုးဖို့ ၁၅ မိနစ်အလို (၁:၄၅) မှာ တတိယထပ်က အခန်းမှာ စမယ်။ အစီရင်ခံစာ ၁၄ စောင် ယူလာပါ။",
+      f: [["📅 အစည်းအဝေးနေ့ (အသစ်)", "Thursday", "Tuesday", "Wednesday"], ["🕑 စမယ့်အချိန်", "1:45", "2:15", "2:45"], ["📄 မိတ္တူ ဘယ်နှစောင်လဲ", "14", "40", "3"]], hard: true }
+  ];
+  const ROUNDS = 5, MAXPLAY = lvl <= 2 ? 0 : lvl === 3 ? 3 : 2;   // 0 = listen as often as you like
+  const canSpeak = "speechSynthesis" in window;
+
+  $("#app").innerHTML =
+    '<div class="stats"><span>Message: <b id="rn">1</b>/' + ROUNDS + '</span><span>Score: <b id="score">0</b></span></div>' +
+    '<div class="vn-phone"><div class="vn-from"><span class="ic" id="ic"></span>📞 Voicemail from <span id="from"></span><small id="frommy"></small></div>' +
+    '<button class="vn-play" id="playb">▶️ နားထောင်ပါ</button>' +
+    '<div class="vn-row"><button class="vn-slow" id="slow">🐢 ဖြည်းဖြည်း</button><span class="vn-left" id="left"></span></div>' +
+    '<div class="vn-wave" id="wave"><i></i><i></i><i></i><i></i><i></i></div><div class="vn-warn" id="warn"></div></div>' +
+    '<div class="vn-pad"><h2>📝 မှတ်စု — ကြားတာကို ရွေးမှတ်ပါ</h2><div id="fields"></div></div>' +
+    '<div class="vn-text" id="text" hidden></div>' +
+    '<div class="vn-fb" id="fb" aria-live="polite"></div>' +
+    '<div class="row"><button class="btn primary" id="check">Check ✓</button><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+  let list, i, score, right, total, it, plays, picks, checked;
+
+  function say(rate) {
+    const warn = $("#warn");
+    if (!canSpeak) { warn.textContent = "ဒီ browser မှာ အသံထွက်မရပါ။"; return; }
+    if (Store.get("mute", false)) { warn.textContent = "🔇 အသံပိတ်ထားတယ် — အပေါ်ညာဘက်က ခလုတ်ကို နှိပ်ပြီး ဖွင့်ပါ။"; return; }
+    if (!checked && MAXPLAY && plays >= MAXPLAY) return;
+    warn.textContent = "";
+    if (!checked) plays++;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(it.text.replace(/a\.m\./g, "A M").replace(/p\.m\./g, "P M"));
+    u.lang = "en-US"; u.rate = rate;
+    const w = $("#wave"); w.classList.add("on");
+    u.onend = u.onerror = () => w.classList.remove("on");
+    speechSynthesis.speak(u);
+    paintLeft();
+  }
+  function paintLeft() {
+    const out = !checked && MAXPLAY && plays >= MAXPLAY;
+    $("#left").textContent = MAXPLAY && !checked ? "နားထောင်ခွင့် " + Math.max(0, MAXPLAY - plays) + " ကြိမ် ကျန်" : "";
+    $("#playb").disabled = out; $("#slow").disabled = out;
+  }
+  function play() {
+    const easy = shuffle(MSGS.filter(m => !m.hard)), hard = shuffle(MSGS.filter(m => m.hard));
+    list = lvl <= 2 ? easy.slice(0, ROUNDS) : shuffle(hard.concat(easy.slice(0, ROUNDS - hard.length)));
+    i = 0; score = 0; right = 0; total = 0; show();
+  }
+  function show() {
+    it = list[i]; checked = false; plays = 0; picks = it.f.map(() => null);
+    $("#rn").textContent = i + 1; $("#score").textContent = score;
+    $("#ic").textContent = it.ic; $("#from").textContent = it.from; $("#frommy").textContent = it.my;
+    $("#slow").hidden = lvl > 2;
+    const box = $("#fields"); box.innerHTML = "";
+    it.f.forEach(([label, a, ...wrong], k) => {
+      const f = document.createElement("div"); f.className = "vn-f";
+      const lb = document.createElement("div"); lb.className = "lb"; lb.textContent = label;
+      const ch = document.createElement("div"); ch.className = "vn-ch";
+      shuffle([a, ...wrong]).forEach(t => {
+        const b = document.createElement("button"); b.className = "vn-c"; b.textContent = t;
+        b.onclick = () => {
+          if (checked) return;
+          picks[k] = t; [...ch.children].forEach(x => x.classList.toggle("sel", x === b));
+          $("#check").disabled = picks.includes(null);
+        };
+        ch.appendChild(b);
+      });
+      f.append(lb, ch); box.appendChild(f);
+    });
+    $("#text").hidden = true; $("#fb").textContent = ""; $("#fb").className = "vn-fb"; $("#warn").textContent = "";
+    $("#next").hidden = true; $("#check").hidden = false; $("#check").disabled = true;
+    paintLeft();
+    if (i > 0) setTimeout(() => say(0.85), 300);   // the first message waits for a tap (browsers block sound before one)
+  }
+  $("#check").onclick = () => {
+    if (checked || picks.includes(null)) return;
+    checked = true;
+    let ok = 0;
+    [...$("#fields").children].forEach((f, k) => {
+      const a = it.f[k][1];
+      if (picks[k] === a) ok++;
+      f.querySelectorAll(".vn-c").forEach(b => {
+        b.disabled = true; b.classList.remove("sel");
+        if (b.textContent === a) b.classList.add("right");
+        else if (b.textContent === picks[k]) b.classList.add("wrong");
+      });
+    });
+    const n = it.f.length, pts = ok * 5 + (ok === n ? 5 : 0);
+    right += ok; total += n; score += pts; if (pts) addPoints(pts);
+    const fb = $("#fb");
+    if (ok === n) { sfx.ok(); fx.confetti(fx.at($("#fields")).x, fx.at($("#fields")).y, 26); fb.className = "vn-fb ok"; fb.textContent = "✓ အားလုံးမှန်တယ်! +" + pts; }
+    else { sfx.bad(); fb.className = "vn-fb no"; fb.textContent = ok + " / " + n + " မှန်တယ်။ အောက်က စာသားကို ကြည့်ပြီး ပြန်နားထောင်ကြည့်ပါ။" + (pts ? " +" + pts : ""); }
+    const tx = $("#text"); tx.textContent = it.text; const s = document.createElement("small"); s.textContent = it.tr; tx.appendChild(s); tx.hidden = false;
+    $("#score").textContent = score; paintLeft();
+    $("#check").hidden = true;
+    const nx = $("#next"); nx.hidden = false; nx.textContent = i === list.length - 1 ? "Finish" : "Next →";
+  };
+  $("#playb").onclick = () => say(0.85);
+  $("#slow").onclick = () => say(0.55);
+  $("#next").onclick = () => {
+    if (canSpeak) speechSynthesis.cancel();
+    if (i < list.length - 1) { i++; show(); return; }
+    const r = right / total;
+    showResult({ title: cheer(r), stars: starsFor(r), text: "မှတ်စု " + right + " / " + total + " ကွက် မှန်တယ် · " + score + " points", onAgain: play });
+  };
+  play.gameId = "voicenote";
+  play();
+})();
+</script>
+</body>
+</html>
