@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Letter Writer</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+/* A writing desk at night: dark wood, a pool of lamp light, one sheet of cream paper. */
+.lw-desk { position: relative; border-radius: 26px; padding: 22px 14px 18px; overflow: hidden;
+  background: radial-gradient(120% 70% at 50% 0, rgba(255,205,120,.34), transparent 62%), repeating-linear-gradient(92deg, #3b2416 0 22px, #442a1a 22px 23px, #38220f 23px 51px), #3b2416;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), inset 0 -30px 60px rgba(0,0,0,.45), 0 10px 24px rgba(0,0,0,.3); }
+.lw-prog { display: flex; justify-content: center; gap: 8px; margin-bottom: 14px; }
+.lw-prog i { width: 26px; height: 6px; border-radius: 4px; background: rgba(255,255,255,.18); transition: background .4s; }
+.lw-prog i.on { background: #ffd98a; box-shadow: 0 0 8px rgba(255,217,138,.8); } .lw-prog i.miss { background: #d97a5b; } .lw-prog i.now { background: rgba(255,255,255,.5); }
+.lw-paper { position: relative; max-width: 560px; margin: 0 auto; padding: 26px 22px 24px; border-radius: 4px; color: #2b2118; transform: rotate(-.6deg);
+  background: linear-gradient(#fbf3df, #f4e7c8); box-shadow: 0 1px 0 #fff inset, 0 14px 26px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.35); min-height: 250px; }
+.lw-paper::before { content: ""; position: absolute; inset: 8px; border: 1px solid rgba(140,100,50,.28); border-radius: 2px; pointer-events: none; }
+.lw-stamp { position: absolute; top: 16px; right: 16px; width: 52px; height: 62px; display: grid; place-items: center; font-size: 1.7rem; background: #fff8ea;
+  border: 3px dotted #b9895a; box-shadow: 0 1px 3px rgba(0,0,0,.25); transform: rotate(4deg); }
+.lw-mark { position: absolute; top: 34px; right: 54px; width: 58px; height: 58px; border-radius: 50%; border: 2px solid rgba(60,60,90,.35); transform: rotate(-14deg);
+  font: 700 .5rem/1.2 ui-monospace, monospace; color: rgba(60,60,90,.5); display: grid; place-items: center; text-align: center; letter-spacing: .08em; }
+.lw-kind { font: 700 .72rem/1 system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #9a6b3c; margin-bottom: 14px; }
+.lw-hand { font-family: "Snell Roundhand", "Segoe Script", "Lucida Handwriting", "Apple Chancery", "Brush Script MT", cursive; font-size: 1.42rem; line-height: 1.75; color: #1d2a55; }
+.lw-greet { margin-bottom: 4px; padding-right: 110px; }
+.lw-body span { display: inline; }
+.lw-body .ink { animation: lwink 1.3s ease-out both; display: inline-block; }
+.lw-body .lost { color: #a2452b; }
+.lw-cursor { display: inline-block; width: 2px; height: 1.1em; margin-left: 4px; vertical-align: -.15em; background: #1d2a55; animation: lwblink 1s steps(2) infinite; }
+.lw-sign { margin-top: 10px; text-align: right; white-space: pre-line; }
+.lw-seal { position: absolute; left: 22px; bottom: 16px; width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; color: #ffd9c9; font: 900 1.5rem Georgia, serif;
+  background: radial-gradient(circle at 35% 30%, #e0503a, #a01f1a 60%, #6f100f); box-shadow: 0 0 0 5px #b7261f, 0 0 0 7px #8d1815, 0 5px 10px rgba(0,0,0,.45); animation: lwseal .55s cubic-bezier(.2,1.6,.4,1) both; }
+/* The card you write on. */
+.lw-task { position: relative; max-width: 560px; margin: 18px auto 0; padding: 14px 16px 16px; border-radius: 18px; color: #f6ead2;
+  background: linear-gradient(rgba(20,12,6,.72), rgba(20,12,6,.86)); border: 1px solid rgba(255,217,138,.28); backdrop-filter: blur(3px); }
+.lw-lab { font: 700 .72rem/1 system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #ffd98a; }
+.lw-my { font-size: 1.2rem; font-weight: 800; line-height: 1.85; margin: 6px 0 8px; }
+.lw-use { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: rgba(255,217,138,.16); border: 1px solid rgba(255,217,138,.5); font-size: .92rem; }
+.lw-use b { color: #ffd98a; font-size: 1.02rem; }
+.lw-skel { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .98rem; line-height: 1.9; word-spacing: .25em; color: rgba(246,234,210,.6); margin-top: 8px; min-height: 1.9em; }
+.lw-skel .ok { color: #9be3a8; font-weight: 800; }
+.lw-inwrap { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.lw-inwrap .q { font-size: 1.5rem; line-height: 1; }
+.lw-in { flex: 1; min-width: 0; resize: none; padding: 8px 4px; font: inherit; font-size: 1.15rem; line-height: 1.5; color: #fff; background: transparent; border: 0; border-bottom: 2px solid rgba(255,217,138,.55); border-radius: 0; }
+.lw-in::placeholder { color: rgba(246,234,210,.45); }
+.lw-in:focus { outline: 0; border-bottom-color: #ffd98a; box-shadow: 0 6px 12px -8px #ffd98a; }
+.lw-in.bad { border-bottom-color: #ff8f7a; }
+.lw-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; font-size: .92rem; color: rgba(246,234,210,.8); min-height: 1.6em; }
+.lw-drops { letter-spacing: .15em; white-space: nowrap; }
+.lw-note { max-width: 560px; margin: 12px auto 0; padding: 10px 14px; border-radius: 14px; background: rgba(255,217,138,.14); border: 1px dashed rgba(255,217,138,.5); color: #f6ead2; line-height: 1.7; }
+.lw-note b { color: #ffd98a; }
+.lw-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
+.lw-btns .btn { border-radius: 999px; }
+.lw-btns .btn.gold { background: linear-gradient(#ffe2a3, #f1b955); color: #2b1a08; border-color: #f1b955; font-weight: 900; }
+@keyframes lwink { from { clip-path: inset(0 100% 0 0); opacity: .4; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
+@keyframes lwblink { 50% { opacity: 0; } }
+@keyframes lwseal { from { transform: scale(2.4) rotate(-25deg); opacity: 0; } to { transform: scale(1) rotate(-8deg); opacity: 1; } }
+@media (max-width: 420px) { .lw-hand { font-size: 1.25rem; } .lw-paper { padding: 22px 16px 20px; } }
+@media (prefers-reduced-motion: reduce) { .lw-body .ink, .lw-seal, .lw-cursor { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Letter Writer: write a whole letter in English, one sentence at a time, from Burmese prompts. No clock.
+// Each sentence must use a key word (although, wish, since …), so the learner practises the harder sentence patterns.
+// Every sentence you get right is inked onto the paper; at the end the letter is signed and sealed.
+(() => {
+  const topic = getTopic(), lvl = topic.level;
+  renderBar("Letter Writer · " + topic.name);
+  // Line: [Burmese, key word to use, accepted patterns, grammar note]. In a pattern (a|b) means either; (|that ) means optional.
+  // The first choice in every group makes the model answer. Write patterns without contractions.
+  const L = (my, use, pats, note) => ({ my, use, pats, note });
+  const LETTERS = [
+    { kind: "Postcard", stamp: "🏞️", mark: "INLE\nLAKE", greet: "Dear Emma,", sign: "Love,\nThiri", seal: "T", lines: [
+      L("ကျွန်မ အင်းလေးကန်ကို ရောက်နေတာ သုံးရက်ရှိပြီ။", "for", ["I have been (at|in) Inle Lake for three days(| now)."], "ရောက်နေတာ ကြာပြီ → have been + for + ကာလ"),
+      L("ဒါက ကျွန်မ မြင်ဖူးသမျှထဲမှာ အလှဆုံးနေရာပါပဲ။", "ever", ["(It|This) is the most beautiful place (|that )I have ever seen."], "the most … I have ever + V3"),
+      L("မနေ့က မိုးရွာနေပေမယ့် ကျွန်မတို့ လှေစီးထွက်ခဲ့ကြတယ်။", "although", ["Although it (was raining|rained) yesterday, we (went on|took) a boat trip.", "We (went on|took) a boat trip yesterday although it (was raining|rained).", "We (went on|took) a boat trip although it (was raining|rained) yesterday."], "although + sentence = …ပေမယ့် (but နဲ့ တွဲမသုံးရ)"),
+      L("ကန်ပေါ်မှာနေတဲ့သူတွေက အရမ်းဖော်ရွေကြတယ်။", "who", ["The people who live on the lake are (very|really|so) friendly."], "လူကို ရှင်းပြတဲ့ relative clause → who + verb"),
+      L("အချိန်ပိုရှိရင် ဒီမှာ တစ်ပတ်လောက် နေမှာ။", "if", ["If I had more time, I would stay here for (a|one) week.", "I would stay here for (a|one) week if I had more time."], "တကယ်မဖြစ်တဲ့အခြေအနေ → If + past, would + verb"),
+      L("နင်လည်း ဒီမှာ ရှိစေချင်လိုက်တာ။", "wish", ["I wish you were here(| too| with me)."], "wish + past (were) = အခုမဖြစ်တာကို ဆန္ဒပြုခြင်း") ] },
+    { kind: "Thank-you letter", stamp: "🎁", mark: "WITH\nTHANKS", greet: "Dear Aunt May,", sign: "Your niece,\nSu", seal: "S", lines: [
+      L("လှပတဲ့လက်ဆောင်အတွက် ကျေးဇူးအများကြီးတင်ပါတယ်။", "for", ["Thank you (very|so) much for the (beautiful|lovely) (present|gift)."], "thank you for + noun / verb-ing"),
+      L("ဒေါ်လေးပို့ပေးတဲ့ဆွယ်တာက ကျွန်မနဲ့ အံကိုက်ပဲ။", "sent", ["The sweater (|that |which )you sent (|me )fits me perfectly."], "the sweater (that) you sent = ပို့ပေးတဲ့ဆွယ်တာ · sweater + fits (-s)"),
+      L("ရကတည်းက နေ့တိုင်း ဝတ်နေတာ။", "since", ["I have (worn|been wearing) it every day since I (got|received) it."], "since + past (got) · အဓိကဝါကျမှာ have + V3"),
+      L("ဒေါ်လေး မွေးနေ့ပွဲကို မလာနိုင်ခဲ့တာ နှမြောစရာပဲ။", "pity", ["It is a pity (|that )you could not come to (my|the) (|birthday )party."], "It is a pity (that) … = …တာ နှမြောစရာပဲ"),
+      L("နောက်လမှာ ဒေါ်လေးဆီ လာလည်ဖို့ မျှော်လင့်စောင့်စားနေပါတယ်။", "forward", ["I am looking forward to visiting you next month."], "look forward to + verb-ing (to visit မဟုတ်)"),
+      L("ကျန်းမာရေး ဂရုစိုက်ပါနော်။", "care", ["(Please |)take (good |)care of yourself."], "take care of + yourself") ] },
+    { kind: "Email to a teacher", stamp: "📧", mark: "SENT\n8:05", greet: "Dear Mr. Smith,", sign: "Best regards,\nKyaw", seal: "K", lines: [
+      L("မနေ့က ဆရာ့အတန်းကို မတက်ဖြစ်ခဲ့တဲ့အတွက် တောင်းပန်ပါတယ်။", "for", ["I am (|very |so |really )sorry for missing (your|the) (class|lesson) yesterday.", "I apologi(s|z)e for missing (your|the) (class|lesson) yesterday."], "sorry for + verb-ing"),
+      L("ကျွန်တော် နေမကောင်းလို့ ဆရာဝန်ဆီ သွားခဲ့ရပါတယ်။", "had to", ["I (was|felt) (sick|ill|unwell), so I had to (go to|see) (the|a) doctor.", "I had to (go to|see) (the|a) doctor because I (was|felt) (sick|ill|unwell)."], "had to + verb = မဖြစ်မနေ လုပ်ခဲ့ရတယ်"),
+      L("ဆရာပေးထားတဲ့အိမ်စာကို ပြီးအောင်လုပ်ပြီးပါပြီ။", "already", ["I have already (finished|done|completed) the homework (|that |which )you gave (us|me)."], "have + already + V3"),
+      L("ကျွန်တော် လွတ်သွားတဲ့သင်ခန်းစာကို ရှင်းပြပေးနိုင်မလား?", "could", ["Could you (|please )explain the lesson (|that |which )I missed(| please)?"], "ယဉ်ကျေးတဲ့တောင်းဆိုမှု → Could you + verb"),
+      L("နောက်တစ်ခါ ဒီလိုမဖြစ်စေရပါဘူးလို့ ကတိပေးပါတယ်။", "promise", ["I promise (|that )it will (not|never) happen again."], "promise (that) + will"),
+      L("ဆရာ့ဆီက စာပြန်လာမယ်လို့ မျှော်လင့်နေပါတယ်။", "forward", ["I (look|am looking) forward to (hearing from you|your reply)."], "look forward to + verb-ing / noun — စာအဆုံးသတ်မှာ သုံးတယ်") ] },
+    { kind: "Invitation", stamp: "🎉", mark: "PARTY\nSAT", greet: "Dear Daniel,", sign: "See you soon,\nMin", seal: "M", lines: [
+      L("ငါ စာမေးပွဲအောင်သွားပြီဆိုတာ ပြောပြချင်လို့ စာရေးလိုက်တာ။", "writing", ["I am writing to tell you (|that )I (have |)passed (my|the) exam(|s)."], "I am writing to + verb — စာရေးရတဲ့အကြောင်းပြချက်"),
+      L("ဒါကြောင့် စနေနေ့ညနေမှာ ပါတီလုပ်မလို့။", "going to", ["(So|That is why) I am going to (have|throw) a party on Saturday evening."], "စီစဉ်ထားတာ → am going to + verb · on Saturday"),
+      L("မင်း လာနိုင်ရင် ငါ အရမ်းဝမ်းသာမှာ။", "if", ["I would be (very|really|so) (happy|glad) if you could come.", "If you could come, I would be (very|really|so) (happy|glad)."], "would be … if you could = ယဉ်ကျေးတဲ့ဖိတ်ခေါ်မှု"),
+      L("ဘာမှ ယူလာစရာ မလိုဘူး။", "need", ["You do not (need|have) to bring anything."], "do not need to + verb · အငြင်းဝါကျမှာ anything"),
+      L("မင်း ဘယ်အချိန်ရောက်မလဲ ငါ့ကို အသိပေးပါ။", "let", ["(Please |)let me know (what time|when) you will arrive."], "let me know + what time you will … (မေးခွန်းစီပုံ မဟုတ်)"),
+      L("မင်းနဲ့ မတွေ့တာ အကြာကြီးရှိပြီ။", "seen", ["I have not seen you for (a long time|ages)."], "have not + V3 + for + ကာလ") ] }
+  ];
+  const TRIES = 3;
+  const FULL = { "i'm": "i am", "don't": "do not", "doesn't": "does not", "didn't": "did not", "can't": "cannot", "couldn't": "could not", "won't": "will not", "isn't": "is not", "aren't": "are not",
+    "wasn't": "was not", "weren't": "were not", "it's": "it is", "that's": "that is", "we're": "we are", "they're": "they are", "you're": "you are", "you'll": "you will", "i'll": "i will",
+    "i've": "i have", "i'd": "i would", "haven't": "have not", "hasn't": "has not", "it'll": "it will" };
+  const norm = s => s.toLowerCase().replace(/[’‘`]/g, "'").replace(/[^a-z0-9' ]+/g, " ").split(/\s+/).filter(Boolean)
+    .map(w => FULL[w] || w).join(" ").replace(/\bcan not\b/g, "cannot");
+  const toks = s => norm(s).split(" ").filter(Boolean);
+  function expand(p) {
+    const m = p.match(/\(([^()]*)\)/);
+    if (!m) return [p.replace(/\s+/g, " ").replace(/ ([,.?!])/g, "$1").trim()];
+    return m[1].split("|").flatMap(o => expand(p.replace(m[0], o)));
+  }
+
+  $("#app").innerHTML =
+    '<div class="lw-desk"><div class="lw-prog" id="prog"></div>' +
+    '<div class="lw-paper" id="paper"><div class="lw-stamp" id="stamp"></div><div class="lw-mark" id="mark"></div><div class="lw-kind" id="kind"></div>' +
+    '<div class="lw-hand lw-greet" id="greet" lang="en"></div><div class="lw-hand lw-body" id="body" lang="en"></div><div class="lw-hand lw-sign" id="sign" lang="en" hidden></div></div>' +
+    '<div class="lw-task" id="task"><div class="lw-lab">စာကြောင်း <span id="ln">1</span> · ဒီလိုရေးချင်တယ်</div><div class="lw-my my" id="my"></div>' +
+    '<span class="lw-use">ဒီစကားလုံး သုံးပါ: <b id="use" lang="en"></b></span><div class="lw-skel" id="skel" lang="en"></div>' +
+    '<div class="lw-inwrap"><span class="q" aria-hidden="true">✒️</span><textarea class="lw-in" id="in" rows="2" lang="en" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="အင်္ဂလိပ်လို ရေးပါ…" aria-label="English sentence"></textarea></div>' +
+    '<div class="lw-meta"><span id="msg" aria-live="polite"></span><span class="lw-drops" id="drops" aria-hidden="true"></span></div></div>' +
+    '<div class="lw-note" id="note" aria-live="polite" hidden></div>' +
+    '<div class="lw-btns"><button class="btn" id="hint">💡 Hint (−3)</button><button class="btn gold" id="check">Write it ✒️</button>' +
+    '<button class="btn" id="listen" hidden>🔊 Listen</button><button class="btn gold" id="next" hidden>Next line →</button></div></div>';
+
+  let last = -1, lt, i, score, right, it, answers, tries, hints, done;
+  const inp = $("#in");
+
+  function play() {
+    let k; do { k = Math.floor(Math.random() * LETTERS.length); } while (k === last);   // a different letter each time
+    last = k; lt = LETTERS[k]; i = 0; score = 0; right = 0;
+    $("#stamp").textContent = lt.stamp; $("#mark").textContent = lt.mark; $("#mark").style.whiteSpace = "pre-line";
+    $("#kind").textContent = lt.kind; $("#greet").textContent = lt.greet;
+    $("#body").replaceChildren(); $("#sign").hidden = true; $("#sign").textContent = lt.sign;
+    const s = $("#paper").querySelector(".lw-seal"); if (s) s.remove();
+    $("#prog").replaceChildren(...lt.lines.map(() => document.createElement("i")));
+    show();
+  }
+  function cursor() {
+    const b = $("#body"), old = b.querySelector(".lw-cursor"); if (old) old.remove();
+    const c = document.createElement("span"); c.className = "lw-cursor"; b.appendChild(c);
+  }
+  function skeleton(target, hit, first) {
+    const box = $("#skel"); box.replaceChildren();
+    target.split(" ").forEach((w, k) => {
+      const s = document.createElement("span");
+      if (hit[k]) { s.className = "ok"; s.textContent = w; }
+      else {
+        const core = w.replace(/[^A-Za-z0-9']/g, ""), tail = w.slice(w.indexOf(core) + core.length);
+        s.textContent = (first ? core[0] + "_".repeat(core.length - 1) : "_".repeat(Math.max(core.length, 2))) + tail;
+      }
+      box.append(s, " ");
+    });
+  }
+  function match(target, user) {
+    const a = target.split(" ").map(w => norm(w)), b = user, n = a.length, m = b.length;
+    const d = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let x = n - 1; x >= 0; x--) for (let y = m - 1; y >= 0; y--) d[x][y] = a[x] === b[y] ? d[x + 1][y + 1] + 1 : Math.max(d[x + 1][y], d[x][y + 1]);
+    const hit = new Array(n).fill(false); let x = 0, y = 0;
+    while (x < n && y < m) { if (a[x] === b[y]) { hit[x] = true; x++; y++; } else if (d[x + 1][y] >= d[x][y + 1]) x++; else y++; }
+    return { hit, n: d[0][0], of: n };
+  }
+  // The accepted sentence closest to what was typed, so feedback follows the learner's own wording.
+  function closest(user) {
+    let best = answers[0], bm = match(best, user), bs = bm.n / Math.max(bm.of, user.length);
+    answers.slice(1).forEach(a => { const mm = match(a, user), sc = mm.n / Math.max(mm.of, user.length); if (sc > bs) { best = a; bm = mm; bs = sc; } });
+    return { target: best, m: bm };
+  }
+  function show() {
+    it = lt.lines[i]; answers = it.pats.flatMap(expand); tries = 0; hints = 0; done = false;
+    [...$("#prog").children].forEach((d, k) => d.classList.toggle("now", k === i));
+    $("#ln").textContent = (i + 1) + " / " + lt.lines.length;
+    $("#my").textContent = it.my; $("#use").textContent = it.use;
+    if (lvl <= 3) skeleton(answers[0], answers[0].split(" ").map(() => false), lvl <= 2); else $("#skel").textContent = answers[0].split(" ").length + " words";
+    inp.value = ""; inp.disabled = false; inp.className = "lw-in";
+    $("#msg").textContent = "အချိန်မကန့်သတ်ပါ — စိတ်အေးအေးနဲ့ ရေးပါ"; $("#drops").textContent = "💧".repeat(TRIES);
+    $("#note").hidden = true; $("#task").hidden = false;
+    $("#hint").hidden = false; $("#check").hidden = false; $("#next").hidden = true; $("#listen").hidden = true;
+    cursor(); inp.focus();
+  }
+  function finish(ok, target) {
+    done = true; inp.disabled = true;
+    const c = $("#body").querySelector(".lw-cursor"); if (c) c.remove();
+    const s = document.createElement("span"); s.className = "ink" + (ok ? "" : " lost"); s.textContent = target;
+    $("#body").append(s, " ");
+    const dot = $("#prog").children[i]; dot.classList.remove("now");
+    const note = $("#note"); note.replaceChildren(); note.hidden = false;
+    if (ok) {
+      if (hints * 2 <= target.split(" ").length) right++;   // mostly-hinted lines do not count towards the stars
+      const pts = Math.max([15, 10, 5][tries] - hints * 3, 2);
+      score += pts; addPoints(pts); sfx.ok(); dot.classList.add("on");
+      fx.pop($("#paper"), "+" + pts); if (!tries && !hints) fx.confetti(fx.at(s).x, fx.at(s).y, 18);
+      const b = document.createElement("b"); b.textContent = "✓ စာထဲ ရေးပြီးပါပြီ (+" + pts + ") "; note.append(b);
+    } else {
+      sfx.bad(); dot.classList.add("miss");
+      const b = document.createElement("b"); b.textContent = "အဖြေမှန်ကို စာထဲ ဖြည့်ပေးထားတယ် "; note.append(b);
+    }
+    note.append("📌 " + it.note);
+    $("#task").hidden = true; $("#hint").hidden = true; $("#check").hidden = true;
+    speak(target);
+    const n = $("#next"); n.hidden = false; n.textContent = i === lt.lines.length - 1 ? "Sign & seal ✉️" : "Next line →"; n.focus();
+  }
+  function check() {
+    if (done) return;
+    const user = toks(inp.value);
+    if (!user.length) { fx.shake(inp); inp.focus(); return; }
+    const hitAns = answers.find(a => norm(a) === user.join(" "));
+    if (hitAns) { finish(true, hitAns); return; }
+    const c = closest(user);
+    tries++;
+    $("#drops").textContent = "💧".repeat(TRIES - tries) + "✖️".repeat(tries);
+    if (tries >= TRIES) { finish(false, c.target); return; }
+    sfx.bad(); fx.shake(inp); inp.className = "lw-in bad";
+    skeleton(c.target, c.m.hit, lvl <= 2 || tries >= 2);
+    const extra = user.length - c.m.n, usedKey = (" " + norm(inp.value) + " ").includes(" " + norm(it.use) + " ");
+    $("#msg").textContent = !usedKey ? "“" + it.use + "” ကို မသုံးရသေးဘူး" : "စကားလုံး " + c.m.n + " / " + c.m.of + " မှန်တယ်" + (extra > 0 ? " · မလိုတာ/နေရာမှား " + extra + " လုံး" : "");
+    inp.focus();
+  }
+  // Hint: keep the correct start of what is typed and add the next word.
+  $("#hint").onclick = () => {
+    if (done) return;
+    const user = toks(inp.value), c = closest(user), words = c.target.split(" ");
+    let k = 0; while (k < words.length && k < user.length && norm(words[k]) === user[k]) k++;
+    if (k >= words.length) { check(); return; }
+    hints++;
+    inp.value = words.slice(0, k + 1).join(" ") + (k + 1 < words.length ? " " : "");
+    inp.className = "lw-in"; $("#msg").textContent = "💡 နောက်စကားလုံး: " + words[k];
+    inp.focus();
+  };
+  $("#check").onclick = check;
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); check(); } });
+  inp.addEventListener("input", () => { inp.className = "lw-in"; });
+  $("#listen").onclick = () => speak(lt.greet + " " + $("#body").textContent + " " + lt.sign.replace("\n", " "));
+  $("#next").onclick = () => {
+    if (i < lt.lines.length - 1) { i++; show(); return; }
+    if ($("#sign").hidden) {   // sign the letter and press the wax seal before the result
+      $("#sign").hidden = false; $("#note").hidden = true;
+      const seal = document.createElement("div"); seal.className = "lw-seal"; seal.textContent = lt.seal; $("#paper").appendChild(seal);
+      sfx.ok(); fx.confetti(fx.at(seal).x, fx.at(seal).y, 40);
+      $("#listen").hidden = false; $("#next").textContent = "Send ✉️"; $("#paper").scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    const r = right / lt.lines.length;
+    showResult({ title: cheer(r), stars: starsFor(r), text: "စာကြောင်း " + right + " / " + lt.lines.length + " ကြောင်း ကိုယ်တိုင်ရေးနိုင်တယ် · " + score + " points", onAgain: play });
+  };
+  play.gameId = "letterwriter";
+  play();
+})();
+</script>
+</body>
+</html>
