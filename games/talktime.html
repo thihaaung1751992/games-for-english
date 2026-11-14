@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talk Time</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.tt-scene { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; color: #fff;
+  background: linear-gradient(120deg, #0f766e, #2563eb); box-shadow: 0 6px 14px rgba(0,0,0,.15); }
+.tt-scene .ic { font-size: 2rem; }
+.tt-scene b { display: block; font-size: 1.1rem; }
+.tt-scene small { opacity: .9; line-height: 1.7; }
+.tt-scene .cnt { margin-left: auto; font-weight: 800; background: rgba(255,255,255,.2); padding: 4px 10px; border-radius: 99px; white-space: nowrap; }
+.tt-chat { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.tt-row { display: flex; gap: 8px; align-items: flex-end; animation: tt-in .3s ease; }
+.tt-row.me { flex-direction: row-reverse; }
+.tt-av { width: 38px; height: 38px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 1.4rem;
+  background: var(--card); border: 2px solid var(--line); }
+.tt-bub { max-width: 78%; padding: 10px 14px; border-radius: 18px 18px 18px 4px; background: var(--card); border: 2px solid var(--line);
+  font-size: 1.08rem; line-height: 1.6; cursor: pointer; text-align: left; color: var(--ink); font-family: inherit; }
+.tt-bub small { display: block; color: var(--muted); font-size: .85rem; line-height: 1.8; }
+.tt-row.me .tt-bub { border-radius: 18px 18px 4px 18px; background: #2563eb; border-color: #2563eb; color: #fff; }
+.tt-row.me .tt-bub small { color: rgba(255,255,255,.85); }
+.tt-row.old { opacity: .6; }
+.tt-turn { border-radius: 18px; border: 2px dashed #2563eb; padding: 14px; text-align: center;
+  background: color-mix(in srgb, #2563eb 7%, var(--card)); }
+.tt-lab { font-size: .8rem; font-weight: 800; color: #2563eb; letter-spacing: .04em; }
+.tt-line { font-size: 1.35rem; font-weight: 800; line-height: 1.7; margin: 6px 0 2px; }
+.tt-line span { padding: 0 2px; border-radius: 6px; transition: background .2s, color .2s; }
+.tt-line .hit { color: #1f8f4a; background: color-mix(in srgb, #1f8f4a 14%, transparent); }
+.tt-line .miss { color: #e5484d; text-decoration: underline wavy; text-underline-offset: 5px; }
+.tt-my { color: var(--muted); line-height: 1.8; }
+.tt-tip { font-size: .9rem; color: var(--muted); line-height: 1.8; margin-top: 4px; }
+.tt-ctl { display: flex; justify-content: center; align-items: center; gap: 18px; margin-top: 12px; }
+.tt-mic { width: 84px; height: 84px; border-radius: 50%; border: 0; font-size: 2.3rem; cursor: pointer; color: #fff;
+  background: linear-gradient(145deg, #ef4444, #db2777); box-shadow: 0 8px 18px rgba(219,39,119,.4); position: relative; }
+.tt-mic:disabled { filter: grayscale(1); opacity: .5; box-shadow: none; }
+.tt-mic.on::before, .tt-mic.on::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 3px solid #ef4444; animation: tt-ring 1.2s ease-out infinite; }
+.tt-mic.on::after { animation-delay: .6s; }
+.tt-side { width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 1.4rem; cursor: pointer; }
+.tt-hint { font-size: .9rem; color: var(--muted); margin-top: 8px; min-height: 1.6em; }
+.tt-heard { margin-top: 6px; line-height: 1.8; }
+.tt-meter { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; margin: 8px auto 0; max-width: 260px; }
+.tt-meter i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #f59e0b, #1f8f4a); transition: width .4s; }
+.tt-self { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
+.tt-note { margin: 10px 0; padding: 10px 12px; border-radius: 12px; line-height: 1.8; font-size: .92rem;
+  background: color-mix(in srgb, #f59e0b 16%, var(--card)); border: 2px solid color-mix(in srgb, #f59e0b 50%, var(--line)); }
+@keyframes tt-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes tt-ring { from { opacity: .8; transform: scale(1); } to { opacity: 0; transform: scale(1.5); } }
+@media (prefers-reduced-motion: reduce) { .tt-row, .tt-mic.on::before, .tt-mic.on::after { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app">
+  <div class="tt-scene"><span class="ic" id="sic"></span><span><b id="stitle"></b><small id="smy"></small></span><span class="cnt"><span id="tn">1</span> / <span id="tt">6</span></span></div>
+  <div class="tt-note" id="note" hidden></div>
+  <div class="tt-chat" id="chat"></div>
+  <div class="tt-turn" id="turn">
+    <div class="tt-lab">🗣️ သင့်အလှည့် — ဒီစာကြောင်းကို အသံထွက်ပြောပါ</div>
+    <div class="tt-line" id="line"></div>
+    <div class="tt-my" id="lmy"></div>
+    <div class="tt-tip" id="tip"></div>
+    <div class="tt-ctl">
+      <button class="tt-side" id="model" aria-label="Listen to the sentence">🔊</button>
+      <button class="tt-mic" id="mic" aria-label="Speak" aria-pressed="false">🎤</button>
+      <button class="tt-side" id="slow" aria-label="Listen slowly">🐢</button>
+    </div>
+    <div class="tt-hint" id="mhint"></div>
+    <div class="tt-self" id="self" hidden>
+      <button class="btn primary" id="said">😀 ပြောနိုင်တယ်</button>
+      <button class="btn" id="hard">😅 ခက်တယ်၊ ဆက်လေ့ကျင့်မယ်</button>
+    </div>
+    <div class="tt-heard" id="heard"></div>
+    <div class="tt-meter" id="meter" hidden><i></i></div>
+    <div class="fb" id="fb"></div>
+    <div class="tt-self"><button class="btn" id="skip" hidden>ကျော်မယ် →</button><button class="btn primary" id="next" hidden>Next →</button></div>
+  </div>
+  <div style="text-align:center;margin-top:10px;color:var(--muted)">Score: <b id="score">0</b></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Talk Time: a role-play conversation. The partner speaks a line, then you say your reply out loud.
+// Speech recognition marks every word it heard (green) or missed (red). Without recognition
+// (no browser support, mic blocked, offline) the game falls back to listen-repeat-and-rate-yourself.
+(() => {
+  const topic = getTopic(), lvl = topic.level;
+  renderBar("Talk Time · " + topic.name);
+  const PASS = lvl >= 3 ? 0.85 : 0.7, MAX_TRIES = 3;
+  // T(partner line, Burmese, your reply, Burmese, speaking tip)
+  const T = (them, themMy, you, youMy, tip) => ({ them, themMy, you, youMy, tip });
+  const SCENES = [
+    { ic: "🍵", title: "At the tea shop", my: "လက်ဖက်ရည်ဆိုင်မှာ မှာစားကြမယ်", av: "🧑‍🍳", turns: [
+      T("Good morning! What would you like?", "မင်္ဂလာပါ! ဘာသုံးဆောင်မလဲ?", "I would like a cup of tea, please.", "လက်ဖက်ရည်တစ်ခွက် ပေးပါ။", "would like = want ထက် ယဉ်ကျေးတယ်"),
+      T("Sure. Would you like something to eat?", "ရပါတယ်။ စားစရာတစ်ခုခု ယူမလား?", "Yes, do you have fried rice?", "ဟုတ်ကဲ့၊ ထမင်းကြော် ရှိလား?", "fried ကို “ဖရိုက်ဒ်” လို့ တစ်ဆက်တည်း ပြောပါ"),
+      T("Yes, we do. Is that everything?", "ရှိပါတယ်။ ဒါပဲလား?", "Can I have some water too?", "ရေလည်း ရနိုင်မလား?", "Can I have …? = … ရနိုင်မလား"),
+      T("Of course. Here you are.", "ရတာပေါ့။ ဒီမှာပါ။", "Thank you. It looks delicious.", "ကျေးဇူးပါ။ စားချင်စရာလေးပဲ။", "delicious = ဒီ-လစ်-ရှပ်စ်"),
+      T("How is the food?", "အစားအစာ ဘယ်လိုနေလဲ?", "It is very good. I really like it.", "အရမ်းကောင်းတယ်။ တကယ်ကြိုက်တယ်။", "really ရဲ့ r နဲ့ l ကို ခွဲပြောပါ"),
+      T("I'm glad to hear that!", "ကြားရတာ ဝမ်းသာပါတယ်!", "Can I have the bill, please?", "ငွေရှင်းမယ်၊ ဘေလ်လေး ပေးပါ။", "bill = ကျသင့်ငွေစာရင်း")
+    ] },
+    { ic: "👋", title: "Meeting a new friend", my: "သူငယ်ချင်းအသစ်နဲ့ မိတ်ဆက်ကြမယ်", av: "🧑‍🎓", turns: [
+      T("Hi! I'm Tom. What's your name?", "ဟိုင်း! ကျွန်တော် Tom ပါ။ နာမည်ဘယ်လိုခေါ်လဲ?", "Nice to meet you, Tom.", "တွေ့ရတာ ဝမ်းသာပါတယ် Tom။", "meet you ကို “မီးချူ” လို ဆက်ပြောလို့ရတယ်"),
+      T("Nice to meet you too. Where are you from?", "ကျွန်တော်လည်း ဝမ်းသာပါတယ်။ ဘယ်ကလာတာလဲ?", "I am from Myanmar.", "ကျွန်တော် မြန်မာနိုင်ငံကပါ။", "from = ကနေ / က"),
+      T("Great! What do you do?", "ကောင်းတာပေါ့! ဘာအလုပ်လုပ်လဲ?", "I am a student. I study English.", "ကျောင်းသားပါ။ အင်္ဂလိပ်စာ လေ့လာနေတယ်။", "student ရဲ့ st ကို သရမထည့်ဘဲ ပြောပါ"),
+      T("What do you do in your free time?", "အားလပ်ချိန်မှာ ဘာလုပ်လဲ?", "I like reading books and playing football.", "စာဖတ်တာနဲ့ ဘောလုံးကန်တာ ကြိုက်တယ်။", "like + verb-ing"),
+      T("Me too! Do you want to play this weekend?", "ကျွန်တော်လည်းပဲ! ဒီစနေတနင်္ဂနွေ ကစားမလား?", "That sounds great. What time?", "ကောင်းသားပဲ။ ဘယ်အချိန်လဲ?", "That sounds great = ကောင်းသားပဲ"),
+      T("How about Saturday morning?", "စနေနေ့မနက် ဘယ်လိုလဲ?", "Saturday morning is fine. See you then.", "စနေနေ့မနက် အဆင်ပြေတယ်။ အဲဒီကျမှ တွေ့မယ်။", "See you then = အဲဒီအချိန်ကျ တွေ့မယ်")
+    ] },
+    { ic: "🗺️", title: "Asking the way", my: "လမ်းမေးကြမယ်", av: "👮", turns: [
+      T("Hello. Can I help you?", "မင်္ဂလာပါ။ ကူညီရမလား?", "Excuse me, where is the bus station?", "တစ်ဆိတ်လောက်၊ ကားဂိတ် ဘယ်မှာလဲ?", "Excuse me နဲ့ စမေးရင် ယဉ်ကျေးတယ်"),
+      T("Go straight and turn left at the bank.", "တည့်တည့်သွားပြီး ဘဏ်နားမှာ ဘယ်ကွေ့ပါ။", "Go straight and turn left. Is it far?", "တည့်တည့်သွား၊ ဘယ်ကွေ့။ ဝေးလား?", "straight = စထရိတ်"),
+      T("No, it is about five minutes on foot.", "မဝေးပါဘူး၊ ခြေလျင် ငါးမိနစ်လောက်ပဲ။", "Is there a market near here?", "ဒီနားမှာ ဈေးရှိလား?", "Is there …? = … ရှိလား"),
+      T("Yes, the market is next to the station.", "ရှိတယ်၊ ဈေးက ဂိတ်ဘေးမှာပဲ။", "Which bus goes to the airport?", "ဘယ်ကားက လေဆိပ်သွားလဲ?", "Which ရဲ့ ch အသံ သတိထားပါ"),
+      T("You can take the blue bus.", "အပြာရောင်ကား စီးလို့ရတယ်။", "How often does the bus come?", "ကားက ဘယ်နှမိနစ်ခြားတစ်စီး လာလဲ?", "How often = ဘယ်လောက်မကြာခဏ"),
+      T("It comes every ten minutes.", "ဆယ်မိနစ်တစ်စီး လာတယ်။", "Thank you very much for your help.", "ကူညီတဲ့အတွက် ကျေးဇူးအများကြီးတင်ပါတယ်။", "thank ရဲ့ th — လျှာဖျားကို သွားကြားထားပါ")
+    ] },
+    { ic: "🩺", title: "At the clinic", my: "ဆေးခန်းမှာ ဆရာဝန်နဲ့ ပြောကြမယ်", av: "👩‍⚕️", turns: [
+      T("Hello. What is the problem today?", "မင်္ဂလာပါ။ ဒီနေ့ ဘာဖြစ်လို့လဲ?", "I have a headache and a sore throat.", "ခေါင်းကိုက်ပြီး လည်ချောင်းနာနေတယ်။", "headache = ဟက်ဒ်-အိတ်ခ်"),
+      T("How long have you felt like this?", "ဒီလိုဖြစ်နေတာ ဘယ်လောက်ကြာပြီလဲ?", "I have been sick since yesterday.", "မနေ့ကတည်းက နေမကောင်းဘူး။", "since + စတဲ့အချိန်"),
+      T("Do you have a fever?", "ဖျားနေလား?", "Yes, I felt very hot last night.", "ဟုတ်ကဲ့၊ မနေ့ညက အရမ်းပူနေတယ်။", "felt = feel ရဲ့ past"),
+      T("I see. Are you taking any medicine?", "ဟုတ်ပြီ။ ဆေးတစ်ခုခု သောက်နေလား?", "No, I am not taking anything.", "မသောက်ပါဘူး၊ ဘာမှမသောက်ဘူး။", "anything ရဲ့ th အသံ"),
+      T("Take this medicine after meals.", "ဒီဆေးကို အစာစားပြီး သောက်ပါ။", "How many times a day should I take it?", "တစ်နေ့ ဘယ်နှကြိမ် သောက်ရမလဲ?", "should I …? = … ရမလဲ"),
+      T("Three times a day. Rest and drink water.", "တစ်နေ့ သုံးကြိမ်။ အနားယူပြီး ရေသောက်ပါ။", "Thank you, doctor. I will rest at home.", "ကျေးဇူးပါ ဆရာ။ အိမ်မှာ အနားယူပါ့မယ်။", "will + verb = အနာဂတ်")
+    ] },
+    { ic: "🛍️", title: "At the clothes shop", my: "အဝတ်ဆိုင်မှာ ဈေးဝယ်ကြမယ်", av: "👩‍💼", turns: [
+      T("Hello! Are you looking for something?", "မင်္ဂလာပါ! တစ်ခုခု ရှာနေတာလား?", "Yes, I am looking for a white shirt.", "ဟုတ်ကဲ့၊ ရှပ်အင်္ကျီအဖြူ ရှာနေတာပါ။", "shirt = ရှတ်ထ် (r အသံပါ)"),
+      T("What size do you wear?", "ဘယ်ဆိုဒ် ဝတ်လဲ?", "I usually wear a medium.", "ပုံမှန်အားဖြင့် အလတ်စား ဝတ်တယ်။", "usually = ယူ-ရှူ-အယ်လီ"),
+      T("Here is a medium. Do you like it?", "ဒီမှာ အလတ်စား။ ကြိုက်လား?", "Can I try it on, please?", "ဝတ်ကြည့်လို့ရမလား?", "try it on ကို ဆက်ပြောပါ"),
+      T("Sure. The fitting room is over there.", "ရပါတယ်။ အဝတ်လဲခန်းက ဟိုမှာပါ။", "It is a little small for me.", "ကျွန်တော့်အတွက် နည်းနည်းသေးတယ်။", "a little = နည်းနည်း"),
+      T("No problem. Here is a bigger one.", "ရပါတယ်။ ဒီမှာ ပိုကြီးတာ။", "This one is perfect. How much is it?", "ဒါက အတော်ပဲ။ ဘယ်လောက်လဲ?", "perfect = ပါး-ဖက်ခ်ထ်"),
+      T("It is on sale today.", "ဒီနေ့ လျှော့ဈေးနဲ့ ရောင်းနေတာပါ။", "Great, I will take it.", "ကောင်းတယ်၊ ဒါယူမယ်။", "I will take it = ဒါယူမယ်")
+    ] },
+    { ic: "📱", title: "A phone call", my: "ဖုန်းနဲ့ ချိန်းကြမယ်", av: "👩", turns: [
+      T("Hello?", "ဟဲလို?", "Hello, this is your friend from class.", "ဟဲလို၊ အတန်းထဲက မင်းသူငယ်ချင်းပါ။", "ဖုန်းမှာ I am အစား this is သုံးတယ်"),
+      T("Oh, hi! How are you?", "အော်၊ ဟိုင်း! နေကောင်းလား?", "I am fine, thanks. Are you free tomorrow?", "ကောင်းပါတယ်၊ ကျေးဇူး။ မနက်ဖြန် အားလား?", "free = အားတယ်"),
+      T("Yes, I am free in the afternoon.", "အားတယ်၊ နေ့လယ်ပိုင်း အားတယ်။", "Would you like to watch a movie with me?", "ငါနဲ့ ရုပ်ရှင်သွားကြည့်မလား?", "Would you like to …? = ဖိတ်ခေါ်တာ"),
+      T("I'd love to! Where shall we meet?", "ကြည့်ချင်တာပေါ့! ဘယ်မှာ တွေ့ကြမလဲ?", "Let us meet in front of the cinema.", "ရုပ်ရှင်ရုံရှေ့မှာ တွေ့ကြရအောင်။", "in front of = ရှေ့မှာ"),
+      T("Okay. What time does the movie start?", "အိုကေ။ ရုပ်ရှင်က ဘယ်အချိန်စလဲ?", "It starts at half past three.", "သုံးနာရီခွဲမှာ စတယ်။", "half past = …နာရီခွဲ"),
+      T("Perfect. See you tomorrow!", "အတော်ပဲ။ မနက်ဖြန်တွေ့မယ်!", "See you tomorrow. Do not be late!", "မနက်ဖြန်တွေ့မယ်။ နောက်မကျနဲ့နော်!", "late = လိတ်ထ်")
+    ] }
+  ];
+  const FULL = { "i'm": "i am", "it's": "it is", "that's": "that is", "what's": "what is", "let's": "let us", "don't": "do not", "i'll": "i will",
+    "i'd": "i would", "i've": "i have", "can't": "can not", "cannot": "can not", "isn't": "is not", "you're": "you are", "we'll": "we will",
+    "okay": "ok", "1": "one", "2": "two", "3": "three", "4": "four", "5": "five", "6": "six", "7": "seven", "8": "eight", "9": "nine", "10": "ten", "3:30": "half past three" };
+  const words = s => s.toLowerCase().replace(/[’‘`]/g, "'").split(/\s+/).map(w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
+    .filter(Boolean).flatMap(w => (FULL[w] || w).split(" "));
+  // near: recognisers often drop or add a final sound (apple/apples), so allow one letter of difference on longer words
+  function near(a, b) {
+    if (a === b) return true;
+    if (Math.min(a.length, b.length) < 4 || Math.abs(a.length - b.length) > 1) return false;
+    let i = 0, j = 0, d = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++d > 1) return false;
+      if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+    }
+    return true;
+  }
+  // marks[i] = was target word i heard (longest common subsequence of target and spoken words)
+  function match(target, said) {
+    const n = target.length, m = said.length, L = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+      L[i][j] = near(target[i], said[j]) ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    const marks = new Array(n).fill(false);
+    for (let i = 0, j = 0; i < n && j < m;) {
+      if (near(target[i], said[j])) { marks[i] = true; i++; j++; }
+      else if (L[i + 1][j] >= L[i][j + 1]) i++; else j++;
+    }
+    return marks;
+  }
+  function say(text, rate) {
+    if (!("speechSynthesis" in window) || Store.get("mute", false)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.lang = "en-US"; u.rate = rate || 0.85;
+    speechSynthesis.speak(u);
+  }
+  const getSR = () => window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  let scene, last = -1, i, score, firsts, laters, tries, fails, done, rec, listening, selfMode = !getSR(), tw;
+
+  function setNote(msg) { const n = $("#note"); n.textContent = msg; n.hidden = !msg; }
+  function bubble(me, en, my) {
+    const row = document.createElement("div"); row.className = "tt-row" + (me ? " me" : "");
+    const av = document.createElement("span"); av.className = "tt-av"; av.textContent = me ? "🙂" : scene.av;
+    const b = document.createElement("button"); b.className = "tt-bub"; b.append(en);
+    if (my && lvl <= 2 || me) { const s = document.createElement("small"); s.textContent = my; b.append(s); }
+    b.onclick = () => say(en);
+    row.append(av, b); $("#chat").append(row);
+    const rows = [...$("#chat").children];
+    rows.forEach((r, k) => { r.hidden = k < rows.length - 3; r.classList.toggle("old", k < rows.length - 1); });
+  }
+  function play() {
+    stopRec();
+    let k; do { k = Math.floor(Math.random() * SCENES.length); } while (k === last);
+    last = k; scene = SCENES[k];
+    i = 0; score = 0; firsts = 0; laters = 0;
+    $("#sic").textContent = scene.ic; $("#stitle").textContent = scene.title; $("#smy").textContent = scene.my;
+    $("#tt").textContent = scene.turns.length; $("#chat").innerHTML = "";
+    if (selfMode && !getSR()) setNote("ဒီ browser မှာ အသံဖမ်းစစ်လို့ မရပါ (Chrome မှာ ရပါတယ်)။ 🔊 နားထောင်၊ ကျယ်ကျယ်လိုက်ပြောပြီး ကိုယ်တိုင် အမှတ်ပေးပါ။");
+    show();
+  }
+  function show() {
+    const t = scene.turns[i];
+    done = false; tries = 0; fails = 0; tw = words(t.you);
+    $("#tn").textContent = i + 1; $("#score").textContent = score;
+    bubble(false, t.them, t.themMy); say(t.them);
+    const line = $("#line"); line.innerHTML = "";
+    t.you.split(" ").forEach(w => { const s = document.createElement("span"); s.textContent = w; line.append(s, " "); });
+    $("#lmy").textContent = t.youMy; $("#tip").textContent = "💡 " + t.tip;
+    $("#heard").textContent = ""; $("#meter").hidden = true; $("#fb").textContent = ""; $("#fb").className = "fb";
+    $("#next").hidden = true; $("#skip").hidden = true; $("#turn").hidden = false;
+    $("#mic").hidden = selfMode; $("#mic").disabled = false; $("#self").hidden = !selfMode;
+    setListening(false);
+  }
+  function paint(marks) {
+    // one target sentence word can expand to two checked words (I'm → i am); colour it by all of its parts
+    let k = 0;
+    [...$("#line").children].forEach(s => {
+      const n = words(s.textContent).length, ok = marks.slice(k, k + n).every(Boolean); k += n;
+      s.className = n ? (ok ? "hit" : "miss") : "";
+    });
+  }
+  function setListening(on) {
+    listening = on;
+    $("#mic").classList.toggle("on", on); $("#mic").setAttribute("aria-pressed", on ? "true" : "false");
+    $("#mhint").textContent = selfMode ? "🔊 နားထောင်ပြီး ကျယ်ကျယ် လိုက်ပြောပါ" : on ? "နားထောင်နေတယ်… ပြောပါ 👂" : "🎤 ကိုနှိပ်ပြီး စာကြောင်းကို ပြောပါ";
+  }
+  function stopRec() { if (rec) { rec.onresult = rec.onerror = rec.onend = null; try { rec.abort(); } catch (e) {} } rec = null; listening = false; $("#mic").classList.remove("on"); }
+  function enterSelf(msg) {
+    selfMode = true; stopRec(); setNote(msg);
+    if (!done) { $("#mic").hidden = true; $("#self").hidden = false; $("#skip").hidden = true; setListening(false); }
+  }
+  function trouble(msg) {
+    fails++; $("#fb").className = "fb no"; $("#fb").textContent = msg;
+    if (fails >= 2) $("#skip").hidden = false;
+  }
+  function listen() {
+    if (done) return;
+    if (listening) { try { rec.stop(); } catch (e) {} return; }
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    const SR = getSR(); rec = new SR();
+    rec.lang = "en-US"; rec.maxAlternatives = 5; rec.interimResults = false; rec.continuous = false;
+    let got = false;
+    rec.onresult = e => {
+      got = true;
+      const r = e.results[0], alts = [];
+      for (let k = 0; k < r.length; k++) alts.push(r[k].transcript);
+      judge(alts);
+    };
+    rec.onerror = e => {
+      got = true;
+      if (e.error === "aborted") return;
+      if (e.error === "not-allowed" || e.error === "service-not-allowed")
+        return enterSelf("🎤 မိုက်ခရိုဖုန်း သုံးခွင့် မရပါ။ Browser setting မှာ mic ကို ခွင့်ပြုပေးပါ။ အခုတော့ 🔊 နားထောင်၊ လိုက်ပြောပြီး ကိုယ်တိုင် အမှတ်ပေးပါ။");
+      if (e.error === "network")
+        return enterSelf("အသံဖမ်းစစ်ဖို့ အင်တာနက် လိုပါတယ်။ အခုတော့ 🔊 နားထောင်၊ လိုက်ပြောပြီး ကိုယ်တိုင် အမှတ်ပေးပါ။");
+      trouble(e.error === "no-speech" ? "အသံ မကြားရပါဘူး၊ 🎤 ကိုနှိပ်ပြီး နည်းနည်းကျယ်ကျယ် ထပ်ပြောပါ"
+        : e.error === "audio-capture" ? "မိုက်ခရိုဖုန်း ရှာမတွေ့ပါ၊ mic ချိတ်ထားလား စစ်ပါ" : "တစ်ခုခု မှားသွားတယ်၊ ထပ်ကြိုးစားပါ");
+    };
+    rec.onend = () => { rec = null; setListening(false); if (!got && !done) trouble("အသံ မကြားရပါဘူး၊ ထပ်ပြောပါ"); };
+    try { rec.start(); setListening(true); $("#fb").textContent = ""; $("#fb").className = "fb"; }
+    catch (e) { rec = null; setListening(false); }
+  }
+  function judge(alts) {
+    let best = null;
+    alts.forEach(a => { const m = match(tw, words(a)), r = m.filter(Boolean).length / tw.length; if (!best || r > best.r) best = { a, m, r }; });
+    if (!best) return trouble("အသံ မကြားရပါဘူး၊ ထပ်ပြောပါ");
+    paint(best.m);
+    const h = $("#heard"); h.innerHTML = "ကြားရတာ: <b></b>"; $("b", h).textContent = "“" + best.a.trim() + "”";
+    $("#meter").hidden = false; $("#meter i").style.width = Math.round(best.r * 100) + "%";
+    if (best.r >= PASS) {
+      const pts = [10, 6, 3][tries];
+      tries === 0 ? firsts++ : laters++;
+      return win(pts, (best.r === 1 ? "✓ စကားလုံးတိုင်း ပီတယ်! +" : "✓ နားလည်လောက်အောင် ပြောနိုင်တယ်! +") + pts);
+    }
+    tries++; sfx.bad(); fx.shake($("#turn"));
+    const fb = $("#fb"); fb.className = "fb no";
+    if (tries >= MAX_TRIES) {
+      done = true; stopRec(); $("#mic").disabled = true;
+      fb.textContent = "ဒီစာကြောင်း မရသေးဘူး — 🐢 နဲ့ ဖြည်းဖြည်းနားထောင်ပြီး နောက်တစ်ခါ ထပ်ကြိုးစားပါ";
+      finish();
+    } else fb.textContent = "အနီရောင်စကားလုံးတွေ မကြားရသေးဘူး (" + tries + " / " + MAX_TRIES + ") — 🔊 နားထောင်ပြီး ထပ်ပြောပါ";
+  }
+  function win(pts, msg) {
+    done = true; stopRec();
+    score += pts; addPoints(pts); sfx.ok(); fx.pop($("#mic"), "+" + pts);
+    $("#fb").className = "fb ok"; $("#fb").textContent = msg;
+    finish();
+  }
+  function finish() {
+    const t = scene.turns[i];
+    bubble(true, t.you, t.youMy);
+    $("#mic").disabled = true; $("#self").hidden = true; $("#skip").hidden = true; $("#score").textContent = score;
+    const n = $("#next"); n.hidden = false; n.textContent = i === scene.turns.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  function next() {
+    stopRec();
+    if (i < scene.turns.length - 1) { i++; show(); return; }
+    const n = scene.turns.length, r = (firsts * 2 + laters) / (n * 2);
+    if (r >= 0.9) fx.confetti();
+    showResult({ title: cheer(r), stars: starsFor(r), onAgain: play,
+      text: (firsts + laters) + " / " + n + " ကြောင်း ပြောနိုင်တယ် (ပထမအကြိမ်မှာ " + firsts + " ကြောင်း) · " + score + " points" });
+  }
+  play.gameId = "talktime";
+  $("#mic").onclick = listen;
+  $("#model").onclick = () => say(scene.turns[i].you);
+  $("#slow").onclick = () => say(scene.turns[i].you, 0.55);
+  $("#said").onclick = () => { if (done) return; firsts++; win(6, "✓ ကောင်းတယ်! +6"); };
+  $("#hard").onclick = () => { if (done) return; laters++; win(2, "ရပါတယ် — 🐢 နဲ့ ထပ်နားထောင်ပြီး လေ့ကျင့်ပါ +2"); };
+  $("#skip").onclick = () => { if (done) return; done = true; stopRec(); $("#fb").className = "fb no"; $("#fb").textContent = "ကျော်လိုက်ပြီ"; finish(); };
+  $("#next").onclick = next;
+  play();
+})();
+</script>
+</body>
+</html>
