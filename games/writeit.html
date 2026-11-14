@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Write It Right</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.wi-page { position: relative; border-radius: 18px; border: 2px solid var(--line); padding: 18px 16px 16px 46px; overflow: hidden;
+  background: repeating-linear-gradient(var(--card) 0 33px, color-mix(in srgb, #5b8def 28%, var(--card)) 33px 34px); box-shadow: 0 6px 14px rgba(0,0,0,.12); }
+.wi-page::before { content: ""; position: absolute; left: 32px; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb, #e5484d 55%, var(--card)); }
+.wi-page::after { content: "● ● ●"; position: absolute; left: 9px; top: 26px; width: 12px; line-height: 3.2; font-size: .7rem; color: var(--line); word-break: break-all; }
+.wi-lab { font-size: .8rem; font-weight: 800; color: var(--muted); letter-spacing: .04em; }
+.wi-my { font-size: 1.25rem; font-weight: 800; line-height: 1.9; margin: 2px 0 10px; }
+.wi-skel { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.02rem; line-height: 1.9; min-height: 1.9em; word-spacing: .25em; color: var(--muted); }
+.wi-skel .ok { color: #1f8f4a; font-weight: 800; }
+.wi-in { width: 100%; box-sizing: border-box; margin-top: 12px; padding: 12px 14px; font: inherit; font-size: 1.15rem; border-radius: 12px;
+  border: 2px solid var(--line); background: var(--card); color: var(--ink); }
+.wi-in:focus { outline: 3px solid color-mix(in srgb, #5b8def 55%, transparent); border-color: #5b8def; }
+.wi-in.good { border-color: #1f8f4a; } .wi-in.bad { border-color: #e5484d; }
+.wi-bank { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.wi-bank button { font: inherit; font-weight: 700; padding: 8px 12px; border-radius: 10px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.wi-bank button:disabled { opacity: .3; }
+.wi-tries { text-align: center; font-size: 1.1rem; letter-spacing: .2em; margin-top: 10px; }
+.wi-ans { font-weight: 800; font-size: 1.1rem; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Write It Right: read a Burmese sentence and type it in English.
+// After each wrong try the words you got right are shown in place, so you fix the sentence instead of guessing again.
+(() => {
+  const topic = getTopic(), lvl = topic.level;
+  renderBar("Write It Right · " + topic.name);
+  // [Burmese, accepted English sentences (the first is shown as the model answer; write it without contractions), grammar note]
+  const W = (my, a, note) => ({ my, a, note });
+  const EASY = [
+    W("ကျွန်တော် ကျောင်းသားတစ်ယောက်ပါ။", ["I am a student."], "I + am · အလုပ်အကိုင်ရှေ့မှာ a ထည့်ပါ"),
+    W("ဒါက ကျွန်တော့်စာအုပ်ပါ။", ["This is my book."], "this is = ဒါက … ပါ"),
+    W("သူမမှာ ကြောင်တစ်ကောင် ရှိတယ်။", ["She has a cat."], "she / he / it + has"),
+    W("ကျွန်တော် လက်ဖက်ရည် ကြိုက်တယ်။", ["I like tea."], "I like + အရာ"),
+    W("သူ ဆရာဝန်တစ်ယောက်ပါ။", ["He is a doctor."], "he + is"),
+    W("ငါတို့ ပျော်တယ်။", ["We are happy."], "we + are + adjective"),
+    W("ကျွန်တော် ရန်ကုန်မှာ နေတယ်။", ["I live in Yangon."], "မြို့ရှေ့မှာ in သုံးပါ"),
+    W("ခွေးက ကြီးတယ်။", ["The dog is big."], "the + noun + is + adjective"),
+    W("ကျွန်တော် နေ့တိုင်း ကျောင်းသွားတယ်။", ["I go to school every day.", "Every day I go to school."], "go to school · every day = နေ့တိုင်း"),
+    W("မင်းနာမည် ဘယ်လိုခေါ်လဲ?", ["What is your name?"], "What is your …?"),
+    W("ကျွန်မ ပန်းသီးနှစ်လုံး လိုချင်တယ်။", ["I want two apples."], "တစ်ခုထက်များရင် noun မှာ -s ထည့်ပါ"),
+    W("သူတို့က ကျွန်တော့်သူငယ်ချင်းတွေပါ။", ["They are my friends."], "they + are · friends (အများ)")
+  ];
+  const MID = [
+    W("ကျွန်တော် မနေ့က ရုပ်ရှင်ကြည့်ခဲ့တယ်။", ["I watched a movie yesterday.", "Yesterday I watched a movie.", "I watched a film yesterday.", "Yesterday I watched a film."], "မနေ့က → past simple: watch → watched"),
+    W("သူမ အခု ညစာချက်နေတယ်။", ["She is cooking dinner now.", "Now she is cooking dinner.", "She is cooking dinner right now."], "အခုလုပ်နေတာ → is + verb-ing"),
+    W("မနက်ဖြန် မိုးရွာလိမ့်မယ်။", ["It will rain tomorrow.", "Tomorrow it will rain.", "It is going to rain tomorrow."], "အနာဂတ် → will + verb · မိုးရွာတာကို it နဲ့စပါ"),
+    W("မင်း ဘယ်မှာ အလုပ်လုပ်သလဲ?", ["Where do you work?"], "မေးခွန်း → Where + do + you + verb"),
+    W("ကျွန်တော် ကော်ဖီ မကြိုက်ဘူး။", ["I do not like coffee."], "အငြင်း → do not (don't) + verb"),
+    W("သူ ဘတ်စ်ကားနဲ့ ကျောင်းသွားတယ်။", ["He goes to school by bus."], "he + goes · by bus = ဘတ်စ်ကားနဲ့"),
+    W("ငါတို့ ပြီးခဲ့တဲ့အပတ်က ပုဂံကို သွားခဲ့တယ်။", ["We went to Bagan last week.", "Last week we went to Bagan."], "go → went (irregular past)"),
+    W("ပြတင်းပေါက် ဖွင့်ပေးလို့ရမလား?", ["Can you open the window?", "Could you open the window?", "Can you open the window please?", "Could you open the window please?", "Can you please open the window?", "Could you please open the window?"], "တောင်းဆိုချင်ရင် Can you / Could you + verb"),
+    W("ဒီစာအုပ်က ဟိုစာအုပ်ထက် ပိုဈေးကြီးတယ်။", ["This book is more expensive than that book.", "This book is more expensive than that one."], "စာလုံးရှည် adjective → more … than"),
+    W("ကျွန်မမှာ ညီမနှစ်ယောက် ရှိတယ်။", ["I have two sisters.", "I have two younger sisters."], "I have · sisters (အများ)"),
+    W("သူတို့ အခု ဘောလုံးကန်နေကြတယ်။", ["They are playing football now.", "Now they are playing football.", "They are playing football right now.", "They are playing soccer now."], "they + are + verb-ing"),
+    W("မင်း မနေ့ညက ဘာလုပ်ခဲ့သလဲ?", ["What did you do last night?"], "past မေးခွန်း → What + did + you + verb"),
+    W("ကျွန်တော် အင်္ဂလိပ်စာ သုံးနှစ် လေ့လာခဲ့ပြီ။", ["I have studied English for three years.", "I have learned English for three years.", "I have been studying English for three years.", "I have been learning English for three years."], "အခုထိဆက်နေတာ → have + V3 + for + ကာလ"),
+    W("မိုးရွာနေလို့ ကျွန်တော် အိမ်မှာပဲ နေခဲ့တယ်။", ["I stayed at home because it was raining.", "I stayed home because it was raining.", "It was raining so I stayed at home.", "It was raining so I stayed home.", "Because it was raining, I stayed at home.", "Because it was raining, I stayed home."], "အကြောင်းပြချက် → because + sentence")
+  ];
+  const HARD = [
+    W("အချိန်ရရင် မင်းဆီ လာလည်မယ်။", ["If I have time, I will visit you.", "I will visit you if I have time."], "First conditional: If + present, will + verb"),
+    W("ကျွန်တော် ရောက်တဲ့အခါ သူတို့ ထွက်သွားနှင့်ပြီ။", ["When I arrived, they had already left.", "They had already left when I arrived."], "အရင်ဖြစ်ခဲ့တာ → had + V3 (past perfect)"),
+    W("ဒီတံတားကို ၁၉၉၀ မှာ ဆောက်ခဲ့တာ။", ["This bridge was built in 1990."], "Passive: was + V3 (build → built)"),
+    W("သူမက ပင်ပန်းနေတယ်လို့ ပြောတယ်။", ["She said that she was tired.", "She said she was tired."], "Reported speech: is → was"),
+    W("ကျွန်တော် ငယ်ငယ်က မြို့ငယ်လေးမှာ နေခဲ့ဖူးတယ်။", ["I used to live in a small town when I was young.", "When I was young, I used to live in a small town.", "I lived in a small town when I was young.", "When I was young, I lived in a small town."], "အရင်ကအလေ့အထ → used to + verb"),
+    W("မင်း ပိုပြီး အိပ်သင့်တယ်။", ["You should sleep more.", "You should get more sleep."], "အကြံပေး → should + verb"),
+    W("ငါ ချမ်းသာရင် ကမ္ဘာပတ်မယ်။", ["If I were rich, I would travel around the world.", "If I was rich, I would travel around the world.", "I would travel around the world if I were rich.", "I would travel around the world if I was rich."], "Second conditional: If + past, would + verb"),
+    W("စောင့်ခိုင်းမိတဲ့အတွက် တောင်းပန်ပါတယ်။", ["I am sorry for keeping you waiting.", "Sorry for keeping you waiting.", "I am sorry to keep you waiting.", "Sorry to keep you waiting."], "sorry for + verb-ing"),
+    W("ဒါက ကျွန်တော် ဖတ်ဖူးသမျှထဲမှာ အကောင်းဆုံးစာအုပ်ပဲ။", ["This is the best book I have ever read.", "This is the best book that I have ever read."], "the best … I have ever + V3"),
+    W("မိုးရွာနေပေမယ့် သူတို့ အပြင်ထွက်ခဲ့ကြတယ်။", ["Although it was raining, they went out.", "They went out although it was raining.", "Even though it was raining, they went out.", "They went out even though it was raining.", "It was raining but they went out."], "ဆန့်ကျင်ဘက် → although + sentence")
+  ];
+  const ROUNDS = 8, TRIES = 3;
+  const FULL = { "i'm": "i am", "don't": "do not", "doesn't": "does not", "didn't": "did not", "can't": "cannot", "won't": "will not", "isn't": "is not", "aren't": "are not",
+    "wasn't": "was not", "weren't": "were not", "it's": "it is", "he's": "he is", "she's": "she is", "that's": "that is", "what's": "what is", "we're": "we are",
+    "they're": "they are", "you're": "you are", "i'll": "i will", "i've": "i have", "i'd": "i would", "they'd": "they had", "hadn't": "had not", "haven't": "have not" };
+  const norm = s => s.toLowerCase().replace(/[’‘`]/g, "'").replace(/[^a-z0-9' ]+/g, " ").split(/\s+/).filter(Boolean)
+    .map(w => FULL[w] || w).join(" ").replace(/\bcan not\b/g, "cannot").replace(/\beveryday\b/g, "every day");
+  const toks = s => norm(s).split(" ").filter(Boolean);
+
+  $("#app").innerHTML =
+    '<div class="stats"><span>Sentence: <b id="sn">1</b>/' + ROUNDS + '</span><span id="streak"></span><span>Score: <b id="score">0</b></span></div>' +
+    '<div class="wi-page"><div class="wi-lab">မြန်မာလို</div><div class="wi-my my" id="my"></div>' +
+    '<div class="wi-lab">ENGLISH</div><div class="wi-skel" id="skel"></div></div>' +
+    '<input class="wi-in" id="in" type="text" lang="en" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="အင်္ဂလိပ်လို ရေးပါ…" aria-label="English sentence">' +
+    '<div class="wi-bank" id="bank" hidden></div>' +
+    '<div class="wi-tries" id="tries" aria-hidden="true"></div>' +
+    '<div class="fb" id="fb" aria-live="polite" style="text-align:center"></div>' +
+    '<div class="row"><button class="btn" id="hint">💡 Hint (−3)</button><button class="btn" id="clear" hidden>Clear</button><button class="btn primary" id="check">Check ✓</button><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+  let list, i, score, right, streak, it, tries, hints, done;
+  const inp = $("#in");
+
+  function play() {
+    const pool = lvl <= 2 ? EASY : lvl === 3 ? MID : HARD.concat(shuffle(MID).slice(0, 4));
+    list = shuffle(pool).slice(0, ROUNDS);
+    i = 0; score = 0; right = 0; streak = 0; show();
+  }
+  // Model-answer words with blanks: matched words are shown, the rest hidden (first letter kept when `first` is set).
+  function skeleton(target, hit, first) {
+    const box = $("#skel"); box.replaceChildren();
+    target.split(" ").forEach((w, k) => {
+      const s = document.createElement("span");
+      if (hit[k]) { s.className = "ok"; s.textContent = w; }
+      else {
+        const core = w.replace(/[^A-Za-z0-9']/g, ""), tail = w.slice(w.indexOf(core) + core.length);
+        s.textContent = (first ? core[0] + "_".repeat(core.length - 1) : "_".repeat(Math.max(core.length, 2))) + tail;
+      }
+      box.append(s, " ");
+    });
+  }
+  // Longest common subsequence: which words of the model answer did the learner get, in order?
+  function match(target, user) {
+    const a = target.split(" ").map(w => norm(w)), b = user, n = a.length, m = b.length;
+    const d = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let x = n - 1; x >= 0; x--) for (let y = m - 1; y >= 0; y--) d[x][y] = a[x] === b[y] ? d[x + 1][y + 1] + 1 : Math.max(d[x + 1][y], d[x][y + 1]);
+    const hit = new Array(n).fill(false); let x = 0, y = 0;
+    while (x < n && y < m) { if (a[x] === b[y]) { hit[x] = true; x++; y++; } else if (d[x + 1][y] >= d[x][y + 1]) x++; else y++; }
+    return { hit, n: d[0][0], of: n };
+  }
+  // The accepted answer closest to what was typed, so "Yesterday I…" is compared with the "Yesterday I…" version.
+  function closest(user) {
+    let best = it.a[0], bm = match(best, user);
+    it.a.slice(1).forEach(a => { const mm = match(a, user); if (mm.n / mm.of > bm.n / bm.of) { best = a; bm = mm; } });
+    return { target: best, m: bm };
+  }
+  function show() {
+    it = list[i]; tries = 0; hints = 0; done = false;
+    $("#sn").textContent = i + 1; $("#score").textContent = score;
+    $("#streak").textContent = streak >= 2 ? "🔥 " + streak : "";
+    $("#my").textContent = it.my;
+    const blank = it.a[0].split(" ").map(() => false);
+    skeleton(it.a[0], blank, lvl <= 3);
+    inp.value = ""; inp.disabled = false; inp.className = "wi-in";
+    const bank = $("#bank"); bank.replaceChildren(); bank.hidden = lvl > 2; $("#clear").hidden = lvl > 2;
+    if (lvl <= 2) shuffle(it.a[0].replace(/[.?!,]/g, "").split(" ")).forEach(w => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = w;
+      b.onclick = () => { inp.value = (inp.value.trim() + " " + w).trim(); b.disabled = true; sfx.tap && sfx.tap(); };
+      bank.appendChild(b);
+    });
+    $("#tries").textContent = "✏️".repeat(TRIES);
+    $("#fb").textContent = ""; $("#fb").className = "fb";
+    $("#hint").hidden = false; $("#check").hidden = false; $("#next").hidden = true;
+    inp.focus();
+  }
+  function finish(ok, target) {
+    done = true; inp.disabled = true; $("#bank").hidden = true; $("#clear").hidden = true;
+    $("#hint").hidden = true; $("#check").hidden = true;
+    skeleton(target, target.split(" ").map(() => true));
+    const fb = $("#fb"); fb.replaceChildren();
+    if (ok) {
+      // A sentence that was mostly filled in by hints earns a point but does not count towards the stars.
+      if (hints * 2 <= target.split(" ").length) right++;
+      streak++;
+      const pts = Math.max([10, 6, 3][tries] - hints * 3, 1) + (tries === 0 && !hints ? Math.min(streak - 1, 5) : 0);
+      score += pts; addPoints(pts); sfx.ok(); inp.className = "wi-in good";
+      fx.pop(inp, "+" + pts); if (tries === 0 && !hints) fx.confetti(fx.at(inp).x, fx.at(inp).y, 20);
+      fb.className = "fb ok"; fb.append("✓ မှန်ပါတယ်! ");
+    } else {
+      streak = 0; sfx.bad(); inp.className = "wi-in bad";
+      fb.className = "fb no"; fb.append("အဖြေမှန်: ");
+      const s = document.createElement("span"); s.className = "wi-ans"; s.textContent = target; fb.append(s, " · ");
+    }
+    fb.append("📌 " + it.note);
+    speak(target);
+    $("#score").textContent = score;
+    const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next →"; n.focus();
+  }
+  function check() {
+    if (done) return;
+    const user = toks(inp.value);
+    if (!user.length) { fx.shake(inp); inp.focus(); return; }
+    const hitAns = it.a.find(a => norm(a) === user.join(" "));
+    if (hitAns) { finish(true, hitAns); return; }
+    const c = closest(user);
+    tries++;
+    $("#tries").textContent = "✏️".repeat(TRIES - tries) + "✖️".repeat(tries);
+    if (tries >= TRIES) { finish(false, c.target); return; }
+    sfx.bad(); fx.shake(inp); inp.className = "wi-in bad";
+    skeleton(c.target, c.m.hit, lvl <= 3 || tries >= 2);
+    const fb = $("#fb"); fb.className = "fb no";
+    const extra = user.length - c.m.n;
+    fb.textContent = "စကားလုံး " + c.m.n + " / " + c.m.of + " လုံး မှန်တယ်" + (extra > 0 ? " · မလိုတဲ့ (သို့) နေရာမှားတဲ့ စကားလုံး " + extra + " လုံး ပါနေတယ်" : "") + "။ ပြင်ပြီး ထပ်စစ်ပါ။";
+    if (lvl <= 2) { inp.value = ""; [...$("#bank").children].forEach(b => b.disabled = false); }
+    inp.focus();
+  }
+  // Hint: keep the correct start of what is typed and add the next word of the model answer.
+  $("#hint").onclick = () => {
+    if (done) return;
+    const user = toks(inp.value), c = closest(user), words = c.target.split(" ");
+    let k = 0; while (k < words.length && k < user.length && norm(words[k]) === user[k]) k++;
+    if (k >= words.length) { check(); return; }
+    hints++;
+    inp.value = words.slice(0, k + 1).join(" ") + (k + 1 < words.length ? " " : "");
+    inp.className = "wi-in";
+    if (lvl <= 2) {
+      const used = toks(inp.value);
+      [...$("#bank").children].forEach(b => { const at = used.indexOf(norm(b.textContent)); b.disabled = at >= 0; if (at >= 0) used.splice(at, 1); });
+    }
+    inp.focus();
+  };
+  $("#clear").onclick = () => { inp.value = ""; [...$("#bank").children].forEach(b => b.disabled = false); inp.focus(); };
+  $("#check").onclick = check;
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); check(); } });
+  inp.addEventListener("input", () => { inp.className = "wi-in"; });
+  $("#next").onclick = () => {
+    if (i < list.length - 1) { i++; show(); return; }
+    const r = right / list.length;
+    showResult({ title: cheer(r), stars: starsFor(r), text: right + " / " + list.length + " ကြောင်း မှန်တယ် · " + score + " points", onAgain: play });
+  };
+  play.gameId = "writeit";
+  play();
+})();
+</script>
+</body>
+</html>

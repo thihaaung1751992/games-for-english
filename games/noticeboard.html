@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notice Board</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.nb-board { border-radius: 18px; padding: 14px 12px; border: 8px solid #7a5230; box-shadow: inset 0 0 0 2px rgba(0,0,0,.25), 0 6px 14px rgba(0,0,0,.2);
+  background: #c99a62 radial-gradient(rgba(0,0,0,.12) 1px, transparent 1.5px) 0 0 / 9px 9px; }
+.nb-title { text-align: center; font-weight: 900; color: #3a2512; margin-bottom: 10px; letter-spacing: .03em; }
+.nb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.nb-note { position: relative; padding: 16px 12px 10px; border-radius: 4px; color: #1a1a1a; font-size: .93rem; line-height: 1.5; box-shadow: 2px 4px 6px rgba(0,0,0,.3); transition: transform .2s, box-shadow .2s, opacity .2s; }
+.nb-note:nth-child(5n+1) { background: #fff7b0; transform: rotate(-1.2deg); } .nb-note:nth-child(5n+2) { background: #d3f0ff; transform: rotate(1deg); }
+.nb-note:nth-child(5n+3) { background: #ffd9e3; transform: rotate(-.6deg); } .nb-note:nth-child(5n+4) { background: #d9f7d0; transform: rotate(1.4deg); }
+.nb-note:nth-child(5n+5) { background: #f1e3ff; transform: rotate(-1deg); }
+.nb-note::before { content: "📌"; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 1.1rem; }
+.nb-note h3 { margin: 0 0 4px; font-size: 1rem; line-height: 1.3; }
+.nb-note .lt { display: inline-block; min-width: 1.5em; text-align: center; margin-right: 4px; border-radius: 6px; background: #1a1a1a; color: #fff; font-weight: 900; }
+.nb-note.hit { transform: scale(1.04) rotate(0); box-shadow: 0 0 0 4px #1f8f4a, 2px 6px 10px rgba(0,0,0,.35); z-index: 1; }
+.nb-note.dim { opacity: .5; }
+.nb-person { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding: 12px 14px; border-radius: 16px; border: 2px solid var(--line); background: var(--card); }
+.nb-person .av { font-size: 2.3rem; line-height: 1; }
+.nb-person .who { font-weight: 900; }
+.nb-person .say { font-size: 1.1rem; line-height: 1.55; margin-top: 2px; }
+.nb-person .tr { color: var(--muted); font-size: .95rem; line-height: 1.7; margin-top: 4px; }
+.nb-q { font-weight: 800; text-align: center; margin: 12px 0 0; }
+.nb-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
+.nb-opts .opt { font-size: .98rem; text-align: left; }
+.nb-opts .opt b { margin-right: 6px; }
+@media (prefers-reduced-motion: reduce) { .nb-note { transition: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Notice Board: scan several short notices and find the one that fits each person (reading for specific information).
+// Each board has 4 notices that match a person and a 5th that matches nobody (shown from level 3).
+(() => {
+  const topic = getTopic(), lvl = topic.level;
+  renderBar("Notice Board · " + topic.name);
+  const N = (t, body) => ({ t, body });
+  // [name, avatar, what they say, Burmese, index of the matching notice, why (Burmese, quoting the words to look for)]
+  const P = (who, av, say, my, a, why) => ({ who, av, say, my, a, why });
+  const BOARDS = [
+    { title: "🏠 ROOMS FOR RENT", notes: [
+        N("Sunny Room near University", "Small room for one student. Five minutes' walk to the university. 150,000 kyats a month. No pets."),
+        N("Family House with Garden", "Three bedrooms and a big garden on a quiet street. Pets welcome. 20 minutes from the city centre by bus."),
+        N("City Centre Apartment", "Modern one-bedroom flat on the 8th floor. Lift, parking and gym. Next to the main bus station."),
+        N("Shared Flat for Women", "Room in a flat with two friendly nurses. Women only. Wi-Fi and kitchen included. 100,000 kyats a month."),
+        N("Shop Space for Rent", "Ground-floor shop on a busy market street. Good for a tea shop or a phone shop. Not for living.") ],
+      people: [
+        P("Ko Zaw", "👨‍👩‍👧‍👦", "My wife and I have two children and a dog. We want a quiet place.", "ကျွန်တော်တို့လင်မယားမှာ ကလေးနှစ်ယောက်နဲ့ ခွေးတစ်ကောင် ရှိတယ်။ တိတ်ဆိတ်တဲ့နေရာ လိုချင်တယ်။", 1, "“Three bedrooms”, “quiet street”, “Pets welcome” — မိသားစုနဲ့ ခွေးအတွက် ကိုက်တယ်"),
+        P("Su Su", "👩‍🎓", "I am a first-year student. I have no bike, so I must walk to class.", "ကျွန်မက ပထမနှစ်ကျောင်းသူပါ။ စက်ဘီးမရှိလို့ အတန်းကို လမ်းလျှောက်သွားရမယ်။", 0, "“for one student”, “Five minutes' walk to the university”"),
+        P("Mr. Lee", "🧑‍💼", "I drive to work, and I like to exercise before breakfast.", "ကျွန်တော် ကားမောင်းပြီး အလုပ်သွားတယ်၊ မနက်စာမစားခင် လေ့ကျင့်ခန်းလုပ်ရတာ ကြိုက်တယ်။", 2, "“parking and gym” — ကားရပ်စရာနဲ့ အားကစားခန်း ပါတယ်"),
+        P("Ma Hnin", "👩", "I am a young woman with a small budget. I do not want to live alone.", "ကျွန်မက ငွေသိပ်မသုံးနိုင်တဲ့ မိန်းကလေးပါ။ တစ်ယောက်တည်း မနေချင်ဘူး။", 3, "“Women only”, “with two friendly nurses”, ဈေးအသက်သာဆုံး (100,000 kyats)") ] },
+    { title: "🎓 CLASSES & CLUBS", notes: [
+        N("Guitar for Beginners", "Saturday and Sunday mornings, 9 to 11. You do not need your own guitar. Adults only."),
+        N("Kids' Swimming Club", "For children aged 6 to 12. Monday to Friday at 4 p.m., after school. Bring a towel."),
+        N("Evening English Conversation", "Practise speaking with a teacher from London. Tuesday and Thursday, 7 to 8:30 p.m. Small groups."),
+        N("Online Computer Course", "Learn Excel and Word at home. Watch the video lessons at any time. Certificate after 8 weeks."),
+        N("Morning Yoga in the Park", "Every day at 6 a.m. Free for everyone. Bring your own mat.") ],
+      people: [
+        P("Aye Aye", "👩‍💼", "I work from Monday to Friday. I want to learn music, but I do not have an instrument.", "ကျွန်မ တနင်္လာကနေ သောကြာအထိ အလုပ်လုပ်တယ်။ ဂီတသင်ချင်ပေမယ့် တူရိယာ မရှိဘူး။", 0, "“Saturday and Sunday”, “You do not need your own guitar”"),
+        P("U Tun", "👨‍👦", "My son is eight. He needs something to do after school.", "ကျွန်တော့်သားက ရှစ်နှစ်ရှိပြီ။ ကျောင်းဆင်းပြီး လုပ်စရာတစ်ခုခု လိုတယ်။", 1, "“children aged 6 to 12”, “after school”"),
+        P("Nilar", "🙍‍♀️", "I can read English well, but I am too shy to speak. I am free after work.", "အင်္ဂလိပ်စာ ကောင်းကောင်းဖတ်တတ်ပေမယ့် ပြောရမှာ ရှက်တယ်။ အလုပ်ဆင်းပြီးရင် အားတယ်။", 2, "“Practise speaking”, “7 to 8:30 p.m.” (ညနေပိုင်း), “Small groups”"),
+        P("Ko Phyo", "🧑‍💻", "My working hours change every week, so I cannot join a class at a fixed time. I want a certificate for my CV.", "ကျွန်တော့်အလုပ်ချိန်က အပတ်တိုင်း ပြောင်းတယ်၊ အချိန်သတ်မှတ်ထားတဲ့အတန်း မတက်နိုင်ဘူး။ CV အတွက် လက်မှတ်လိုချင်တယ်။", 3, "“at any time”, “Certificate after 8 weeks”") ] },
+    { title: "💼 JOBS", notes: [
+        N("Waiter / Waitress", "Busy restaurant needs staff for evenings and weekends. No experience needed. Free dinner."),
+        N("Delivery Rider", "You must have your own motorbike and a licence. Choose your own hours. Paid per delivery."),
+        N("Hotel Receptionist", "Full-time. Good English and computer skills needed. Two years' experience. Uniform provided."),
+        N("Babysitter", "Look after two young children, Monday to Friday, 8 a.m. to 1 p.m. Must love children."),
+        N("Night Security Guard", "10 p.m. to 6 a.m., six nights a week. Men and women welcome. Training given.") ],
+      people: [
+        P("Thiha", "🧑‍🎓", "I am a university student. My classes finish at 4 p.m. I have never had a job.", "ကျွန်တော်က တက္ကသိုလ်ကျောင်းသားပါ။ အတန်းက ညနေ ၄ နာရီ ပြီးတယ်။ အလုပ်တစ်ခါမှ မလုပ်ဖူးဘူး။", 0, "“evenings and weekends”, “No experience needed”"),
+        P("Ko Min", "🏍️", "I have a motorbike, and I want to decide when I work.", "ကျွန်တော့်မှာ ဆိုင်ကယ်ရှိတယ်၊ ဘယ်အချိန်အလုပ်လုပ်မလဲ ကိုယ်တိုင်ဆုံးဖြတ်ချင်တယ်။", 1, "“your own motorbike”, “Choose your own hours”"),
+        P("Ma Ei", "👩‍💼", "I worked at a hotel front desk for three years, and I speak English well.", "ကျွန်မ ဟိုတယ်ဧည့်ကြိုကောင်တာမှာ သုံးနှစ်လုပ်ခဲ့တယ်၊ အင်္ဂလိပ်လိုလည်း ကောင်းကောင်းပြောတတ်တယ်။", 2, "“Good English”, “Two years' experience” — သူမမှာ သုံးနှစ်အတွေ့အကြုံရှိတယ်"),
+        P("Daw Khin", "👵", "I am free every morning, and I raised three children myself.", "ကျွန်မ မနက်တိုင်း အားတယ်၊ ကလေးသုံးယောက်ကိုလည်း ကိုယ်တိုင်ပြုစုပျိုးထောင်ခဲ့တယ်။", 3, "“8 a.m. to 1 p.m.” (မနက်ပိုင်း), “Look after two young children”") ] },
+    { title: "🍽️ PLACES TO EAT", notes: [
+        N("Green Leaf Café", "Fresh vegetarian food only. No meat or fish. Garden seats. Closed on Mondays."),
+        N("Golden Noodle House", "Cheap and fast. A bowl of noodles from 2,000 kyats. Open 24 hours."),
+        N("Sky View Restaurant", "Fine dining on the 20th floor with live piano music. Please book a table. Smart clothes only."),
+        N("Happy Kids Pizza", "Play area for children. Birthday parties welcome. Free ice cream for kids on Sundays."),
+        N("Lake Tea Shop", "Traditional tea and snacks. Open 5 a.m. to 5 p.m. Cash only.") ],
+      people: [
+        P("Sandar", "🥗", "I do not eat meat.", "ကျွန်မ အသား မစားဘူး။", 0, "“vegetarian food only”, “No meat or fish”"),
+        P("Ko Htet", "🧑‍🔧", "I finish work at 2 a.m., and I do not have much money.", "ကျွန်တော် မနက် ၂ နာရီမှ အလုပ်ဆင်းတယ်၊ ပိုက်ဆံလည်း သိပ်မရှိဘူး။", 1, "“Cheap”, “Open 24 hours” — မနက် ၂ နာရီမှာလည်း ဖွင့်တယ်"),
+        P("Mr. Brown", "🤵", "It is our wedding anniversary. I want a special, romantic dinner.", "ဒီနေ့ ကျွန်တော်တို့ မင်္ဂလာနှစ်ပတ်လည်နေ့ပါ။ ထူးခြားပြီး ရိုမန်တစ်ဆန်တဲ့ ညစာ စားချင်တယ်။", 2, "“Fine dining”, “live piano music”"),
+        P("Daw Mon", "👩‍👧", "My daughter will be six next week. She wants a party with her friends.", "ကျွန်မသမီး နောက်အပတ် ခြောက်နှစ်ပြည့်မယ်။ သူငယ်ချင်းတွေနဲ့ ပါတီလုပ်ချင်နေတယ်။", 3, "“Birthday parties welcome”, “Play area for children”") ] },
+    { title: "🧳 WEEKEND TRIPS", notes: [
+        N("Beach Bus to Ngwe Saung", "Two days by the sea. Swimming and seafood. Leaves on Friday night, back on Sunday night."),
+        N("Mountain Walk in Kalaw", "Walk 15 km a day through hills and villages. Good shoes needed. Not for small children."),
+        N("Bagan Temple Tour", "See the old temples with a history guide. Sunrise visit. Air-conditioned bus."),
+        N("City Food Tour", "Three hours on Saturday evening. Taste ten street foods in downtown Yangon."),
+        N("River Boat Fishing", "A quiet day on the river. Fishing rods included. Leaves at 5 a.m.") ],
+      people: [
+        P("Hla Hla", "👒", "I want to swim and lie in the sun for the whole weekend.", "ပိတ်ရက်တစ်ခုလုံး ရေကူးပြီး နေပူဆာလှုံချင်တယ်။", 0, "“Two days by the sea”, “Swimming”"),
+        P("Tun Tun", "🥾", "I am strong, and I like long walks in nature.", "ကျွန်တော် သန်မာတယ်၊ သဘာဝထဲမှာ လမ်းအကြာကြီးလျှောက်ရတာ ကြိုက်တယ်။", 1, "“Walk 15 km a day through hills and villages”"),
+        P("Zin Mar", "👩‍🏫", "I love history and old buildings.", "ကျွန်မ သမိုင်းနဲ့ ရှေးဟောင်းအဆောက်အအုံတွေကို ကြိုက်တယ်။", 2, "“old temples”, “history guide”"),
+        P("Ko Naing", "🍜", "I only have a few hours this weekend, and I love trying new dishes.", "ဒီပိတ်ရက်မှာ နာရီအနည်းငယ်ပဲ အားတယ်၊ ဟင်းအသစ်တွေ မြည်းရတာလည်း ကြိုက်တယ်။", 3, "“Three hours”, “Taste ten street foods”") ] }
+  ];
+  const NB = 3, LET = "ABCDE";
+
+  $("#app").innerHTML =
+    '<div class="stats"><span>Board: <b id="bn">1</b>/' + NB + ' · <b id="pn">1</b>/4</span><span id="streak"></span><span>Score: <b id="score">0</b></span></div>' +
+    '<div class="nb-board"><div class="nb-title" id="title"></div><div class="nb-grid" id="grid"></div></div>' +
+    '<div class="nb-person"><div class="av" id="av"></div><div><div class="who" id="who"></div><div class="say" id="say" lang="en"></div><div class="tr my" id="tr"></div></div></div>' +
+    '<div class="nb-q">ဒီလူအတွက် ဘယ်ကြော်ငြာက အသင့်တော်ဆုံးလဲ?</div><div class="nb-opts" id="opts"></div>' +
+    '<div class="fb" id="fb" aria-live="polite" style="text-align:center"></div>' +
+    '<div class="row"><button class="btn" id="listen">🔊 Listen</button><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+  let boards, bi, pi, score, right, streak, total, notes, people, p, answered;
+
+  function play() {
+    boards = shuffle(BOARDS).slice(0, NB);
+    bi = 0; score = 0; right = 0; streak = 0; total = NB * 4; board();
+  }
+  function board() {
+    const b = boards[bi];
+    // Level 1–2: only the four notices that match someone. Level 3–4: the extra notice is there to mislead.
+    notes = shuffle(b.notes.slice(0, lvl <= 2 ? 4 : 5).map((n, k) => ({ n, k })));
+    people = shuffle(b.people); pi = 0;
+    $("#title").textContent = b.title;
+    const g = $("#grid"); g.replaceChildren();
+    notes.forEach((x, k) => {
+      const d = document.createElement("div"); d.className = "nb-note"; d.lang = "en";
+      const h = document.createElement("h3"), l = document.createElement("span"); l.className = "lt"; l.textContent = LET[k];
+      h.append(l, x.n.t); d.append(h, x.n.body); g.appendChild(d);
+    });
+    person();
+  }
+  function person() {
+    p = people[pi]; answered = false;
+    $("#bn").textContent = bi + 1; $("#pn").textContent = pi + 1; $("#score").textContent = score;
+    $("#streak").textContent = streak >= 2 ? "🔥 " + streak : "";
+    $("#av").textContent = p.av; $("#who").textContent = p.who + ":"; $("#say").textContent = "“" + p.say + "”";
+    $("#tr").textContent = lvl <= 2 ? p.my : "";
+    [...$("#grid").children].forEach(d => d.classList.remove("hit", "dim"));
+    const box = $("#opts"); box.replaceChildren();
+    notes.forEach((x, k) => {
+      const b = document.createElement("button"); b.className = "opt"; b.lang = "en";
+      const l = document.createElement("b"); l.textContent = LET[k];
+      b.append(l, x.n.t); b.onclick = () => choose(b, k); box.appendChild(b);
+    });
+    $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
+  }
+  function choose(btn, k) {
+    if (answered) return;
+    answered = true;
+    const ak = notes.findIndex(x => x.k === p.a), ok = k === ak, fb = $("#fb");
+    [...$("#opts").children].forEach((b, j) => { b.disabled = true; if (j === ak) b.classList.add("right"); });
+    [...$("#grid").children].forEach((d, j) => d.classList.add(j === ak ? "hit" : "dim"));
+    if (ok) {
+      right++; streak++;
+      const pts = 10 + Math.min(streak - 1, 5) * 2; score += pts; addPoints(pts); sfx.ok();
+      fx.pop(btn, "+" + pts); if (streak % 4 === 0) fx.confetti(fx.at(btn).x, fx.at(btn).y, 24);
+      fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! ";
+    } else { streak = 0; sfx.bad(); btn.classList.add("wrong"); fx.shake(btn); fb.className = "fb no"; fb.textContent = "✗ အဖြေမှန်က " + LET[ak] + " ပါ။ "; }
+    fb.append("🔎 " + p.why);
+    $("#tr").textContent = p.my;
+    $("#score").textContent = score;
+    const last = bi === NB - 1 && pi === people.length - 1;
+    const n = $("#next"); n.hidden = false; n.textContent = last ? "Finish" : pi === people.length - 1 ? "Next board →" : "Next →"; n.focus();
+  }
+  $("#listen").onclick = () => speak(p.say);
+  $("#next").onclick = () => {
+    if (pi < people.length - 1) { pi++; person(); return; }
+    if (bi < NB - 1) { bi++; board(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    const r = right / total;
+    showResult({ title: cheer(r), stars: starsFor(r), text: right + " / " + total + " မှန်တယ် · " + score + " points", onAgain: play });
+  };
+  play.gameId = "noticeboard";
+  play();
+})();
+</script>
+</body>
+</html>
