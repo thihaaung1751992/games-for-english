@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Info Hunter</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.ih-doc { border-radius: 14px; border: 2px solid var(--line); background: #fdfcf6; color: #1a1a1a; padding: 14px 12px 12px; box-shadow: 0 6px 14px rgba(0,0,0,.18); }
+.ih-head { text-align: center; font-weight: 900; font-size: 1.15rem; letter-spacing: .02em; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 3px double #1a1a1a; }
+.ih-head .ic { font-size: 1.5rem; margin-right: 6px; }
+.ih-scroll { overflow-x: auto; }
+.ih-t { width: 100%; border-collapse: collapse; font-size: .97rem; }
+.ih-t th { text-align: left; font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: #555; padding: 4px 8px; border-bottom: 2px solid #1a1a1a; white-space: nowrap; }
+.ih-t td { padding: 8px; border-bottom: 1px dashed #bbb; line-height: 1.4; }
+.ih-t td:first-child { font-weight: 800; }
+.ih-t tr.hit td { background: #ffe66d; }
+.ih-note { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: #eef1f5; font-size: .93rem; line-height: 1.5; }
+.ih-note.hit { background: #ffe66d; }
+.ih-q { margin-top: 14px; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); }
+.ih-q .en { font-weight: 800; font-size: 1.12rem; line-height: 1.5; }
+.ih-q .tr { color: var(--muted); font-size: .95rem; line-height: 1.7; margin-top: 2px; }
+.ih-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
+.ih-opts .opt { font-size: 1.02rem; }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Info Hunter: read an everyday document (timetable, menu, schedule, label) and find the fact the question asks for.
+// Practises scanning: you do not read every word, you look for the right row and column.
+(() => {
+  const topic = getTopic(), lvl = topic.level;
+  renderBar("Info Hunter · " + topic.name);
+  // Question: [English, Burmese, right answer, wrong answers, rows that hold the evidence (-1 = the note under the table), why (Burmese)]
+  const Q = (q, my, a, d, ev, why) => ({ q, my, a, d, ev, why });
+  const DOCS = [
+    { t: "BUS TIMETABLE: Yangon → Bago", ic: "🚌", head: ["Bus", "Leaves", "Arrives", "Price"],
+      rows: [["Bus 1", "6:00 a.m.", "8:00 a.m.", "3,000 Ks"], ["Bus 2", "9:30 a.m.", "11:30 a.m.", "3,000 Ks"], ["Express", "1:00 p.m.", "2:30 p.m.", "5,000 Ks"], ["Night Bus", "8:00 p.m.", "10:00 p.m.", "3,500 Ks"]],
+      note: "No buses on Sundays.",
+      qs: [
+        Q("What time does Bus 2 leave?", "Bus 2 က ဘယ်အချိန် ထွက်လဲ?", "9:30 a.m.", ["11:30 a.m.", "6:00 a.m.", "1:00 p.m."], [1], "Bus 2 အတန်းရဲ့ Leaves (ထွက်ချိန်) ကော်လံကို ကြည့်ပါ။ 11:30 က ရောက်ချိန်ပါ"),
+        Q("Which bus is the fastest?", "ဘယ်ကားက အမြန်ဆုံးလဲ?", "Express", ["Bus 1", "Bus 2", "Night Bus"], [2], "Express က ၁ နာရီခွဲပဲ ကြာတယ် (1:00 → 2:30)။ ကျန်တာတွေက ၂ နာရီ"),
+        Q("How much is a ticket for the Night Bus?", "ညကားလက်မှတ်က ဘယ်လောက်လဲ?", "3,500 Ks", ["3,000 Ks", "5,000 Ks", "8,000 Ks"], [3], "Night Bus အတန်းရဲ့ Price ကော်လံ"),
+        Q("You must be in Bago before 9 a.m. Which bus do you take?", "မနက် ၉ နာရီမတိုင်ခင် ပဲခူးရောက်ရမယ်။ ဘယ်ကားစီးမလဲ?", "Bus 1", ["Bus 2", "Express", "Night Bus"], [0], "Bus 1 ပဲ မနက် 8:00 မှာ ရောက်တယ် (Arrives)"),
+        Q("Can you take a bus on Sunday?", "တနင်္ဂနွေနေ့မှာ ကားစီးလို့ရလား?", "No, you cannot.", ["Yes, all buses.", "Yes, only the Express.", "Yes, only at night."], [-1], "အောက်ကမှတ်ချက်: No buses on Sundays = တနင်္ဂနွေ ကားမရှိ") ] },
+    { t: "LUCKY TEA SHOP: Menu", ic: "☕", head: ["Item", "Price"],
+      rows: [["Tea", "800 Ks"], ["Coffee", "1,000 Ks"], ["Orange juice", "1,500 Ks"], ["Samosa (2 pieces)", "600 Ks"], ["Noodle soup", "2,000 Ks"], ["Fried rice", "2,500 Ks"]],
+      note: "Open 6 a.m. – 9 p.m. Free green tea with every meal.",
+      qs: [
+        Q("Which drink is the cheapest?", "ဘယ်အဖျော်ယမကာက ဈေးအပေါဆုံးလဲ?", "Tea", ["Coffee", "Orange juice", "Samosa"], [0], "Tea = 800 Ks။ Samosa က ပိုပေါပေမယ့် အဖျော်ယမကာ (drink) မဟုတ်ဘူး"),
+        Q("How much are a coffee and a noodle soup together?", "ကော်ဖီတစ်ခွက်နဲ့ ခေါက်ဆွဲပြုတ်တစ်ပွဲ ပေါင်း ဘယ်လောက်လဲ?", "3,000 Ks", ["2,000 Ks", "2,800 Ks", "3,500 Ks"], [1, 4], "1,000 + 2,000 = 3,000 Ks"),
+        Q("What do you get free with a meal?", "အစားအစာမှာရင် ဘာအလကားရလဲ?", "Green tea", ["Coffee", "A samosa", "Orange juice"], [-1], "Free green tea with every meal = အစားအစာတိုင်းနဲ့ ရေနွေးကြမ်း အခမဲ့"),
+        Q("What time does the shop close?", "ဆိုင် ဘယ်အချိန် ပိတ်လဲ?", "9 p.m.", ["6 a.m.", "6 p.m.", "9 a.m."], [-1], "Open 6 a.m. – 9 p.m. → ည ၉ နာရီ ပိတ်တယ်"),
+        Q("How many samosas do you get for 600 Ks?", "၆၀၀ ကျပ်နဲ့ စမူဆာ ဘယ်နှစ်ခု ရလဲ?", "Two", ["One", "Three", "Six"], [3], "Samosa (2 pieces) = နှစ်ခု") ] },
+    { t: "GRADE 5: Class Schedule", ic: "📚", head: ["Day", "Morning", "Afternoon"],
+      rows: [["Monday", "English", "Maths"], ["Tuesday", "Science", "Art"], ["Wednesday", "Maths", "Sport"], ["Thursday", "English", "Music"], ["Friday", "History", "Science"]],
+      note: "School starts at 8:30 a.m. Lunch is at 12 noon.",
+      qs: [
+        Q("When is the Art lesson?", "ပန်းချီအတန်းက ဘယ်အချိန်လဲ?", "Tuesday afternoon", ["Tuesday morning", "Thursday afternoon", "Monday afternoon"], [1], "Art က Tuesday အတန်း၊ Afternoon ကော်လံမှာ ရှိတယ်"),
+        Q("How many English lessons are there in a week?", "တစ်ပတ်မှာ အင်္ဂလိပ်စာအတန်း ဘယ်နှစ်ခါ ရှိလဲ?", "Two", ["One", "Three", "Five"], [0, 3], "Monday နဲ့ Thursday မနက် — နှစ်ခါ"),
+        Q("What do the students do on Wednesday afternoon?", "ဗုဒ္ဓဟူးနေ့ နေ့လယ်ပိုင်းမှာ ကျောင်းသားတွေ ဘာလုပ်လဲ?", "Sport", ["Maths", "Music", "Art"], [2], "Wednesday → Afternoon = Sport။ Maths က မနက်ပိုင်းမှာ"),
+        Q("What time is lunch?", "နေ့လယ်စာ ဘယ်အချိန် စားလဲ?", "12 noon", ["8:30 a.m.", "11 a.m.", "1 p.m."], [-1], "Lunch is at 12 noon = နေ့လယ် ၁၂ နာရီ"),
+        Q("Which subject is on Friday morning?", "သောကြာနေ့မနက်မှာ ဘာဘာသာ သင်လဲ?", "History", ["Science", "English", "Music"], [4], "Friday → Morning = History") ] },
+    { t: "STAR CINEMA: Today", ic: "🎬", head: ["Film", "Type", "Times", "Price"],
+      rows: [["Funny Dog", "Comedy", "10:00 a.m., 2:00 p.m.", "3,000 Ks"], ["Space Kids", "Cartoon", "11:30 a.m., 4:00 p.m.", "2,500 Ks"], ["Love in Mandalay", "Romance", "6:30 p.m.", "4,000 Ks"], ["Dark House", "Horror", "9:00 p.m.", "4,000 Ks"]],
+      note: "Children under 5 are free. No food from outside.",
+      qs: [
+        Q("What kind of film is Space Kids?", "Space Kids က ဘာရုပ်ရှင်အမျိုးအစားလဲ?", "A cartoon", ["A comedy", "A horror film", "A romance"], [1], "Space Kids အတန်းရဲ့ Type ကော်လံ = Cartoon"),
+        Q("Which film starts last?", "ဘယ်ရုပ်ရှင်က နောက်ဆုံးမှ ပြလဲ?", "Dark House", ["Love in Mandalay", "Space Kids", "Funny Dog"], [3], "Dark House က ည 9:00 p.m. — အနောက်ကျဆုံး"),
+        Q("How much is a ticket for Funny Dog?", "Funny Dog လက်မှတ်က ဘယ်လောက်လဲ?", "3,000 Ks", ["2,500 Ks", "4,000 Ks", "2,000 Ks"], [0], "Funny Dog အတန်းရဲ့ Price ကော်လံ"),
+        Q("A four-year-old child wants to see Space Kids. How much does the child pay?", "လေးနှစ်ကလေးတစ်ယောက် Space Kids ကြည့်ချင်တယ်။ ကလေးက ဘယ်လောက်ပေးရလဲ?", "Nothing", ["2,500 Ks", "1,250 Ks", "3,000 Ks"], [-1], "Children under 5 are free = ၅ နှစ်အောက်ကလေး အခမဲ့"),
+        Q("How many times can you see Love in Mandalay today?", "ဒီနေ့ Love in Mandalay ကို ဘယ်နှစ်ကြိမ် ပြလဲ?", "Once", ["Twice", "Three times", "Four times"], [2], "Times မှာ 6:30 p.m. တစ်ချိန်ပဲ ရှိတယ် (once = တစ်ကြိမ်)") ] },
+    { t: "COUGH SYRUP: How to Use", ic: "💊", head: ["", "Instructions"],
+      rows: [["Adults", "2 spoons, 3 times a day"], ["Children 6–12", "1 spoon, 3 times a day"], ["Children under 6", "Do not use"], ["When", "After meals"], ["Keep", "In a cool, dry place"]],
+      note: "Do not use for more than 7 days.",
+      qs: [
+        Q("How much does an adult take each time?", "လူကြီးက တစ်ခါကို ဘယ်လောက်သောက်ရလဲ?", "2 spoons", ["1 spoon", "3 spoons", "6 spoons"], [0], "Adults = 2 spoons။ 3 က တစ်နေ့ သုံးကြိမ် (3 times a day) ကို ပြောတာ"),
+        Q("Can a four-year-old child take this medicine?", "လေးနှစ်ကလေးက ဒီဆေး သောက်လို့ရလား?", "No", ["Yes, 1 spoon", "Yes, 2 spoons", "Yes, after meals"], [2], "Children under 6: Do not use = ၆ နှစ်အောက် မသုံးရ"),
+        Q("When should you take it?", "ဘယ်အချိန် သောက်ရမလဲ?", "After meals", ["Before meals", "Before bed", "Only in the morning"], [3], "When: After meals = အစာစားပြီးမှ"),
+        Q("How many times a day does a ten-year-old take it?", "ဆယ်နှစ်ကလေးက တစ်နေ့ ဘယ်နှစ်ကြိမ် သောက်ရလဲ?", "Three times", ["Once", "Twice", "Seven times"], [1], "Children 6–12: 1 spoon, 3 times a day"),
+        Q("How long can you use it?", "ဘယ်လောက်ကြာကြာ သုံးလို့ရလဲ?", "Up to 7 days", ["Up to 3 days", "Up to 12 days", "As long as you like"], [-1], "Do not use for more than 7 days = ၇ ရက်ထက် ပိုမသုံးရ") ] },
+    { t: "WEATHER THIS WEEK: Mandalay", ic: "🌦️", head: ["Day", "Weather", "Temperature"],
+      rows: [["Monday", "☀️ Sunny", "34°C"], ["Tuesday", "☁️ Cloudy", "31°C"], ["Wednesday", "🌧️ Rainy", "27°C"], ["Thursday", "💨 Windy", "26°C"], ["Friday", "☀️ Sunny", "33°C"]],
+      note: "Weekend: hot and dry.",
+      qs: [
+        Q("Which day is the hottest?", "ဘယ်နေ့က အပူဆုံးလဲ?", "Monday", ["Friday", "Tuesday", "Wednesday"], [0], "Monday = 34°C — အမြင့်ဆုံး"),
+        Q("On which day do you need an umbrella?", "ဘယ်နေ့မှာ ထီးလိုမလဲ?", "Wednesday", ["Monday", "Tuesday", "Friday"], [2], "Wednesday = Rainy (မိုးရွာ)"),
+        Q("What is the weather like on Tuesday?", "အင်္ဂါနေ့ ရာသီဥတု ဘယ်လိုလဲ?", "Cloudy", ["Sunny", "Rainy", "Windy"], [1], "Tuesday → Weather = Cloudy (တိမ်ထူ)"),
+        Q("Which day is the coolest?", "ဘယ်နေ့က အအေးဆုံးလဲ?", "Thursday", ["Wednesday", "Tuesday", "Monday"], [3], "Thursday = 26°C — အနိမ့်ဆုံး"),
+        Q("How many sunny days are there from Monday to Friday?", "တနင်္လာကနေ သောကြာအထိ နေသာတဲ့နေ့ ဘယ်နှစ်ရက် ရှိလဲ?", "Two", ["One", "Three", "Five"], [0, 4], "Monday နဲ့ Friday — နှစ်ရက်") ] }
+  ];
+  const ND = 3, PER = 4;
+
+  $("#app").innerHTML =
+    '<div class="stats"><span>Page: <b id="dn">1</b>/' + ND + ' · Q<b id="qn">1</b>/' + PER + '</span><span id="streak"></span><span>Score: <b id="score">0</b></span></div>' +
+    '<div class="ih-doc" lang="en"><div class="ih-head" id="head"></div><div class="ih-scroll"><table class="ih-t"><thead id="th"></thead><tbody id="tb"></tbody></table></div><div class="ih-note" id="note"></div></div>' +
+    '<div class="ih-q"><div class="en" id="q" lang="en"></div><div class="tr my" id="tr"></div></div>' +
+    '<div class="ih-opts" id="opts"></div>' +
+    '<div class="fb" id="fb" aria-live="polite" style="text-align:center"></div>' +
+    '<div class="row"><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+  let docs, di, qi, qs, doc, cur, score, right, streak, total, answered;
+
+  function play() {
+    docs = shuffle(DOCS).slice(0, ND);
+    di = 0; score = 0; right = 0; streak = 0; total = ND * PER; page();
+  }
+  function page() {
+    doc = docs[di]; qs = shuffle(doc.qs).slice(0, PER); qi = 0;
+    const h = $("#head"); h.replaceChildren(); const ic = document.createElement("span"); ic.className = "ic"; ic.textContent = doc.ic; h.append(ic, doc.t);
+    const tr = document.createElement("tr"); doc.head.forEach(c => { const th = document.createElement("th"); th.textContent = c; tr.appendChild(th); });
+    $("#th").replaceChildren(tr);
+    $("#tb").replaceChildren(...doc.rows.map(r => { const x = document.createElement("tr"); r.forEach(c => { const td = document.createElement("td"); td.textContent = c; x.appendChild(td); }); return x; }));
+    $("#note").textContent = "ℹ️ " + doc.note;
+    ask();
+  }
+  function ask() {
+    cur = qs[qi]; answered = false;
+    $("#dn").textContent = di + 1; $("#qn").textContent = qi + 1; $("#score").textContent = score;
+    $("#streak").textContent = streak >= 2 ? "🔥 " + streak : "";
+    [...$("#tb").children].forEach(r => r.classList.remove("hit")); $("#note").classList.remove("hit");
+    $("#q").textContent = cur.q; $("#tr").textContent = lvl <= 1 ? cur.my : "";
+    const box = $("#opts"); box.replaceChildren();
+    shuffle([cur.a, ...shuffle(cur.d).slice(0, lvl <= 1 ? 2 : 3)]).forEach(t => {
+      const b = document.createElement("button"); b.className = "opt"; b.lang = "en"; b.textContent = t;
+      b.onclick = () => choose(b, t === cur.a); box.appendChild(b);
+    });
+    $("#fb").textContent = ""; $("#fb").className = "fb"; $("#next").hidden = true;
+  }
+  function choose(btn, ok) {
+    if (answered) return;
+    answered = true;
+    const fb = $("#fb");
+    [...$("#opts").children].forEach(b => { b.disabled = true; if (b.textContent === cur.a) b.classList.add("right"); });
+    cur.ev.forEach(k => (k < 0 ? $("#note") : $("#tb").children[k]).classList.add("hit"));   // show where the answer was
+    if (ok) {
+      right++; streak++;
+      const pts = 10 + Math.min(streak - 1, 5) * 2; score += pts; addPoints(pts); sfx.ok();
+      fx.pop(btn, "+" + pts); if (streak % 4 === 0) fx.confetti(fx.at(btn).x, fx.at(btn).y, 24);
+      fb.className = "fb ok"; fb.textContent = "✓ မှန်ပါတယ်! ";
+    } else { streak = 0; sfx.bad(); btn.classList.add("wrong"); fx.shake(btn); fb.className = "fb no"; fb.textContent = "✗ အဖြေမှန်: " + cur.a + " · "; }
+    fb.append("🔎 " + cur.why);
+    $("#tr").textContent = cur.my; $("#score").textContent = score;
+    const last = di === ND - 1 && qi === PER - 1;
+    const n = $("#next"); n.hidden = false; n.textContent = last ? "Finish" : qi === PER - 1 ? "Next page →" : "Next →"; n.focus();
+  }
+  $("#next").onclick = () => {
+    if (qi < PER - 1) { qi++; ask(); return; }
+    if (di < ND - 1) { di++; page(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    const r = right / total;
+    showResult({ title: cheer(r), stars: starsFor(r), text: right + " / " + total + " မှန်တယ် · " + score + " points", onAgain: play });
+  };
+  play.gameId = "infohunt";
+  play();
+})();
+</script>
+</body>
+</html>

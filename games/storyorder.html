@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Order</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+[hidden] { display: none !important; }
+.so-book { border-radius: 18px; border: 2px solid var(--line); padding: 14px; background: color-mix(in srgb, #f5c211 10%, var(--card)); box-shadow: 0 6px 14px rgba(0,0,0,.12); }
+.so-title { font-weight: 900; font-size: 1.15rem; text-align: center; margin-bottom: 10px; }
+.so-title .ic { font-size: 1.6rem; margin-right: 6px; }
+.so-done { display: grid; gap: 8px; min-height: 12px; }
+.so-line { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #1f8f4a 16%, var(--card)); border: 2px solid #1f8f4a; animation: soin .3s ease-out; }
+.so-line .n { flex: none; width: 1.7em; height: 1.7em; border-radius: 50%; background: #1f8f4a; color: #fff; font-weight: 900; display: grid; place-items: center; }
+.so-line .en { font-size: 1.08rem; line-height: 1.5; }
+.so-line .tr { color: var(--muted); font-size: .93rem; line-height: 1.7; }
+.so-slot { padding: 10px 12px; border-radius: 12px; border: 2px dashed var(--line); color: var(--muted); font-weight: 700; text-align: center; }
+.so-q { font-weight: 800; text-align: center; margin: 14px 0 8px; }
+.so-pile { display: grid; gap: 8px; }
+.so-card { font: inherit; font-size: 1.08rem; line-height: 1.5; text-align: left; padding: 12px 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.so-card:hover { border-color: #5b8def; }
+.so-card.no { border-color: #e5484d; background: color-mix(in srgb, #e5484d 14%, var(--card)); }
+.so-card .tr { display: block; color: var(--muted); font-size: .93rem; line-height: 1.7; }
+@keyframes soin { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .so-line { animation: none; } }
+</style>
+</head>
+<body>
+<header id="bar" class="bar"></header>
+<main class="wrap" id="app"></main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/choice.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/fx.js"></script>
+<script>
+// Story Order: the sentences of a very short story are mixed up. Read them and tap them in the order they happen.
+// Practises reading for sequence: time words (first, then, after that, finally) and what must come before what.
+(() => {
+  const topic = getTopic(), lvl = topic.level;
+  renderBar("Story Order · " + topic.name);
+  // [title, icon, clue (Burmese: what to look for), lines in the right order as [English, Burmese]]
+  const S = (t, ic, clue, lines) => ({ t, ic, clue, lines });
+  const EASY = [
+    S("Su Su's Morning", "🌅", "then = ပြီးတော့၊ after that = အဲဒီနောက် — အချိန်ပြစကားလုံးတွေကို ကြည့်ပါ", [
+      ["Su Su gets up at six o'clock.", "စုစု ခြောက်နာရီမှာ အိပ်ရာထတယ်။"], ["She washes her face.", "သူမ မျက်နှာသစ်တယ်။"],
+      ["Then she eats breakfast.", "ပြီးတော့ မနက်စာ စားတယ်။"], ["After that, she goes to school.", "အဲဒီနောက် ကျောင်းသွားတယ်။"]]),
+    S("A Cup of Tea", "☕", "first → next → then → finally = ပထမ → နောက် → ပြီးတော့ → နောက်ဆုံး", [
+      ["First, boil some water.", "ပထမဆုံး ရေနွေးတည်ပါ။"], ["Next, put a tea bag in a cup.", "နောက် လက်ဖက်ခြောက်အိတ်ကို ခွက်ထဲထည့်ပါ။"],
+      ["Then pour the hot water into the cup.", "ပြီးတော့ ရေနွေးကို ခွက်ထဲလောင်းထည့်ပါ။"], ["Finally, drink your tea.", "နောက်ဆုံးမှာ လက်ဖက်ရည်သောက်ပါ။"]]),
+    S("A Rainy Day", "🌧️", "မိုးမရွာခင် ကောင်းကင်မှောင်တယ် → မိုးရွာမှ ထီးဖွင့်တယ်", [
+      ["The sky is dark.", "ကောင်းကင်က မှောင်နေတယ်။"], ["It starts to rain.", "မိုးစရွာတယ်။"],
+      ["Ko Ko opens his umbrella.", "ကိုကို ထီးဖွင့်တယ်။"], ["He walks home under the umbrella.", "ထီးဆောင်းပြီး အိမ်ပြန်လမ်းလျှောက်တယ်။"]]),
+    S("At the Shop", "🛒", "ပစ္စည်းယူ → ပိုက်ဆံပေး → အိမ်သယ်", [
+      ["Mya goes to the shop.", "မြ ဆိုင်ကိုသွားတယ်။"], ["She takes a bottle of milk.", "နို့တစ်ဘူး ယူတယ်။"],
+      ["She pays the shopkeeper.", "ဆိုင်ရှင်ကို ပိုက်ဆံပေးတယ်။"], ["She carries the milk home.", "နို့ကို အိမ်သယ်သွားတယ်။"]]),
+    S("The Hungry Cat", "🐱", "sees = မြင်တယ် → jumps = ခုန်တယ် → eats = စားတယ် → now = အခု", [
+      ["A cat sees a fish on the table.", "ကြောင်တစ်ကောင်က စားပွဲပေါ်က ငါးကို မြင်တယ်။"], ["It jumps onto the table.", "စားပွဲပေါ် ခုန်တက်တယ်။"],
+      ["It eats the fish.", "ငါးကို စားတယ်။"], ["Now the cat is full and sleepy.", "အခု ကြောင်က ဗိုက်ပြည့်ပြီး အိပ်ငိုက်နေပြီ။"]]),
+    S("Taking the Bus", "🚌", "waits = စောင့်တယ် → comes = လာတယ် → gets on = တက်တယ် → sits down = ထိုင်တယ်", [
+      ["Aung waits at the bus stop.", "အောင် ကားမှတ်တိုင်မှာ စောင့်တယ်။"], ["The bus comes.", "ဘတ်စ်ကား လာတယ်။"],
+      ["He gets on the bus.", "သူ ကားပေါ်တက်တယ်။"], ["He sits down next to the window.", "ပြတင်းပေါက်ဘေးမှာ ထိုင်တယ်။"]]),
+    S("Nilar's Birthday", "🎂", "ကိတ်လုပ်ပြီးမှ၊ သူငယ်ချင်းတွေလာပြီးမှ အတူစားလို့ရတယ်", [
+      ["Today is Nilar's birthday.", "ဒီနေ့ နီလာ့မွေးနေ့ပါ။"], ["Her mother makes a cake.", "သူ့အမေက ကိတ်မုန့်လုပ်တယ်။"],
+      ["Her friends come to her house.", "သူငယ်ချင်းတွေ အိမ်ကိုလာကြတယ်။"], ["They sing and eat the cake together.", "သီချင်းဆိုပြီး ကိတ်မုန့်ကို အတူစားကြတယ်။"]]),
+    S("Bedtime", "🌙", "finishes = ပြီးတယ် → brushes = တိုက်တယ် → gets into bed → falls asleep = အိပ်ပျော်တယ်", [
+      ["Tun Tun finishes his homework.", "ထွန်းထွန်း အိမ်စာပြီးတယ်။"], ["He brushes his teeth.", "သွားတိုက်တယ်။"],
+      ["He gets into bed.", "အိပ်ရာဝင်တယ်။"], ["He falls asleep quickly.", "ချက်ချင်း အိပ်ပျော်သွားတယ်။"]])
+  ];
+  const MID = [
+    S("The Lost Phone", "📱", "yesterday → when he got to… → ten minutes later — အချိန်စကားလုံးတွေနဲ့ he / it / the driver က ဘယ်သူ့ကိုညွှန်းလဲ ကြည့်ပါ", [
+      ["Yesterday, Zaw took a taxi to work.", "မနေ့က ဇော် အလုပ်ကို တက္ကစီနဲ့သွားတယ်။"], ["When he got to the office, he could not find his phone.", "ရုံးရောက်တော့ ဖုန်းရှာမတွေ့ဘူး။"],
+      ["He called his number from a friend's phone.", "သူငယ်ချင်းဖုန်းနဲ့ ကိုယ့်နံပါတ်ကို ခေါ်ကြည့်တယ်။"], ["The taxi driver answered and said the phone was on the back seat.", "တက္ကစီဒရိုင်ဘာက ဖုန်းကိုင်ပြီး ဖုန်းက နောက်ခုံပေါ်မှာလို့ ပြောတယ်။"],
+      ["Ten minutes later, the driver brought it back to him.", "ဆယ်မိနစ်အကြာမှာ ဒရိုင်ဘာက ဖုန်းကို ပြန်လာပေးတယ်။"]]),
+    S("Egg Fried Rice", "🍳", "first → next → then → after that → finally", [
+      ["First, heat some oil in a pan.", "ပထမဆုံး ဒယ်အိုးထဲမှာ ဆီကို အပူပေးပါ။"], ["Next, add an egg and stir it quickly.", "နောက် ကြက်ဥထည့်ပြီး မြန်မြန်မွှေပါ။"],
+      ["Then add the cold rice and mix everything.", "ပြီးတော့ ထမင်းအေးထည့်ပြီး အားလုံးရောမွှေပါ။"], ["After that, pour in a little soy sauce.", "အဲဒီနောက် ပဲငံပြာရည် နည်းနည်းလောင်းထည့်ပါ။"],
+      ["Finally, serve the rice on a plate while it is hot.", "နောက်ဆုံးမှာ ပူတုန်း ပန်းကန်ထဲထည့်ပြီး တည်ခင်းပါ။"]]),
+    S("First Day at Work", "💼", "woke up early → at the office → during lunch → by the evening", [
+      ["Hnin woke up early because it was her first day at a new job.", "အလုပ်သစ်ရဲ့ ပထမဆုံးနေ့မို့ နှင်း စောစောနိုးတယ်။"], ["She put on her best clothes and left the house.", "အကောင်းဆုံးအဝတ်တွေဝတ်ပြီး အိမ်ကထွက်တယ်။"],
+      ["At the office, her manager showed her to her desk.", "ရုံးမှာ မန်နေဂျာက သူ့စားပွဲကို လိုက်ပြတယ်။"], ["During lunch, she met some friendly co-workers.", "နေ့လယ်စာစားချိန်မှာ ဖော်ရွေတဲ့ လုပ်ဖော်ကိုင်ဖက်တချို့နဲ့ တွေ့တယ်။"],
+      ["By the evening, she was tired but very happy.", "ညနေရောက်တော့ ပင်ပန်းပေမယ့် အရမ်းပျော်နေတယ်။"]]),
+    S("The Football Match", "⚽", "after ten minutes → at half-time → in the second half → when the game ended", [
+      ["Our team started the match badly.", "ကျွန်တော်တို့အသင်း ပွဲကို မကောင်းတဲ့အစနဲ့ စခဲ့တယ်။"], ["After ten minutes, the other team scored a goal.", "ဆယ်မိနစ်အကြာမှာ တစ်ဖက်အသင်းက ဂိုးသွင်းတယ်။"],
+      ["At half-time, our coach told us not to give up.", "ပထမပိုင်းအပြီးမှာ နည်းပြက လက်မလျှော့ဖို့ ပြောတယ်။"], ["In the second half, we scored twice.", "ဒုတိယပိုင်းမှာ ကျွန်တော်တို့ နှစ်ဂိုးသွင်းတယ်။"],
+      ["When the game ended, we had won 2–1.", "ပွဲပြီးတော့ ၂–၁ နဲ့ နိုင်ခဲ့တယ်။"]]),
+    S("Aye's Flower", "🌱", "last month → after a week → every day → now", [
+      ["Last month, Aye planted a seed in a small pot.", "ပြီးခဲ့တဲ့လက အေး အိုးလေးထဲမှာ အစေ့တစ်စေ့ စိုက်တယ်။"], ["She watered it every morning.", "မနက်တိုင်း ရေလောင်းတယ်။"],
+      ["After a week, a tiny green leaf appeared.", "တစ်ပတ်အကြာမှာ အရွက်စိမ်းလေးတစ်ရွက် ထွက်လာတယ်။"], ["The plant grew taller every day.", "အပင်က နေ့တိုင်း ပိုမြင့်လာတယ်။"],
+      ["Now there is a beautiful red flower on it.", "အခုတော့ အပင်မှာ လှပတဲ့ ပန်းနီလေးတစ်ပွင့် ပွင့်နေပြီ။"]]),
+    S("A Trip to Bagan", "🛕", "night bus → the next morning → after breakfast → the whole day → in the evening", [
+      ["We left Yangon on the night bus.", "ကျွန်တော်တို့ ညကားနဲ့ ရန်ကုန်ကထွက်တယ်။"], ["We arrived in Bagan early the next morning.", "နောက်နေ့မနက်စောစော ပုဂံရောက်တယ်။"],
+      ["After breakfast, we rented bicycles.", "မနက်စာစားပြီး စက်ဘီးငှားတယ်။"], ["We spent the whole day visiting temples.", "တစ်နေကုန် ဘုရားတွေ လှည့်ဖူးတယ်။"],
+      ["In the evening, we watched the sunset from a hill.", "ညနေမှာ တောင်ကုန်းပေါ်ကနေ နေဝင်ချိန်ကို ကြည့်တယ်။"]])
+  ];
+  const ROUNDS = 5;
+
+  $("#app").innerHTML =
+    '<div class="stats"><span>Story: <b id="sn">1</b>/' + ROUNDS + '</span><span id="miss"></span><span>Score: <b id="score">0</b></span></div>' +
+    '<div class="so-book"><div class="so-title" id="title"></div><div class="so-done" id="done"></div></div>' +
+    '<div class="so-q" id="q"></div><div class="so-pile" id="pile"></div>' +
+    '<div class="fb" id="fb" aria-live="polite" style="text-align:center"></div>' +
+    '<div class="row"><button class="btn" id="tr">👁 မြန်မာလို</button><button class="btn" id="listen" hidden>🔊 Listen</button><button class="btn primary" id="next" hidden>Next →</button></div>';
+
+  let list, i, score, right, st, at, miss, showMy;
+
+  function play() {
+    list = shuffle(lvl <= 2 ? EASY : MID).slice(0, ROUNDS);
+    i = 0; score = 0; right = 0; show();
+  }
+  function slots() {
+    const d = $("#done");
+    [...d.querySelectorAll(".so-slot")].forEach(x => x.remove());
+    if (at < st.lines.length) { const s = document.createElement("div"); s.className = "so-slot"; s.textContent = (at + 1) + " ?"; d.appendChild(s); }
+  }
+  function show() {
+    st = list[i]; at = 0; miss = 0; showMy = false;
+    $("#sn").textContent = i + 1; $("#score").textContent = score; $("#miss").textContent = "";
+    const t = $("#title"); t.replaceChildren(); const ic = document.createElement("span"); ic.className = "ic"; ic.textContent = st.ic; t.append(ic, st.t);
+    $("#done").replaceChildren(); slots();
+    $("#q").textContent = "ပထမဆုံး ဖြစ်တဲ့ စာကြောင်းကို နှိပ်ပါ";
+    const pile = $("#pile"); pile.replaceChildren();
+    let order = shuffle(st.lines.map((l, k) => k));
+    if (order.every((k, j) => k === j)) order.reverse();   // never hand the story over already in order
+    order.forEach(k => {
+      const b = document.createElement("button"); b.className = "so-card"; b.lang = "en"; b.textContent = st.lines[k][0];
+      const m = document.createElement("span"); m.className = "tr my"; m.lang = "my"; m.textContent = st.lines[k][1]; m.hidden = true; b.appendChild(m);
+      b.onclick = () => tap(b, k); pile.appendChild(b);
+    });
+    $("#fb").textContent = ""; $("#fb").className = "fb";
+    $("#tr").hidden = lvl > 2; $("#listen").hidden = true; $("#next").hidden = true;
+  }
+  function tap(btn, k) {
+    if (k !== at) {
+      miss++; sfx.bad(); fx.shake(btn); btn.classList.add("no"); setTimeout(() => btn.classList.remove("no"), 500);
+      $("#miss").textContent = "✖️".repeat(Math.min(miss, 5));
+      const fb = $("#fb"); fb.className = "fb no"; fb.textContent = at === 0 ? "ဒါက ပထမဆုံး မဟုတ်သေးဘူး။ ဇာတ်လမ်းဘယ်လိုစလဲ စဉ်းစားပါ။" : "အဲဒါ နောက်မှ ဖြစ်တာပါ။ အရင်ဖြစ်တာကို ရှာပါ။";
+      return;
+    }
+    sfx.ok(); btn.remove();
+    const row = document.createElement("div"); row.className = "so-line";
+    const n = document.createElement("span"); n.className = "n"; n.textContent = at + 1;
+    const body = document.createElement("div"), en = document.createElement("div"), my = document.createElement("div");
+    en.className = "en"; en.lang = "en"; en.textContent = st.lines[k][0]; my.className = "tr my"; my.textContent = st.lines[k][1]; my.hidden = !showMy;
+    body.append(en, my); row.append(n, body);
+    $("#done").appendChild(row); at++; slots();
+    $("#fb").textContent = ""; $("#fb").className = "fb";
+    $("#q").textContent = "နောက်ထပ် ဘာဖြစ်လဲ?";
+    if (at === st.lines.length - 1) { tap($("#pile").firstElementChild, at); return; }   // the last sentence places itself
+    if (at === st.lines.length) finish();
+  }
+  function finish() {
+    const pts = Math.max(10 - miss * 2, 2);
+    if (miss <= 1) right++;
+    score += pts; addPoints(pts); $("#score").textContent = score;
+    fx.pop($("#title"), "+" + pts); if (!miss) fx.confetti(fx.at($("#title")).x, fx.at($("#title")).y, 26);
+    [...document.querySelectorAll("#done .tr")].forEach(x => x.hidden = false);   // the translation is the reward for finishing
+    $("#q").textContent = "";
+    const fb = $("#fb"); fb.className = "fb ok"; fb.textContent = (miss ? "✓ ပြီးပါပြီ! " : "✓ တစ်ခါမှ မမှားဘူး! ") + "💡 " + st.clue;
+    $("#tr").hidden = true; $("#listen").hidden = false;
+    const n = $("#next"); n.hidden = false; n.textContent = i === list.length - 1 ? "Finish" : "Next story →"; n.focus();
+  }
+  $("#tr").onclick = () => { showMy = !showMy; [...document.querySelectorAll("#pile .tr, #done .tr")].forEach(x => x.hidden = !showMy); };
+  $("#listen").onclick = () => speak(st.lines.map(l => l[0]).join(" "));
+  $("#next").onclick = () => {
+    if (i < list.length - 1) { i++; show(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    const r = right / list.length;
+    showResult({ title: cheer(r), stars: starsFor(r), text: "ဇာတ်လမ်း " + right + " / " + list.length + " ပုဒ် ကောင်းကောင်းစီနိုင်တယ် · " + score + " points", onAgain: play });
+  };
+  play.gameId = "storyorder";
+  play();
+})();
+</script>
+</body>
+</html>
