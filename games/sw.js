@@ -1,4 +1,4 @@
-const CACHE = "english-games-v20";
+const CACHE = "english-games-v24";
 const FILES = [
   "./", "index.html", "senttrain.html", "questionmaker.html", "signreader.html", "chatreader.html", "piclisten.html", "voicenote.html", "writeit.html", "noticeboard.html", "storyorder.html", "infohunt.html", "letterwriter.html", "talktime.html", "readreply.html", "rewritelab.html", "missingpiece.html", "inference.html", "wordclue.html", "besttitle.html", "tfng.html", "basketcatch.html", "claw.html", "countfarm.html", "cupshuffle.html", "dressup.html",
   "feedmonster.html", "mysterybox.html", "paintlab.html", "penalty.html", "simonsays.html", "js/fx.js", "js/learn.js","aan.html", "alphabet.html", "balloon.html", "bingo.html", "blitz.html", "chain.html",
